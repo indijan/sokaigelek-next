@@ -50,6 +50,44 @@ export default function ChatWidget() {
   }, []);
 
   useEffect(() => {
+    if (!mounted) return;
+    try {
+      const raw = window.localStorage.getItem("sg_chat_state");
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      if (parsed?.conversationId) setConversationId(String(parsed.conversationId));
+      if (Array.isArray(parsed?.messages)) {
+        setMessages(parsed.messages as ChatMessage[]);
+      }
+    } catch {
+      // Ignore corrupted storage
+    }
+  }, [mounted]);
+
+  useEffect(() => {
+    if (!mounted) return;
+    try {
+      const storedMessages = messages
+        .filter((m) => !m.isTyping)
+        .map((m) => ({
+          id: m.id,
+          role: m.role,
+          content: m.content,
+          sources: m.sources,
+        }));
+      window.localStorage.setItem(
+        "sg_chat_state",
+        JSON.stringify({
+          conversationId,
+          messages: storedMessages,
+        })
+      );
+    } catch {
+      // Ignore storage issues
+    }
+  }, [mounted, messages, conversationId]);
+
+  useEffect(() => {
     const handler = () => setOpen(true);
     window.addEventListener("sg:chat:open", handler);
     return () => window.removeEventListener("sg:chat:open", handler);

@@ -541,7 +541,7 @@ export default async function ArticlePageRoute({ params }: Props) {
               </span>
               <div style={{ minWidth: 0 }}>
                 <div style={{ fontSize: 12, opacity: 0.75, marginBottom: 2 }}>Előző cikk</div>
-                <div style={{ fontWeight: 800, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                <div style={{ fontWeight: 800, lineHeight: 1.25, overflowWrap: "anywhere" }}>
                   {prevArticle.title}
                 </div>
               </div>
@@ -565,7 +565,7 @@ export default async function ArticlePageRoute({ params }: Props) {
             >
               <div style={{ minWidth: 0 }}>
                 <div style={{ fontSize: 12, opacity: 0.75, marginBottom: 2 }}>Következő cikk</div>
-                <div style={{ fontWeight: 800, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                <div style={{ fontWeight: 800, lineHeight: 1.25, overflowWrap: "anywhere" }}>
                   {nextArticle.title}
                 </div>
               </div>

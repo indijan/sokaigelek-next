@@ -163,6 +163,7 @@ function BuyBox({
   basePrice: number | null;
   sokaigelekPrice: number | null;
 }) {
+  const clubPrice = basePrice !== null ? basePrice * 0.7 : null;
   return (
     <div className="product-buy-box rounded-3xl border bg-white p-5 space-y-4 shadow-sm overflow-hidden">
       <div className="-mx-5 -mt-5 px-5 pt-5 pb-4 bg-gradient-to-b from-gray-50 to-white border-b">
@@ -170,12 +171,14 @@ function BuyBox({
           <div>
             <div className="text-xs font-semibold tracking-wide text-gray-700">Vásárlás</div>
             <div className="mt-1 text-sm text-gray-600">A vásárlás a DuoLife oldalán történik.</div>
+            {discountPct !== null ? (
+              <div className="mt-1 text-sm text-gray-600">
+                A Sokáig élek kedvezmény az alap árból:{" "}
+                <span className="font-semibold text-gray-900">{discountPct}%</span>
+              </div>
+            ) : null}
           </div>
-          {discountPct !== null ? (
-            <div className="shrink-0 rounded-full bg-black text-white text-xs px-3 py-1">-{discountPct}%</div>
-          ) : (
-            <div className="shrink-0 rounded-full border bg-white text-xs px-3 py-1 text-gray-700">Affiliate</div>
-          )}
+          <div className="shrink-0 rounded-full border bg-white text-xs px-3 py-1 text-gray-700">Affiliate</div>
         </div>
       </div>
 
@@ -205,6 +208,13 @@ function BuyBox({
                   <div className="text-xl font-extrabold text-gray-900">{formatHuf(sokaigelekPrice)}</div>
                 </div>
               ) : null}
+
+              {clubPrice !== null ? (
+                <div className="flex items-baseline justify-between gap-3">
+                  <div className="text-xs text-gray-600">Klubtag ár</div>
+                  <div className="font-semibold text-gray-900">{formatHuf(clubPrice)}</div>
+                </div>
+              ) : null}
             </div>
           </div>
         </div>
@@ -217,7 +227,7 @@ function BuyBox({
           target="_blank"
           rel="noopener noreferrer nofollow"
         >
-          {product.affiliate_label_1 || "Megnézem"}
+          {product.affiliate_label_1 || "Megveszem Sokáig élek áron"}
         </a>
 
         <a

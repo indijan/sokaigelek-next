@@ -1722,9 +1722,9 @@ section.product-tabs #tab-comp:checked + label {
 }
 
 .sg-chat-message.is-assistant .sg-chat-bubble {
-  background: #ffffff;
+  background: #fff7ee;
   color: #1f2937;
-  border: 1px solid rgba(148, 163, 184, 0.25);
+  border: 1px solid rgba(231, 215, 194, 0.9);
   border-bottom-left-radius: 6px;
   box-shadow: 0 10px 20px rgba(15, 23, 42, 0.08);
 }
@@ -1898,6 +1898,14 @@ section.product-tabs #tab-comp:checked + label {
     width: auto;
     height: auto;
     border-radius: 20px;
-    padding: 14px;
+    padding: 12px;
+  }
+
+  .sg-chat-body {
+    padding: 12px;
+  }
+
+  .sg-chat-inputbar {
+    padding: 8px 10px;
   }
 }
