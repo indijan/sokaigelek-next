@@ -62,6 +62,15 @@ export default function SiteHeader() {
 
         <nav className={`site-nav ${menuOpen ? "is-open" : ""}`} aria-label="Fő navigáció">
           <Link
+            href="/"
+            className={isActive("/") ? "is-active" : undefined}
+            aria-current={isActive("/") ? "page" : undefined}
+            onClick={() => setMenuOpen(false)}
+          >
+            Főoldal
+          </Link>
+
+          <Link
             href="/cikkek"
             className={isActive("/cikkek") ? "is-active" : undefined}
             aria-current={isActive("/cikkek") ? "page" : undefined}

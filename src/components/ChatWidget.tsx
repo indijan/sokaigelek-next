@@ -16,6 +16,8 @@ type ChatMessage = {
   role: "user" | "assistant";
   content: string;
   sources?: SearchResult[];
+  visibleContent?: string;
+  isTyping?: boolean;
 };
 
 function getOrCreateUserId() {
@@ -40,6 +42,7 @@ export default function ChatWidget() {
   const [error, setError] = useState<string | null>(null);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  const typingRef = useRef<{ id: string | null; timer: number | null }>({ id: null, timer: null });
 
   useEffect(() => {
     setMounted(true);
@@ -56,6 +59,46 @@ export default function ChatWidget() {
     if (!el) return;
     el.scrollTop = el.scrollHeight;
   }, [messages, loading, open]);
+
+  useEffect(() => {
+    const typingMsg = messages.find((m) => m.isTyping);
+    if (!typingMsg) {
+      if (typingRef.current.timer) {
+        window.clearInterval(typingRef.current.timer);
+        typingRef.current = { id: null, timer: null };
+      }
+      return;
+    }
+
+    if (typingRef.current.id === typingMsg.id && typingRef.current.timer) return;
+    if (typingRef.current.timer) {
+      window.clearInterval(typingRef.current.timer);
+    }
+
+    const full = typingMsg.content;
+    typingRef.current.id = typingMsg.id;
+    typingRef.current.timer = window.setInterval(() => {
+      let done = false;
+      setMessages((prev) =>
+        prev.map((msg) => {
+          if (msg.id !== typingMsg.id) return msg;
+          const visible = msg.visibleContent ?? "";
+          const nextLen = Math.min(visible.length + 2, full.length);
+          const next = full.slice(0, nextLen);
+          if (nextLen >= full.length) done = true;
+          return {
+            ...msg,
+            visibleContent: next,
+            isTyping: !done,
+          };
+        })
+      );
+      if (done && typingRef.current.timer) {
+        window.clearInterval(typingRef.current.timer);
+        typingRef.current = { id: null, timer: null };
+      }
+    }, 18);
+  }, [messages]);
 
   const submit = async (evt?: React.FormEvent) => {
     evt?.preventDefault();
@@ -96,6 +139,8 @@ export default function ChatWidget() {
         role: "assistant",
         content: json.answer || "Sajnálom, most nem sikerült válaszolnom.",
         sources: Array.isArray(json.sources) ? json.sources : undefined,
+        visibleContent: "",
+        isTyping: true,
       };
       setMessages((prev) => [...prev, assistantMsg]);
     } catch (err: any) {
@@ -161,8 +206,8 @@ export default function ChatWidget() {
                 className={`sg-chat-message ${m.role === "user" ? "is-user" : "is-assistant"}`}
               >
                 <div className="sg-chat-bubble">
-                  {m.content}
-                  {m.role === "assistant" && m.sources && m.sources.length > 0 ? (
+                  {m.isTyping ? m.visibleContent : m.content}
+                  {m.role === "assistant" && !m.isTyping && m.sources && m.sources.length > 0 ? (
                     <div className="sg-chat-sources">
                       <div className="sg-chat-sources-title">Források</div>
                       {m.sources.map((s) => (

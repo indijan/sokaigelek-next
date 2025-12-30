@@ -664,7 +664,7 @@ a:hover {
   .site-header .inner {
     height: auto;
     flex-wrap: wrap;
-    padding: 8px 0;
+    padding: 8px 12px;
   }
 
   .nav-toggle {
@@ -677,7 +677,7 @@ a:hover {
     flex-direction: column;
     align-items: stretch;
     gap: 0.4rem;
-    padding: 0.5rem 0 0.75rem;
+    padding: 0.5rem 0.4rem 0.75rem;
   }
 
   .site-nav.is-open {
@@ -1098,6 +1098,29 @@ img.img-1-1 {
   max-width: 100%;
   height: auto;
   border-radius: 14px;
+}
+
+.article-prose,
+.prose {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.article-prose table,
+.prose table {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.article-prose iframe,
+.article-prose video,
+.article-prose embed,
+.prose iframe,
+.prose video,
+.prose embed {
+  max-width: 100%;
 }
 
 /* ---- Two-column layout on desktop ---- */
@@ -1850,10 +1873,12 @@ section.product-tabs #tab-comp:checked + label {
 
 @media (max-width: 640px) {
   .sg-chat-panel {
+    left: 12px;
     right: 12px;
+    top: 12px;
     bottom: 12px;
-    width: calc(100vw - 24px);
-    height: calc(100vh - 24px);
+    width: auto;
+    height: auto;
     border-radius: 20px;
     padding: 14px;
   }
