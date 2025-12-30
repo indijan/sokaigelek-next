@@ -4,7 +4,7 @@ import type React from "react";
 
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
-import PredictableDialogPopup from "@/components/PredictableDialogPopup";
+import ChatWidget from "@/components/ChatWidget";
 
 export const metadata: Metadata = {
   title: "Sokáig élek",
@@ -25,8 +25,8 @@ export default function RootLayout({
 
         <SiteFooter />
 
-        {/* Globális PredictableDialog popup – pontosan egyszer */}
-        <PredictableDialogPopup />
+        {/* Globális chat widget – pontosan egyszer */}
+        <ChatWidget />
       </body>
     </html>
   );

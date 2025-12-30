@@ -11,6 +11,30 @@ type ChatReq = {
     consent?: boolean;
 };
 
+type SearchResult = {
+    id: string | number;
+    type: "post" | "product";
+    title: string;
+    url: string | null;
+    snippet: string;
+};
+
+async function fetchSearchResults(query: string, reqUrl: string, limit = 5): Promise<SearchResult[]> {
+    const url = new URL("/api/ai-search", reqUrl);
+    url.searchParams.set("q", query);
+    url.searchParams.set("limit", String(limit));
+
+    const res = await fetch(url.toString(), {
+        method: "GET",
+        headers: { Accept: "application/json" },
+    });
+
+    if (!res.ok) return [];
+    const json = await res.json();
+    if (!json?.results || !Array.isArray(json.results)) return [];
+    return json.results as SearchResult[];
+}
+
 export async function POST(req: Request) {
     const start = Date.now();
     const body = (await req.json()) as ChatReq;
@@ -51,10 +75,25 @@ export async function POST(req: Request) {
         if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
+    const sources = await fetchSearchResults(body.message, req.url, 5);
+    const sourcesText = sources
+        .map((s, i) => {
+            const url = s.url ? ` (${s.url})` : "";
+            return `${i + 1}. ${s.title}${url}\n${s.snippet}`;
+        })
+        .join("\n\n");
+
     // 3) call OpenAI (egyszerű, első kör)
     const sys =
-        "Te a sokaigelek.hu segítő asszisztense vagy. Röviden, barátságosan, edukatívan válaszolsz. " +
+        "Te a sokaigelek.hu kedves, segítőkész asszisztense vagy. Magyarul, tegeződve válaszolsz. " +
+        "Adj rövid, hasznos, gyakorlati tanácsot (2-4 mondat), majd ha releváns, ajánlj 1-2 kapcsolódó terméket. " +
+        "Kizárólag a megadott forrásokra támaszkodj, és ne találj ki információt. " +
+        "Ha nincs releváns találat, kérj pontosítást egy barátságos kérdéssel. " +
         "Fontos: a vásárlás a partner oldalon történik (affiliate). Ha orvosi kérdés, javasolj szakembert.";
+
+    const userContent = sources.length
+        ? `Kérdés: ${body.message}\n\nForrások:\n${sourcesText}`
+        : `Kérdés: ${body.message}\n\nForrások: nincs releváns találat. Kérj pontosítást röviden.`;
 
     const openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
         method: "POST",
@@ -66,7 +105,7 @@ export async function POST(req: Request) {
             model: "gpt-4.1-mini",
             messages: [
                 { role: "system", content: sys },
-                { role: "user", content: body.message },
+                { role: "user", content: userContent },
             ],
             temperature: 0.4,
         }),
@@ -95,5 +134,6 @@ export async function POST(req: Request) {
     return NextResponse.json({
         conversationId,
         answer,
+        sources,
     });
 }
