@@ -4,7 +4,20 @@ import Image from "next/image";
 import type { CSSProperties } from "react";
 import { supabaseServer } from "@/lib/supabaseServer";
 
-const TOPICS = [
+type Topic =
+  | {
+      label: string;
+      action: "chat";
+      image?: string;
+    }
+  | {
+      label: string;
+      href: string;
+      image: string;
+      action?: "cta";
+    };
+
+const TOPICS: Topic[] = [
   {
     label: "Tudatos élet",
     href: "/cikkek?cat=tudatos-elet",
