@@ -43,6 +43,7 @@ export default function ChatWidget() {
   const [conversationId, setConversationId] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const typingRef = useRef<{ id: string | null; timer: number | null }>({ id: null, timer: null });
+  const canSend = input.trim().length > 0 && !loading;
 
   useEffect(() => {
     setMounted(true);
@@ -245,7 +246,11 @@ export default function ChatWidget() {
               placeholder="Ide írd a kérdésed..."
               className="sg-chat-input"
             />
-            <button type="submit" disabled={loading} className="sg-chat-send">
+            <button
+              type="submit"
+              disabled={!canSend}
+              className={`sg-chat-send ${canSend ? "is-active" : ""}`}
+            >
               ELKÜLD
             </button>
           </form>

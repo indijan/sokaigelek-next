@@ -1100,6 +1100,11 @@ img.img-1-1 {
   border-radius: 14px;
 }
 
+.article-title {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
 .article-prose,
 .prose {
   overflow-wrap: anywhere;
@@ -1710,9 +1715,10 @@ section.product-tabs #tab-comp:checked + label {
 }
 
 .sg-chat-message.is-user .sg-chat-bubble {
-  background: #2b2a2c;
+  background: linear-gradient(145deg, #f8a98a 0%, #ef7f62 100%);
   color: #ffffff;
   border-bottom-right-radius: 6px;
+  box-shadow: 0 10px 20px rgba(239, 127, 98, 0.25);
 }
 
 .sg-chat-message.is-assistant .sg-chat-bubble {
@@ -1720,6 +1726,7 @@ section.product-tabs #tab-comp:checked + label {
   color: #1f2937;
   border: 1px solid rgba(148, 163, 184, 0.25);
   border-bottom-left-radius: 6px;
+  box-shadow: 0 10px 20px rgba(15, 23, 42, 0.08);
 }
 
 .sg-chat-sources {
@@ -1795,19 +1802,30 @@ section.product-tabs #tab-comp:checked + label {
 
 .sg-chat-send {
   border: none;
-  background: #f7b59c;
+  background: #f3d5ca;
   color: #ffffff;
   border-radius: 12px;
   padding: 10px 16px;
   font-size: 14px;
   font-weight: 800;
   letter-spacing: 0.6px;
-  cursor: pointer;
+  cursor: default;
+  transition: transform 160ms ease, box-shadow 160ms ease, background 160ms ease;
 }
 
 .sg-chat-send:disabled {
   opacity: 0.7;
   cursor: default;
+}
+
+.sg-chat-send.is-active {
+  background: #f7b59c;
+  cursor: pointer;
+  box-shadow: 0 10px 18px rgba(239, 127, 98, 0.2);
+}
+
+.sg-chat-send.is-active:hover {
+  transform: translateY(-1px);
 }
 
 .sg-chat-footer {

@@ -117,7 +117,53 @@ function tokenMatch(haystackRaw: string, tokenVariant: string) {
         if (i >= min) return true;
     }
 
+    if (fuzzyTokenMatch(v, hayTokens)) return true;
+
     return false;
+}
+
+function fuzzyTokenMatch(token: string, hayTokens: string[]) {
+    if (token.length < 4) return false;
+
+    const maxDist = token.length <= 6 ? 1 : 2;
+    for (const ht of hayTokens) {
+        if (Math.abs(ht.length - token.length) > maxDist) continue;
+        if (levenshteinWithin(token, ht, maxDist)) return true;
+    }
+    return false;
+}
+
+function levenshteinWithin(a: string, b: string, max: number) {
+    const alen = a.length;
+    const blen = b.length;
+    if (Math.abs(alen - blen) > max) return false;
+
+    const prev = new Array(blen + 1).fill(0);
+    const curr = new Array(blen + 1).fill(0);
+
+    for (let j = 0; j <= blen; j++) prev[j] = j;
+
+    for (let i = 1; i <= alen; i++) {
+        curr[0] = i;
+        let rowMin = curr[0];
+        const ai = a.charCodeAt(i - 1);
+
+        for (let j = 1; j <= blen; j++) {
+            const cost = ai === b.charCodeAt(j - 1) ? 0 : 1;
+            const val = Math.min(
+                prev[j] + 1,
+                curr[j - 1] + 1,
+                prev[j - 1] + cost
+            );
+            curr[j] = val;
+            if (val < rowMin) rowMin = val;
+        }
+
+        if (rowMin > max) return false;
+        for (let j = 0; j <= blen; j++) prev[j] = curr[j];
+    }
+
+    return prev[blen] <= max;
 }
 
 function matchesQuery(haystackRaw: string, qRaw: string) {

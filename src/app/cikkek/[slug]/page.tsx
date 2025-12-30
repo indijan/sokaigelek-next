@@ -379,7 +379,9 @@ export default async function ArticlePageRoute({ params }: Props) {
 
       {/* Hero */}
       <header style={{ marginTop: 16, marginBottom: 18 }}>
-        <h1 style={{ fontSize: 40, lineHeight: 1.15, margin: "10px 0 8px", letterSpacing: "-0.02em" }}>{article.title}</h1>
+        <h1 className="article-title" style={{ fontSize: 40, lineHeight: 1.15, margin: "10px 0 8px", letterSpacing: "-0.02em" }}>
+          {article.title}
+        </h1>
         {dateLabel ? (
           <div style={{ fontSize: 14, opacity: 0.75 }}>Közzétéve: {dateLabel}</div>
         ) : null}
