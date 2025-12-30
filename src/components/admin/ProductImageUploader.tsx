@@ -4,6 +4,7 @@ import { useState } from "react";
 
 export default function ProductImageUploader(props: {
     slug: string;
+    productId?: string;
     initialUrl?: string | null;
 }) {
     const [imageUrl, setImageUrl] = useState(props.initialUrl ?? "");
@@ -40,13 +41,50 @@ export default function ProductImageUploader(props: {
         setFile(null);
     }
 
+    async function deleteImage() {
+        if (!confirm("Biztosan törlöd a képet?")) return;
+
+        setLoading(true);
+        setErr("");
+
+        const fd = new FormData();
+        fd.append("slug", props.slug);
+        if (props.productId) fd.append("product_id", props.productId);
+
+        const res = await fetch("/api/admin/delete-product-image", {
+            method: "POST",
+            body: fd,
+        });
+
+        const json = await res.json();
+        setLoading(false);
+
+        if (!res.ok) {
+            setErr(json?.error || "Nem sikerült törölni a képet.");
+            return;
+        }
+
+        setImageUrl("");
+        setFile(null);
+    }
+
     return (
         <div className="border rounded-2xl p-4 space-y-3">
             <div className="font-semibold">Kép</div>
 
             {imageUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={imageUrl} alt="" className="w-48 rounded-xl border" />
+                <div className="space-y-2">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={imageUrl} alt="" className="w-48 rounded-xl border" />
+                    <button
+                        type="button"
+                        onClick={deleteImage}
+                        disabled={loading}
+                        className="text-sm text-red-600 underline disabled:opacity-60"
+                    >
+                        Kép törlése
+                    </button>
+                </div>
             ) : (
                 <div className="text-sm text-gray-600">Nincs kép feltöltve.</div>
             )}
