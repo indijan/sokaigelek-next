@@ -391,8 +391,11 @@ export default async function ProductPageRoute({ params }: Props) {
             </h1>
 
             {product.short ? (
-              <div className="prose prose-neutral max-w-none text-gray-700">
-                <div dangerouslySetInnerHTML={{ __html: String(product.short) }} />
+              <div className="product-shortbox">
+                <div className="product-shortbox-title">Röviden</div>
+                <div className="prose prose-neutral max-w-none text-gray-700">
+                  <div dangerouslySetInnerHTML={{ __html: String(product.short) }} />
+                </div>
               </div>
             ) : null}
           </header>
