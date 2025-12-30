@@ -192,6 +192,58 @@ function excerptFrom(htmlOrText: string, max = 220) {
     return txt.slice(0, max).replace(/\s+\S*$/, "").trim() + "…";
 }
 
+function snippetFrom(htmlOrText: string, max = 1400) {
+    const txt = stripHtml(htmlOrText || "");
+    if (txt.length <= max) return txt;
+    return txt.slice(0, max).replace(/\s+\S*$/, "").trim() + "…";
+}
+
+function candidateQueries(q: string) {
+    const qLower = normalizeHu(q);
+
+    const includesAny = (needles: string[]) => needles.some((n) => qLower.includes(normalizeHu(n)));
+
+    if (
+        includesAny([
+            "éhség", "ehseg", "éhes", "ehe", "étvágy", "etvagy",
+            "nassol", "falás", "falas", "cukoréhs", "cukorehs",
+        ])
+    ) {
+        return ["éhség", "étvágy", "nassolás", "cukoréhség", "fogyás", "testsúly"];
+    }
+
+    if (
+        includesAny([
+            "fogy", "fogyn", "súly", "suly", "diét", "diet", "kalória", "kaloria",
+        ])
+    ) {
+        return ["fogyás", "testsúly", "diéta", "anyagcsere"];
+    }
+
+    if (includesAny(["stressz", "stress", "stresszes"])) {
+        return ["stressz", "stress", "feszültség", "szorongás", "kimerültség", "kortizol"];
+    }
+
+    if (includesAny(["fejf", "migr", "fejem"])) {
+        return ["fejfájás", "migrén"];
+    }
+
+    if (includesAny(["alv", "nem alszom", "rosszul alszom"])) {
+        return ["alvás", "alvászavar", "pihenés"];
+    }
+
+    if (includesAny(["fárad", "farad", "kimer", "energia"])) {
+        return ["fáradtság", "energia", "kimerültség", "vitalitás"];
+    }
+
+    const parts = q.trim().split(/\s+/).filter(Boolean);
+    if (parts.length > 8) {
+        return [q, "stressz", "alvás", "fáradtság", "fejfájás", "fogyás", "éhség"];
+    }
+
+    return [q];
+}
+
 export async function GET(req: Request) {
     const url = new URL(req.url);
     const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || "https://sokaigelek.hu").replace(/\/$/, "");
@@ -259,67 +311,96 @@ export async function GET(req: Request) {
         const productsRaw = (pRes.data || []) as any[];
         const articlesRaw = (aRes.data || []) as any[];
 
-        const scoredArticles = articlesRaw
-            .map((a) => {
-                const hay = articleHaystack(a);
-                const score = scoreMatch(hay, qRaw);
-                const title = pickTitle(a);
-                const titleBonus = normalizeHu(title).includes(normalizeHu(qRaw)) ? 5 : 0;
-                return { a, hay, score: score + titleBonus };
-            })
-            .filter((x) => matchesQuery(x.hay, qRaw) && x.score >= (queryTokens(qRaw).length >= 2 ? 3 : 1))
-            .sort((x, y) => y.score - x.score)
-            .slice(0, limit)
-            .map(({ a, score }) => ({
-                type: "article" as const,
-                id: a.id,
-                title: a.title || a.post_title || "",
-                slug: a.slug,
-                score,
-                path: a.slug ? `/cikkek/${a.slug}` : null,
-                url: a.slug ? absUrl(`/cikkek/${a.slug}`) : null,
-                image_url: a.featured_image_url || a.cover_url || null,
-                excerpt: excerptFrom(a.excerpt || a.intro || a.content || a.post_content || "", 220),
-            }));
+        const runSearch = (query: string) => {
+            const scoredArticles = articlesRaw
+                .map((a) => {
+                    const hay = articleHaystack(a);
+                    const score = scoreMatch(hay, query);
+                    const title = pickTitle(a);
+                    const titleBonus = normalizeHu(title).includes(normalizeHu(query)) ? 5 : 0;
+                    return { a, hay, score: score + titleBonus };
+                })
+                .filter((x) => matchesQuery(x.hay, query) && x.score >= (queryTokens(query).length >= 2 ? 3 : 1))
+                .sort((x, y) => y.score - x.score)
+                .slice(0, limit)
+                .map(({ a, score }) => ({
+                    type: "post" as const,
+                    id: a.id,
+                    title: a.title || a.post_title || "",
+                    slug: a.slug,
+                    score,
+                    path: a.slug ? `/cikkek/${a.slug}` : null,
+                    url: a.slug ? absUrl(`/cikkek/${a.slug}`) : null,
+                    image_url: a.featured_image_url || a.cover_url || null,
+                    excerpt: excerptFrom(a.excerpt || a.intro || a.content || a.post_content || "", 220),
+                    snippet: snippetFrom(a.excerpt || a.intro || a.content || a.post_content || "", 1400),
+                }));
 
-        const scoredProducts = productsRaw
-            .map((p) => {
-                const hay = productHaystack(p);
-                const score = scoreMatch(hay, qRaw);
-                const title = pickTitle(p);
-                const titleBonus = normalizeHu(title).includes(normalizeHu(qRaw)) ? 5 : 0;
-                return { p, hay, score: score + titleBonus };
-            })
-            .filter((x) => matchesQuery(x.hay, qRaw) && x.score >= (queryTokens(qRaw).length >= 2 ? 3 : 1))
-            .sort((x, y) => y.score - x.score)
-            .slice(0, limit)
-            .map(({ p, score }) => ({
-                type: "product" as const,
-                id: p.id,
-                title: pickTitle(p),
-                slug: p.slug,
-                score,
-                path: p.slug ? `/termek/${p.slug}` : null,
-                url: p.slug ? absUrl(`/termek/${p.slug}`) : null,
-                image_url: p.featured_image_url || p.image_url || null,
-                price: p.price ?? null,
-                regular_price: p.regular_price ?? null,
-                excerpt: excerptFrom(
-                    p.excerpt || p.post_excerpt || p.short_description || p.description || p.post_content || "",
-                    220
-                ),
-            }));
+            const scoredProducts = productsRaw
+                .map((p) => {
+                    const hay = productHaystack(p);
+                    const score = scoreMatch(hay, query);
+                    const title = pickTitle(p);
+                    const titleBonus = normalizeHu(title).includes(normalizeHu(query)) ? 5 : 0;
+                    return { p, hay, score: score + titleBonus };
+                })
+                .filter((x) => matchesQuery(x.hay, query) && x.score >= (queryTokens(query).length >= 2 ? 3 : 1))
+                .sort((x, y) => y.score - x.score)
+                .slice(0, limit)
+                .map(({ p, score }) => ({
+                    type: "product" as const,
+                    id: p.id,
+                    title: pickTitle(p),
+                    slug: p.slug,
+                    score,
+                    path: p.slug ? `/termek/${p.slug}` : null,
+                    url: p.slug ? absUrl(`/termek/${p.slug}`) : null,
+                    image_url: p.featured_image_url || p.image_url || null,
+                    price: p.price ?? null,
+                    regular_price: p.regular_price ?? null,
+                    excerpt: excerptFrom(
+                        p.excerpt || p.post_excerpt || p.short_description || p.description || p.post_content || "",
+                        220
+                    ),
+                    snippet: snippetFrom(
+                        p.post_excerpt || p.short_description || p.excerpt || p.description || p.post_content || "",
+                        1400
+                    ),
+                }));
 
-        // Cikkek legyenek elöl (ahogy kérted)
+            return { scoredArticles, scoredProducts };
+        };
+
+        let usedQuery = qRaw;
+        let { scoredArticles, scoredProducts } = runSearch(qRaw);
+
+        if (scoredArticles.length === 0 && scoredProducts.length === 0) {
+            for (const cand of candidateQueries(qRaw)) {
+                const trimmed = cand.trim();
+                if (!trimmed) continue;
+                const res = runSearch(trimmed);
+                if (res.scoredArticles.length > 0 || res.scoredProducts.length > 0) {
+                    usedQuery = trimmed;
+                    scoredArticles = res.scoredArticles;
+                    scoredProducts = res.scoredProducts;
+                    break;
+                }
+            }
+        }
+
+        const merged = [...scoredProducts, ...scoredArticles].slice(0, limit);
+
         return NextResponse.json(
             {
-                ok: true,
-                query: qRaw,
-                limit,
-                results: {
-                    articles: scoredArticles,
-                    products: scoredProducts,
-                },
+                query: usedQuery,
+                count: merged.length,
+                results: merged.map((item) => ({
+                    id: item.id,
+                    type: item.type,
+                    title: item.title,
+                    url: item.url,
+                    snippet: item.snippet,
+                })),
             },
             { status: 200 }
         );
