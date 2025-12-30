@@ -31,13 +31,18 @@ function stripProductMarkers(html: string) {
 function safeJsonParsePlacements(text: string): Array<{ slug: string; afterParagraph: number }> {
     try {
         const obj = JSON.parse(text);
-        const arr = Array.isArray(obj?.placements) ? obj.placements : [];
+        const arr = Array.isArray(obj?.placements)
+            ? (obj.placements as Array<{ slug?: unknown; afterParagraph?: unknown }>)
+            : [];
         return arr
-            .map((p: any) => ({
-                slug: String(p?.slug || "").toLowerCase().trim(),
-                afterParagraph: Number(p?.afterParagraph),
+            .map((p) => ({
+                slug: String(p.slug || "").toLowerCase().trim(),
+                afterParagraph: Number(p.afterParagraph),
             }))
-            .filter((p) => p.slug && Number.isFinite(p.afterParagraph));
+            .filter(
+                (p): p is { slug: string; afterParagraph: number } =>
+                    Boolean(p.slug) && Number.isFinite(p.afterParagraph)
+            );
     } catch {
         return [];
     }
