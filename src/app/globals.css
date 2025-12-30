@@ -1105,10 +1105,6 @@ img.img-1-1 {
   word-break: break-word;
 }
 
-.product-page {
-  overflow-x: hidden;
-}
-
 .product-title {
   overflow-wrap: anywhere;
   word-break: break-word;
