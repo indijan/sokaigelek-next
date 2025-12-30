@@ -285,7 +285,7 @@ export default async function ArticlePageRoute({ params }: Props) {
   const dateLabel = formatDate((article as any).published_at || (article as any).created_at || null);
 
   return (
-    <main style={{ maxWidth: 1120, margin: "0 auto", padding: "28px 20px 60px" }}>
+    <main className="container page">
       <style
         dangerouslySetInnerHTML={{
           __html: `

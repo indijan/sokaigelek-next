@@ -324,7 +324,7 @@ export default async function ProductPageRoute({ params }: Props) {
   }
 
   return (
-    <main className="max-w-5xl mx-auto px-4 py-10 space-y-10">
+    <main className="container page product-page space-y-10">
       <nav className="text-sm text-gray-500">
         <div className="inline-flex items-center gap-2 rounded-full border bg-white/70 px-3 py-1">
           <a className="hover:text-gray-800" href="/">Kezdőlap</a>
@@ -386,7 +386,7 @@ export default async function ProductPageRoute({ params }: Props) {
         {/* Right: content */}
         <div className="space-y-6 w-full min-w-0 self-start">
           <header className="space-y-3">
-            <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight">
+            <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight product-title">
               {product.name}
             </h1>
 
