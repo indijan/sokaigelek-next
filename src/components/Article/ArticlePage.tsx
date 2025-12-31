@@ -151,54 +151,6 @@ export default function ArticlePage({ article }: { article: DbArticle }) {
           })}
         </div>
       )}
-    {Array.isArray(article.related_product_slugs) &&
-    article.related_product_slugs.length > 0 ? (
-      <section className="border-t pt-10 space-y-6">
-        <h2 className="text-2xl font-semibold">
-          Ajánlott termékek
-        </h2>
-
-        <div className="grid gap-4 sm:grid-cols-2">
-          {article.related_product_slugs.map((slug) => (
-            <div
-              key={slug}
-              className="border rounded-xl p-5 flex flex-col justify-between card-hover"
-            >
-              <Link href={`/termek/${slug}`} className="block space-y-2">
-                <div className="font-medium text-lg">{slug.replace(/-/g, " ")}</div>
-                <p className="text-sm text-gray-600">A cikk tartalma alapján ajánlva</p>
-              </Link>
-
-              <div className="mt-4 flex flex-wrap gap-2">
-                <Link
-                  href={`/termek/${slug}`}
-                  className="inline-flex justify-center rounded-lg border px-4 py-2 text-sm"
-                >
-                  Részletek
-                </Link>
-
-                <a
-                  href={`/out/${slug}?to=1`}
-                  target="_blank"
-                  rel="noopener noreferrer nofollow"
-                  className="inline-flex justify-center rounded-lg bg-black text-white px-4 py-2 text-sm"
-                >
-                  Megnézem (1)
-                </a>
-                <a
-                  href={`/out/${slug}?to=2`}
-                  target="_blank"
-                  rel="noopener noreferrer nofollow"
-                  className="inline-flex justify-center rounded-lg border px-4 py-2 text-sm"
-                >
-                  Megnézem (2)
-                </a>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
-    ) : null}
     </article>
   );
 }

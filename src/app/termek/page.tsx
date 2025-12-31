@@ -49,9 +49,13 @@ function formatFt(value: unknown) {
 export default async function ProductsIndexPage({
   searchParams,
 }: {
-  searchParams?: Promise<{ page?: string; tag?: string }>;
+  searchParams?: Promise<{ page?: string; tag?: string; slugs?: string }>;
 }) {
   const params = (await searchParams) ?? {};
+  const slugFilter = String(params.slugs ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
   const page = Number(params.page ?? "1");
   const safePage = Number.isFinite(page) && page > 0 ? page : 1;
   const offset = (safePage - 1) * PAGE_SIZE;
@@ -63,57 +67,61 @@ export default async function ProductsIndexPage({
   const supportsStatus = !statusErr;
 
   // --- Automatikus tag lista (dinamikus) ---
-  const { data: tagRows } = await supabaseServer
-    .from("products")
-    .select(supportsStatus ? "tags,status" : "tags");
-
   const tagMap = new Map<string, string>();
   const tagCountMap = new Map<string, number>();
   let totalAllCount = 0;
-  (tagRows ?? []).forEach((row: any) => {
-    if (supportsStatus && row.status !== "published") return;
-    totalAllCount += 1;
-    if (Array.isArray(row.tags)) {
-      const seen = new Set<string>();
-      row.tags.forEach((t: string) => {
-        if (!t || typeof t !== "string") return;
-        const trimmed = t.trim();
-        if (!trimmed) return;
-        const key = trimmed.toLowerCase();
-        if (!seen.has(key)) {
-          seen.add(key);
-          tagCountMap.set(key, (tagCountMap.get(key) ?? 0) + 1);
-        }
-        if (!tagMap.has(key)) tagMap.set(key, trimmed);
-      });
-    }
-  });
+  let dynamicTags: string[] = [];
+  if (!slugFilter.length) {
+    const { data: tagRows } = await supabaseServer
+      .from("products")
+      .select(supportsStatus ? "tags,status" : "tags");
 
-  const dynamicTags = Array.from(tagMap.values()).sort((a, b) => a.localeCompare(b, "hu"));
+    (tagRows ?? []).forEach((row: any) => {
+      if (supportsStatus && row.status !== "published") return;
+      totalAllCount += 1;
+      if (Array.isArray(row.tags)) {
+        const seen = new Set<string>();
+        row.tags.forEach((t: string) => {
+          if (!t || typeof t !== "string") return;
+          const trimmed = t.trim();
+          if (!trimmed) return;
+          const key = trimmed.toLowerCase();
+          if (!seen.has(key)) {
+            seen.add(key);
+            tagCountMap.set(key, (tagCountMap.get(key) ?? 0) + 1);
+          }
+          if (!tagMap.has(key)) tagMap.set(key, trimmed);
+        });
+      }
+    });
 
-  let query = supabaseServer
-    .from("products")
-    .select("*", { count: "exact" })
-    .order("name", { ascending: true });
+    dynamicTags = Array.from(tagMap.values()).sort((a, b) => a.localeCompare(b, "hu"));
+  }
+
+  let query = slugFilter.length
+    ? supabaseServer.from("products").select("*").order("name", { ascending: true })
+    : supabaseServer.from("products").select("*", { count: "exact" }).order("name", { ascending: true });
 
   // Tag filter (will work once tags are stored, e.g. in `tags` array column)
   const activeTagRaw = String(params.tag ?? "osszes");
   const activeTagLower = activeTagRaw.toLowerCase();
-  if (activeTagLower !== "osszes") {
+  if (!slugFilter.length && activeTagLower !== "osszes") {
     query = query.contains("tags", [activeTagRaw]);
+  }
+  if (slugFilter.length) {
+    query = query.in("slug", slugFilter);
   }
   if (supportsStatus) {
     query = query.eq("status", "published");
   }
 
-  const { data: products, error, count } = await query.range(
-    offset,
-    offset + PAGE_SIZE - 1
-  );
+  const { data: products, error, count } = slugFilter.length
+    ? await query
+    : await query.range(offset, offset + PAGE_SIZE - 1);
 
   const visibleProducts = products ?? [];
 
-  const total = count ?? 0;
+  const total = slugFilter.length ? visibleProducts.length : count ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   if (error) {
@@ -131,12 +139,16 @@ export default async function ProductsIndexPage({
     <div className="mx-auto w-full max-w-6xl px-4 py-10">
       <div className="mb-8 flex items-end justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-slate-900">Étrend-kiegészítők</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-slate-900">
+            {slugFilter.length ? "Kapcsolódó termékek" : "Étrend-kiegészítők"}
+          </h1>
           <p className="mt-2 text-sm text-slate-600">
-            Válogass a kiemelt, természetes összetevőkből készült termékeink közül.
+            {slugFilter.length
+              ? "Ezeket a termékeket ajánljuk a cikk tartalma alapján."
+              : "Válogass a kiemelt, természetes összetevőkből készült termékeink közül."}
           </p>
           {/* TAG SZŰRŐ (server-oldali, query param alapú) */}
-          {(() => {
+          {!slugFilter.length ? (() => {
             const activeTag = activeTagRaw;
             const tagOptions: Array<{ label: string; value: string; count: number }> = [
               { label: "Összes", value: "osszes", count: totalAllCount },
@@ -180,9 +192,17 @@ export default async function ProductsIndexPage({
                 })}
               </div>
             );
-          })()}
+          })() : null}
         </div>
-        {/* Vissza a főoldalra button removed */}
+        {slugFilter.length ? (
+          <Link
+            href="/termek"
+            className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+          >
+            Összes termék
+            <span aria-hidden>→</span>
+          </Link>
+        ) : null}
       </div>
 
       <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">

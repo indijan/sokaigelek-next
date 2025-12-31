@@ -12,7 +12,7 @@ export const metadata = {
 export default function AdminLayout({ children }: { children: ReactNode }) {
   return (
     <div
-      className="min-h-screen bg-slate-50 text-slate-900"
+      className="admin-shell min-h-screen bg-slate-50 text-slate-900"
     >
       <div
         className="max-w-[1200px] mx-auto px-4 pb-10 pt-4"

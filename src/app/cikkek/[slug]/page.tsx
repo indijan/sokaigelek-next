@@ -253,15 +253,9 @@ export default async function ArticlePageRoute({ params }: Props) {
     nextArticle = nextRes.data || null;
   }
 
-  // --- Related products (optional, tolerate multiple shapes) ---
-  const rawRelated = (article as any).related_products ?? (article as any).relatedProducts ?? null;
-  let relatedProducts: any[] = [];
-  try {
-    if (Array.isArray(rawRelated)) relatedProducts = rawRelated;
-    else if (typeof rawRelated === "string" && rawRelated.trim().startsWith("[")) relatedProducts = JSON.parse(rawRelated);
-  } catch {
-    relatedProducts = [];
-  }
+  const relatedProductSlugs = Array.isArray((article as any).related_product_slugs)
+    ? (article as any).related_product_slugs.filter(Boolean)
+    : [];
 
   // --- Inline product placeholders ---
   const contentHtml = safeHtml(article);
@@ -341,6 +335,25 @@ export default async function ArticlePageRoute({ params }: Props) {
           width:100%;
           margin:0 !important;
         }
+        .article-prose .related-products-cta{
+          display:inline-flex;
+          align-items:center;
+          gap:10px;
+          padding:12px 18px;
+          border-radius:999px;
+          border:1px solid rgba(0,0,0,0.12);
+          background:linear-gradient(180deg, rgba(255,255,255,0.95), rgba(248,250,252,0.95));
+          font-weight:800;
+          text-decoration:none;
+          box-shadow:0 10px 24px rgba(0,0,0,0.08);
+          transition:transform .18s ease, box-shadow .18s ease, border-color .18s ease, background .18s ease;
+        }
+        .article-prose .related-products-cta:hover{
+          transform:translateY(-1px);
+          border-color:rgba(194,65,11,0.4);
+          box-shadow:0 14px 28px rgba(194,65,11,0.18);
+          background:linear-gradient(180deg, rgba(255,255,255,1), rgba(255,247,242,0.98));
+        }
 
         /* Clear floats at the end of the main content so next sections don't slide up */
         .article-prose::after{
@@ -352,6 +365,7 @@ export default async function ArticlePageRoute({ params }: Props) {
         @media (max-width: 860px){
           .article-prose{padding:22px 16px !important;}
           .article-intro{padding:14px 16px !important;}
+          .article-prose .related-products-cta{font-size:14px;padding:10px 14px;}
           .article-prose img.alignleft,
           .article-prose figure.alignleft,
           .article-prose .alignleft img,
@@ -453,70 +467,18 @@ export default async function ArticlePageRoute({ params }: Props) {
             suppressHydrationWarning
             dangerouslySetInnerHTML={{ __html: contentWithEmbeds }}
           />
-        </article>
-
-        {/* Related products (optional) */}
-        {relatedProducts.length ? (
-          <aside
-            style={{
-              borderRadius: 18,
-              border: "1px solid rgba(0,0,0,0.08)",
-              padding: 16,
-              background: "rgba(255,255,255,0.6)",
-              boxShadow: "0 10px 28px rgba(0,0,0,0.05)",
-            }}
-          >
-            <div style={{ fontWeight: 700, marginBottom: 10 }}>Ajánlott termékek</div>
-            <div style={{ display: "grid", gap: 10 }}>
-              {relatedProducts.slice(0, 5).map((p: any) => {
-                const pTitle = p?.title || p?.name || "Termék";
-                const pSlug = p?.slug || p?.product_slug || null;
-                const pUrl = p?.url || (pSlug ? `/termek/${pSlug}` : "#");
-                const img = p?.image_url || p?.image || null;
-                // const price = typeof p?.price === "number" ? p.price : null;
-
-                return (
-                  <Link
-                    key={String(p?.id || pSlug || pTitle)}
-                    href={pUrl}
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns: "56px minmax(0, 1fr)",
-                      gap: 10,
-                      padding: 10,
-                      borderRadius: 14,
-                      border: "1px solid rgba(0,0,0,0.08)",
-                      textDecoration: "none",
-                      background: "rgba(255,255,255,0.8)",
-                    }}
-                  >
-                    <div
-                      style={{
-                        width: 56,
-                        height: 56,
-                        borderRadius: 12,
-                        overflow: "hidden",
-                        background: "rgba(0,0,0,0.04)",
-                        border: "1px solid rgba(0,0,0,0.06)",
-                      }}
-                    >
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      {img ? (
-                        <img src={img} alt={pTitle} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                      ) : null}
-                    </div>
-                    <div style={{ minWidth: 0 }}>
-                      <div style={{ fontWeight: 700, lineHeight: 1.2, marginBottom: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                        {pTitle}
-                      </div>
-                      <div style={{ fontSize: 13, opacity: 0.8 }}>Megnézem →</div>
-                    </div>
-                  </Link>
-                );
-              })}
+          {relatedProductSlugs.length ? (
+            <div style={{ marginTop: 24, display: "flex", justifyContent: "center" }}>
+              <Link
+                href={`/termek?slugs=${encodeURIComponent(relatedProductSlugs.join(","))}`}
+                className="related-products-cta"
+              >
+                A témához kapcsolódó Étrend-kiegészítők megtekintése
+                <span aria-hidden>→</span>
+              </Link>
             </div>
-          </aside>
-        ) : null}
+          ) : null}
+        </article>
       </section>
 
       {/* Prev / Next */}

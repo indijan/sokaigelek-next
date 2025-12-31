@@ -5,21 +5,35 @@ import ArticleImageUploader from "@/components/admin/ArticleImageUploader";
 import { slugifyHu } from "@/lib/slugifyHu";
 import GenerateArticleCoverButton from "@/components/admin/GenerateArticleCoverButton";
 import HtmlEditor from "@/components/admin/HtmlEditor";
+import AdminActionButton from "@/components/admin/AdminActionButton";
 
 type Props = {
     params: Promise<{ slug: string }>;
-    searchParams?: Promise<{ delete?: string | string[] }>;
+    searchParams?: Promise<{ delete?: string | string[]; err?: string | string[]; ok?: string | string[] }>;
 };
 
-function safeJsonParseSlugs(text: string): string[] {
+function extractJsonObject(text: string): any | null {
+    const start = text.indexOf("{");
+    const end = text.lastIndexOf("}");
+    if (start === -1 || end === -1 || end <= start) return null;
+    const slice = text.slice(start, end + 1);
     try {
-        const obj = JSON.parse(text);
+        return JSON.parse(slice);
+    } catch {
+        return null;
+    }
+}
+
+function safeJsonParseSlugs(text: string): string[] | null {
+    try {
+        const obj = extractJsonObject(text);
+        if (!obj) return null;
         if (Array.isArray(obj?.slugs)) {
             return obj.slugs.map((s: any) => String(s)).filter(Boolean);
         }
         return [];
     } catch {
-        return [];
+        return null;
     }
 }
 
@@ -28,9 +42,10 @@ function stripProductMarkers(html: string) {
     return String(html || "").replace(/<!--\s*PRODUCT:[a-z0-9-]+\s*-->/gi, "");
 }
 
-function safeJsonParsePlacements(text: string): Array<{ slug: string; afterParagraph: number }> {
+function safeJsonParsePlacements(text: string): Array<{ slug: string; afterParagraph: number }> | null {
     try {
-        const obj = JSON.parse(text);
+        const obj = extractJsonObject(text);
+        if (!obj) return null;
         const arr = Array.isArray(obj?.placements)
             ? (obj.placements as Array<{ slug?: unknown; afterParagraph?: unknown }>)
             : [];
@@ -111,8 +126,12 @@ export default async function AdminArticleEditPage({ params, searchParams }: Pro
     const { slug } = await params;
     const sp = searchParams ? await searchParams : undefined;
     const delParam = sp?.delete;
+    const errParam = sp?.err;
+    const okParam = sp?.ok;
     const pendingDelete = Array.isArray(delParam) ? delParam[0] : delParam;
     const showDeleteConfirm = pendingDelete === "1" || pendingDelete === "true";
+    const errMessage = Array.isArray(errParam) ? errParam[0] : errParam;
+    const okMessage = Array.isArray(okParam) ? okParam[0] : okParam;
 
     const { data: article, error } = await supabaseServer
         .from("articles")
@@ -158,6 +177,16 @@ export default async function AdminArticleEditPage({ params, searchParams }: Pro
                     Megnézem
                 </a>
             </div>
+            {errMessage ? (
+                <div className="border border-red-200 bg-red-50 text-red-700 text-sm rounded-xl px-4 py-3">
+                    {errMessage}
+                </div>
+            ) : null}
+            {okMessage ? (
+                <div className="border border-emerald-200 bg-emerald-50 text-emerald-700 text-sm rounded-xl px-4 py-3">
+                    {okMessage}
+                </div>
+            ) : null}
 
             <ArticleImageUploader
                 articleId={article.id}
@@ -311,9 +340,9 @@ export default async function AdminArticleEditPage({ params, searchParams }: Pro
                 </div>
 
 
-                <button className="btn" type="submit">
+                <AdminActionButton className="btn" pendingText="Mentés...">
                     Mentés
-                </button>
+                </AdminActionButton>
             </form>
 
             <div className="border rounded-2xl p-4">
@@ -333,9 +362,12 @@ export default async function AdminArticleEditPage({ params, searchParams }: Pro
                                     redirect("/admin/articles");
                                 }}
                             >
-                                <button className="bg-red-600 text-white rounded-xl px-4 py-2 text-sm">
+                                <AdminActionButton
+                                    className="bg-red-600 text-white rounded-xl px-4 py-2 text-sm"
+                                    pendingText="Törlés..."
+                                >
                                     Igen, törlés
-                                </button>
+                                </AdminActionButton>
                             </form>
                             <a className="text-sm underline" href={`/admin/articles/${article.slug}`}>
                                 Mégse
@@ -458,7 +490,16 @@ Szabályok:
                             .join("") ||
                         "";
 
-                    let placements = safeJsonParsePlacements(text)
+                    const parsedPlacements = safeJsonParsePlacements(text);
+                    if (!parsedPlacements) {
+                        redirect(
+                            `/admin/articles/${a.slug}?err=${encodeURIComponent(
+                                "AI válasz nem JSON (elhelyezés)."
+                            )}`
+                        );
+                    }
+
+                    let placements = parsedPlacements
                         .filter((p) => allowed.has(p.slug))
                         .slice(0, 5);
 
@@ -540,7 +581,7 @@ Szabályok:
                         .update({ content_html: nextHtml })
                         .eq("id", a.id);
 
-                    redirect(`/admin/articles/${a.slug}`);
+                    redirect(`/admin/articles/${a.slug}?ok=${encodeURIComponent("Termékek elhelyezve.")}`);
                 }}
             >
                 <div className="flex items-center justify-between gap-3 flex-wrap border rounded-2xl p-4 bg-gray-50">
@@ -550,9 +591,138 @@ Szabályok:
                             A cikk HTML-jébe beszúrja a jelölőket ({"<!--PRODUCT:slug-->"}) logikus helyekre.
                         </div>
                     </div>
-                    <button className="bg-black text-white rounded-xl px-4 py-2 text-sm">
+                    <AdminActionButton
+                        className="bg-black text-white rounded-xl px-4 py-2 text-sm"
+                        pendingText="Elhelyezés..."
+                    >
                         AI: termékek elhelyezése a szövegben
-                    </button>
+                    </AdminActionButton>
+                </div>
+            </form>
+
+            <form
+                action={async () => {
+                    "use server";
+
+                    const apiKey = process.env.OPENAI_API_KEY;
+                    if (!apiKey) {
+                        redirect(
+                            `/admin/articles/${article.slug}?err=${encodeURIComponent(
+                                "Hiányzik az OPENAI_API_KEY (.env.local)"
+                            )}`
+                        );
+                    }
+
+                    const { data: a, error: aErr } = await supabaseServer
+                        .from("articles")
+                        .select("id, title, excerpt, content_html")
+                        .eq("id", article.id)
+                        .single();
+
+                    if (aErr || !a) {
+                        redirect(
+                            `/admin/articles/${article.slug}?err=${encodeURIComponent(
+                                "Nem találom a cikket AI termékekhez"
+                            )}`
+                        );
+                    }
+
+                    const { data: products, error: pErr } = await supabaseServer
+                        .from("products")
+                        .select("slug, name")
+                        .order("name", { ascending: true });
+
+                    if (pErr || !products) {
+                        redirect(
+                            `/admin/articles/${article.slug}?err=${encodeURIComponent(
+                                "Nem találom a termékeket AI termékekhez"
+                            )}`
+                        );
+                    }
+
+                    const productList = products.map((p) => `${p.slug} — ${p.name}`).join("\n");
+
+                    const prompt = `
+Válaszd ki a legjobb 0-5 kapcsolódó terméket a cikkhez.
+Csak az alábbi listából választhatsz, és csak a slugokat add vissza.
+
+TERMÉKEK:
+${productList}
+
+CIKK:
+Cím: ${a.title || ""}
+Kivonat: ${a.excerpt || ""}
+Tartalom (HTML): ${a.content_html || ""}
+
+Válasz formátum: egyetlen JSON objektum, pl:
+{"slugs":["duolife-aloes","masik-termek"]}
+Ha semmi nem releváns: {"slugs":[]}
+`.trim();
+
+                    const r = await fetch("https://api.openai.com/v1/responses", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            Authorization: `Bearer ${apiKey}`,
+                        },
+                        body: JSON.stringify({
+                            model: "gpt-5-mini",
+                            input: prompt,
+                        }),
+                    });
+
+                    if (!r.ok) {
+                        const t = await r.text();
+                        redirect(
+                            `/admin/articles/${article.slug}?err=${encodeURIComponent(
+                                "OpenAI hiba (kapcsolódó termékek): " + t
+                            )}`
+                        );
+                    }
+
+                    const data = await r.json();
+                    const text =
+                        data?.output_text ||
+                        data?.output
+                            ?.map((o: any) =>
+                                o?.content?.map((c: any) => c?.text).join("") || ""
+                            )
+                            .join("") ||
+                        "";
+
+                    const parsedSlugs = safeJsonParseSlugs(text);
+                    if (!parsedSlugs) {
+                        redirect(
+                            `/admin/articles/${article.slug}?err=${encodeURIComponent(
+                                "AI válasz nem JSON (kapcsolódó termékek)."
+                            )}`
+                        );
+                    }
+
+                    const allowed = new Set(products.map((p) => p.slug));
+                    const slugs = parsedSlugs.filter((s) => allowed.has(s)).slice(0, 5);
+
+                    await supabaseServer
+                        .from("articles")
+                        .update({ related_product_slugs: slugs })
+                        .eq("id", a.id);
+
+                    redirect(`/admin/articles/${article.slug}?ok=${encodeURIComponent("Kapcsolódó termékek frissítve.")}`);
+                }}
+            >
+                <div className="flex items-center justify-between gap-3 flex-wrap border rounded-2xl p-4 bg-gray-50">
+                    <div className="space-y-1">
+                        <div className="font-semibold">AI kapcsolódó termékek</div>
+                        <div className="text-sm text-gray-600">
+                            Frissíti a cikkhez tartozó ajánlott termékeket.
+                        </div>
+                    </div>
+                    <AdminActionButton
+                        className="bg-black text-white rounded-xl px-4 py-2 text-sm"
+                        pendingText="Javaslat..."
+                    >
+                        AI: kapcsolódó termékek javaslata
+                    </AdminActionButton>
                 </div>
             </form>
 

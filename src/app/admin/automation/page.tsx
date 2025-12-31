@@ -1,13 +1,24 @@
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabaseServer";
+import AdminActionButton from "@/components/admin/AdminActionButton";
 
-export default async function AdminAutomationPage() {
+export default async function AdminAutomationPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ ok?: string | string[] }>;
+}) {
   const cookieStore = await cookies();
   const ok = cookieStore.get("admin_ok")?.value === "1";
   if (!ok) redirect("/admin");
 
   const canRunNow = Boolean(process.env.CRON_SECRET);
+  const disclaimer =
+    "Megjegyzés: A cikkben szereplő információk tájékoztató jellegűek, nem helyettesítik az orvosi tanácsadást. Egészségügyi problémák esetén kérjük, fordulj szakorvoshoz vagy egészségügyi szakemberhez.";
+
+  const sp = searchParams ? await searchParams : undefined;
+  const okParam = sp?.ok;
+  const okMessage = Array.isArray(okParam) ? okParam[0] : okParam;
 
   const { data: categories } = await supabaseServer
     .from("categories")
@@ -53,14 +64,62 @@ export default async function AdminAutomationPage() {
               await fetch(url, { method: "GET" });
               redirect("/admin/automation");
             }}
-          >
-            <button
-              className="bg-slate-900 text-white rounded-xl px-4 py-2 text-sm"
-              disabled={!canRunNow}
             >
-              Futtatás most
-            </button>
-          </form>
+              <AdminActionButton
+                className="bg-slate-900 text-white rounded-xl px-4 py-2 text-sm disabled:opacity-60"
+                pendingText="Futtatás..."
+                disabled={!canRunNow}
+              >
+                Futtatás most
+              </AdminActionButton>
+            </form>
+            <form
+              action={async () => {
+                "use server";
+                const { data: runs } = await supabaseServer
+                  .from("article_automation_runs")
+                  .select("article_id")
+                  .not("article_id", "is", null)
+                  .order("created_at", { ascending: false });
+
+                const articleIds = Array.from(
+                  new Set((runs || []).map((r: any) => r.article_id).filter(Boolean))
+                );
+
+                for (const id of articleIds) {
+                  const { data: article } = await supabaseServer
+                    .from("articles")
+                    .select("id, content_html")
+                    .eq("id", id)
+                    .maybeSingle();
+
+                  if (!article?.content_html) continue;
+                  if (String(article.content_html).includes("Megjegyzés: A cikkben szereplő információk")) {
+                    continue;
+                  }
+
+                  const nextHtml = `${article.content_html}\n<p><em>${disclaimer}</em></p>`;
+                  await supabaseServer
+                    .from("articles")
+                    .update({ content_html: nextHtml })
+                    .eq("id", id);
+                }
+
+                redirect("/admin/automation?ok=disclaimer");
+              }}
+            >
+              <AdminActionButton
+                className="border border-slate-900/15 rounded-xl px-4 py-2 text-sm"
+                pendingText="Hozzáadás..."
+              >
+                Megjegyzés hozzáadása a korábbi AI cikkekhez
+              </AdminActionButton>
+            </form>
+            {okMessage === "disclaimer" ? (
+              <span className="text-xs text-emerald-700">
+                Megjegyzés hozzáadva a korábbi AI cikkekhez.
+              </span>
+            ) : null}
           {!canRunNow ? (
             <span className="text-xs text-red-600">
               CRON_SECRET nincs beállítva.
@@ -147,9 +206,12 @@ export default async function AdminAutomationPage() {
               placeholder="pl. 12"
             />
           </div>
-          <button className="bg-black text-white rounded-xl px-4 py-2 text-sm">
+          <AdminActionButton
+            className="bg-black text-white rounded-xl px-4 py-2 text-sm"
+            pendingText="Mentés..."
+          >
             + Hozzáadás
-          </button>
+          </AdminActionButton>
         </div>
       </form>
 
@@ -188,11 +250,13 @@ export default async function AdminAutomationPage() {
                     redirect("/admin/automation");
                   }}
                 >
-                  <button className="text-red-700 underline text-sm">Törlés</button>
-                </form>
-              </div>
+                <AdminActionButton className="text-red-700 underline text-sm" pendingText="Törlés...">
+                  Törlés
+                </AdminActionButton>
+              </form>
             </div>
-          ))}
+          </div>
+        ))}
         </div>
 
         <div className="md:hidden space-y-3 p-3">
@@ -221,7 +285,9 @@ export default async function AdminAutomationPage() {
                   redirect("/admin/automation");
                 }}
               >
-                <button className="text-red-700 underline text-sm">Törlés</button>
+                <AdminActionButton className="text-red-700 underline text-sm" pendingText="Törlés...">
+                  Törlés
+                </AdminActionButton>
               </form>
             </div>
           ))}

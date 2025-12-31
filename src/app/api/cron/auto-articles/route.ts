@@ -127,6 +127,10 @@ async function generateCoverImage(article: any) {
     "Composition: clear subject, bold focal point, high contrast, inviting mood.",
     "Style: premium, soft lighting, subtle gradients, no clutter.",
     "Theme: health & wellbeing education (Hungarian audience).",
+    "Avoid repetition: vary color palettes, subjects, and composition across images.",
+    "Do NOT always use female figures; mix genders and ages or omit people entirely.",
+    "People are optional. Use objects, hands, silhouettes, or abstract/still-life scenes when fitting.",
+    "If the topic is anatomy (heart, blood vessels, organs), use stylized or abstract visuals, not realistic organs.",
     "Add the article title as visible overlay text on the image.",
     "Use the exact title text as provided. Do not change, shorten, correct, or paraphrase it. No typos.",
     "If you cannot render the title exactly as provided without errors, omit the title entirely.",
@@ -347,7 +351,13 @@ Adj vissza egyetlen JSON objektumot:
     const generated = await openaiJson(prompt);
     const title = String(generated?.title || "").trim();
     const excerpt = String(generated?.excerpt || "").trim();
-    const content_html = String(generated?.content_html || "").trim();
+    let content_html = String(generated?.content_html || "").trim();
+    const disclaimer =
+      "Megjegyzés: A cikkben szereplő információk tájékoztató jellegűek, nem helyettesítik az orvosi tanácsadást. Egészségügyi problémák esetén kérjük, fordulj szakorvoshoz vagy egészségügyi szakemberhez.";
+
+    if (content_html && !content_html.includes("Megjegyzés: A cikkben szereplő információk")) {
+      content_html = `${content_html}\n<p><em>${disclaimer}</em></p>`;
+    }
 
     if (!title || !content_html) {
       throw new Error("empty_article");
