@@ -1,4 +1,4 @@
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabaseServer";
 
@@ -7,10 +7,19 @@ export default async function AdminAutomationPage() {
   const ok = cookieStore.get("admin_ok")?.value === "1";
   if (!ok) redirect("/admin");
 
+  const canRunNow = Boolean(process.env.CRON_SECRET);
+
   const { data: categories } = await supabaseServer
     .from("categories")
     .select("slug, name")
     .order("sort_order", { ascending: true });
+
+  const { data: lastRun } = await supabaseServer
+    .from("article_automation_runs")
+    .select("run_date, status, details, created_at")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
 
   const { data: queue } = await supabaseServer
     .from("article_automation_queue")
@@ -25,6 +34,51 @@ export default async function AdminAutomationPage() {
         <p className="text-sm text-gray-600 mt-1">
           Itt tudod előre felvinni a napi cikk promptokat. Sorrendben fognak lefutni.
         </p>
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <form
+            action={async () => {
+              "use server";
+              const secret = process.env.CRON_SECRET || "";
+              if (!secret) return;
+              const h = headers();
+              const host = h.get("x-forwarded-host") || h.get("host") || "";
+              const proto = h.get("x-forwarded-proto") || "http";
+              const base =
+                process.env.NEXT_PUBLIC_SITE_URL ||
+                (host ? `${proto}://${host}` : "");
+              if (!base) return;
+              const url = `${base}/api/cron/auto-articles?secret=${encodeURIComponent(
+                secret
+              )}&force=1`;
+              await fetch(url, { method: "GET" });
+              redirect("/admin/automation");
+            }}
+          >
+            <button
+              className="bg-slate-900 text-white rounded-xl px-4 py-2 text-sm"
+              disabled={!canRunNow}
+            >
+              Futtatás most
+            </button>
+          </form>
+          {!canRunNow ? (
+            <span className="text-xs text-red-600">
+              CRON_SECRET nincs beállítva.
+            </span>
+          ) : null}
+          {lastRun ? (
+            <span className="text-xs text-gray-600">
+              Utolsó futás: {lastRun.run_date} • {lastRun.status}
+            </span>
+          ) : (
+            <span className="text-xs text-gray-600">Még nem volt futás.</span>
+          )}
+        </div>
+        {lastRun?.details ? (
+          <div className="mt-2 text-xs text-red-600 line-clamp-2">
+            Hiba: {lastRun.details}
+          </div>
+        ) : null}
       </div>
 
       <form
@@ -100,7 +154,7 @@ export default async function AdminAutomationPage() {
       </form>
 
       <div className="border rounded-2xl overflow-hidden">
-        <div className="grid grid-cols-12 bg-gray-50 text-sm font-semibold px-4 py-2">
+        <div className="hidden md:grid grid-cols-12 bg-gray-50 text-sm font-semibold px-4 py-2">
           <div className="col-span-1">#</div>
           <div className="col-span-2">Státusz</div>
           <div className="col-span-3">Kategória</div>
@@ -108,24 +162,58 @@ export default async function AdminAutomationPage() {
           <div className="col-span-2">Művelet</div>
         </div>
 
-        {(queue || []).map((q: any) => (
-          <div key={q.id} className="grid grid-cols-12 px-4 py-3 border-t text-sm items-start gap-y-2">
-            <div className="col-span-1 text-gray-600">{q.position}</div>
-            <div className="col-span-2">
-              <span className="text-xs px-2 py-0.5 rounded-full border bg-gray-50">
-                {q.status}
-              </span>
+        <div className="hidden md:block">
+          {(queue || []).map((q: any) => (
+            <div key={q.id} className="grid grid-cols-12 px-4 py-3 border-t text-sm items-start gap-y-2">
+              <div className="col-span-1 text-gray-600">{q.position}</div>
+              <div className="col-span-2">
+                <span className="text-xs px-2 py-0.5 rounded-full border bg-gray-50">
+                  {q.status}
+                </span>
+                {q.last_error ? (
+                  <div className="text-xs text-red-600 mt-1 line-clamp-2">
+                    {q.last_error}
+                  </div>
+                ) : null}
+              </div>
+              <div className="col-span-3 text-gray-700">{q.category_slug || "—"}</div>
+              <div className="col-span-4 text-gray-700 whitespace-pre-wrap">
+                {q.prompt}
+              </div>
+              <div className="col-span-2">
+                <form
+                  action={async () => {
+                    "use server";
+                    await supabaseServer.from("article_automation_queue").delete().eq("id", q.id);
+                    redirect("/admin/automation");
+                  }}
+                >
+                  <button className="text-red-700 underline text-sm">Törlés</button>
+                </form>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="md:hidden space-y-3 p-3">
+          {(queue || []).map((q: any) => (
+            <div key={q.id} className="border rounded-xl p-3 text-sm space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="text-xs text-gray-600">#{q.position}</div>
+                <span className="text-xs px-2 py-0.5 rounded-full border bg-gray-50">
+                  {q.status}
+                </span>
+              </div>
               {q.last_error ? (
-                <div className="text-xs text-red-600 mt-1 line-clamp-2">
+                <div className="text-xs text-red-600 line-clamp-2">
                   {q.last_error}
                 </div>
               ) : null}
-            </div>
-            <div className="col-span-3 text-gray-700">{q.category_slug || "—"}</div>
-            <div className="col-span-4 text-gray-700 whitespace-pre-wrap">
-              {q.prompt}
-            </div>
-            <div className="col-span-2">
+              <div className="text-gray-700">
+                <span className="text-xs text-gray-500">Kategória: </span>
+                {q.category_slug || "—"}
+              </div>
+              <div className="text-gray-700 whitespace-pre-wrap">{q.prompt}</div>
               <form
                 action={async () => {
                   "use server";
@@ -136,8 +224,8 @@ export default async function AdminAutomationPage() {
                 <button className="text-red-700 underline text-sm">Törlés</button>
               </form>
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
 
         {queue?.length === 0 ? (
           <div className="px-4 py-4 text-sm text-gray-600">

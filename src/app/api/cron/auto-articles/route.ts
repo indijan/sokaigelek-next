@@ -258,6 +258,7 @@ async function postToFacebook(article: any) {
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const secret = searchParams.get("secret") || "";
+  const force = searchParams.get("force") === "1";
   const expected = process.env.CRON_SECRET || "";
   const isVercelCron = req.headers.get("x-vercel-cron") === "1";
   if (!isVercelCron && (!expected || secret !== expected)) {
@@ -268,18 +269,22 @@ export async function GET(req: Request) {
   const { year, month, day, hour } = getBudapestParts(now);
   const runDate = `${year}-${month}-${day}`;
 
-  if (hour !== "08") {
+  if (hour !== "08" && !force) {
     return NextResponse.json({ ok: true, skipped: "not_8am" });
   }
 
   const { data: existingRun } = await supabaseServer
     .from("article_automation_runs")
-    .select("id")
+    .select("id, status")
     .eq("run_date", runDate)
     .maybeSingle();
 
-  if (existingRun) {
+  if (existingRun && !force) {
     return NextResponse.json({ ok: true, skipped: "already_ran" });
+  }
+
+  if (existingRun && force && existingRun.status === "ok") {
+    return NextResponse.json({ ok: true, skipped: "already_ran_ok" });
   }
 
   const { data: nextItem } = await supabaseServer

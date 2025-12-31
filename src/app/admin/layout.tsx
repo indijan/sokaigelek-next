@@ -12,56 +12,31 @@ export const metadata = {
 export default function AdminLayout({ children }: { children: ReactNode }) {
   return (
     <div
-      style={{
-        minHeight: "100vh",
-        background: "#f8fafc",
-        color: "#0f172a",
-      }}
+      className="min-h-screen bg-slate-50 text-slate-900"
     >
       <div
-        style={{
-          maxWidth: 1200,
-          margin: "0 auto",
-          padding: "16px 16px 40px",
-        }}
+        className="max-w-[1200px] mx-auto px-4 pb-10 pt-4"
       >
         {/* Header */}
         <header
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: 12,
-            padding: "14px 16px",
-            borderRadius: 16,
-            background: "#ffffff",
-            border: "1px solid rgba(15,23,42,0.08)",
-            boxShadow: "0 10px 30px rgba(15,23,42,0.08)",
-          }}
+          className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 p-4 rounded-2xl bg-white border border-slate-900/10 shadow-[0_10px_30px_rgba(15,23,42,0.08)]"
         >
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div className="flex items-center gap-3">
             <div
               aria-hidden
+              className="w-9 h-9 rounded-xl border border-slate-900/10"
               style={{
-                width: 36,
-                height: 36,
-                borderRadius: 12,
                 background:
                   "radial-gradient(circle at 30% 30%, rgba(194,65,11,0.9), rgba(194,65,11,0.15) 55%, rgba(255,255,255,0.04) 100%)",
-                border: "1px solid rgba(15,23,42,0.10)",
               }}
             />
             <div>
-              <div style={{ fontWeight: 800, letterSpacing: "0.2px" }}>
-                Admin
-              </div>
-              <div style={{ fontSize: 12, opacity: 0.75 }}>
-                Tartalmak és termékek kezelése
-              </div>
+              <div className="font-extrabold tracking-[0.2px]">Admin</div>
+              <div className="text-xs opacity-75">Tartalmak és termékek kezelése</div>
             </div>
           </div>
 
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div className="flex flex-wrap items-center gap-2">
             <form
               action={async () => {
                 "use server";
@@ -77,31 +52,14 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
             >
               <button
                 type="submit"
-                style={{
-                  fontSize: 13,
-                  textDecoration: "none",
-                  color: "#0f172a",
-                  padding: "8px 10px",
-                  borderRadius: 10,
-                  border: "1px solid rgba(15,23,42,0.12)",
-                  background: "rgba(15,23,42,0.03)",
-                  cursor: "pointer",
-                }}
+                className="text-[13px] text-slate-900 px-3 py-2 rounded-xl border border-slate-900/15 bg-slate-900/5"
               >
                 Kijelentkezés
               </button>
             </form>
             <Link
               href="/"
-              style={{
-                fontSize: 13,
-                textDecoration: "none",
-                color: "#0f172a",
-                padding: "8px 10px",
-                borderRadius: 10,
-                border: "1px solid rgba(15,23,42,0.12)",
-                background: "rgba(194,65,11,0.08)",
-              }}
+              className="text-[13px] text-slate-900 px-3 py-2 rounded-xl border border-slate-900/15 bg-orange-700/10"
             >
               ← Vissza a weboldalra
             </Link>
@@ -110,26 +68,13 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
 
         {/* Shell */}
         <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "260px 1fr",
-            gap: 16,
-            marginTop: 16,
-          }}
+          className="grid grid-cols-1 md:grid-cols-[260px_1fr] gap-4 mt-4"
         >
           {/* Sidebar */}
           <aside
-            style={{
-              position: "sticky",
-              top: 16,
-              alignSelf: "start",
-              borderRadius: 16,
-              border: "1px solid rgba(15,23,42,0.08)",
-              background: "#ffffff",
-              padding: 12,
-            }}
+            className="md:sticky md:top-4 md:self-start rounded-2xl border border-slate-900/10 bg-white p-3"
           >
-            <nav style={{ display: "grid", gap: 8 }}>
+            <nav className="grid gap-2">
               <AdminNavLink href="/admin/articles" label="Cikkek" />
               <AdminNavLink href="/admin/products" label="Termékek" />
               <AdminNavLink href="/admin/categories" label="Kategóriák" />
@@ -138,14 +83,10 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
             </nav>
 
             <div
-              style={{
-                height: 1,
-                background: "rgba(15,23,42,0.10)",
-                margin: "12px 0",
-              }}
+              className="h-px bg-slate-900/10 my-3"
             />
 
-            <div style={{ fontSize: 12, opacity: 0.8, lineHeight: 1.4 }}>
+            <div className="text-xs opacity-80 leading-[1.4]">
               Tipp: ha a felső menü eddig kidobált a frontendbe, ez a layout már
               külön admin keretet ad (nincs SiteHeader/SiteFooter).
             </div>
@@ -153,13 +94,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
 
           {/* Content */}
           <main
-            style={{
-              borderRadius: 16,
-              border: "1px solid rgba(15,23,42,0.08)",
-              background: "#ffffff",
-              padding: 16,
-              minHeight: 520,
-            }}
+            className="rounded-2xl border border-slate-900/10 bg-white p-4 min-h-[520px]"
           >
             {children}
           </main>
@@ -173,21 +108,10 @@ function AdminNavLink({ href, label }: { href: string; label: string }) {
   return (
     <Link
       href={href}
-      style={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        gap: 10,
-        padding: "10px 12px",
-        borderRadius: 12,
-        textDecoration: "none",
-        color: "#0f172a",
-        border: "1px solid rgba(15,23,42,0.10)",
-        background: "rgba(15,23,42,0.03)",
-      }}
+      className="flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl border border-slate-900/10 bg-slate-900/5 text-slate-900 no-underline"
     >
-      <span style={{ fontWeight: 700 }}>{label}</span>
-      <span aria-hidden style={{ opacity: 0.6 }}>
+      <span className="font-bold">{label}</span>
+      <span aria-hidden className="opacity-60">
         →
       </span>
     </Link>
