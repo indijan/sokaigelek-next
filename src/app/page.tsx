@@ -147,8 +147,7 @@ export default async function Home() {
           <h1>Élj sokáig. Egészségesen.</h1>
           <p className="muted" style={{ maxWidth: 780 }}>
             Tudatos életmód cikkekkel, amelyek segítenek megérteni az okokat, és
-            megmutatják a lehetséges megoldásokat — a végén (és közben) releváns
-            termékajánlásokkal. A vásárlás külső oldalon történik.
+            megmutatják a lehetséges megoldásokat.
           </p>
 
           {/* SMART SEARCH (GET -> /kereses) */}
@@ -171,7 +170,7 @@ export default async function Home() {
               </button>
             </form>
             <div className="searchbox-hint muted">
-              Tipp: írhatsz tünetet vagy célt is — a találatok között cikkeket és termékeket is kapsz.
+                Tipp: írhatsz tünetet vagy célt is — a találatok között cikkeket és javasolt étrend-kiegészítőket is kapsz.
             </div>
           </div>
 
@@ -289,7 +288,7 @@ export default async function Home() {
               <p className="muted">
                 A formulák tudományos és orvosi háttérrel rendelkeznek és különböző
                 egészségügyi problémákra kínálnak megoldásokat — a döntést pedig
-                edukációval támogatjuk.
+                tanácsadással támogatjuk.
               </p>
               <div className="card-actions">
                 <Link className="btn btn-primary" href="/termek">
@@ -372,7 +371,6 @@ export default async function Home() {
         {/* KIEMELT TERMÉKEK */}
         <section className="section">
           <h2>Kiemelt termékek</h2>
-          <p className="muted">A főoldalon ezek jelennek meg (adminban pipával állítod).</p>
 
           <div
             className="grid"
@@ -465,7 +463,7 @@ export default async function Home() {
         <section className="section">
           <div className="callout">
             <div>
-              <div className="callout-title">Beszélgess a Jólét felelőssel</div>
+              <div className="callout-title">Beszélgess a Jóllét felelőssel</div>
               <div className="muted">
                 Ha nem vagy biztos benne, milyen étrend-kiegészítőre lenne szükséged,
                 segítünk eligazodni.
