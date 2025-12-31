@@ -78,7 +78,7 @@ export default async function ArticlesIndexPage({
                 <div>
                     <h1 className="mt-3 text-3xl font-extrabold tracking-tight">Jóllét Kalauz</h1>
                     <p className="mt-2 max-w-2xl text-sm text-gray-600">
-                        Természetes tippek, edukáció és válogatott ajánlások a jobb közérzetért.
+                        Tanácsok és válogatott ajánlások a jobb közérzetért és a hosszú egészséges életért.
                     </p>
                 </div>
             </div>

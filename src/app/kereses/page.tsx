@@ -571,10 +571,6 @@ export default async function KeresesPage(props: {
                         <ol className="muted" style={{ margin: 0, paddingLeft: 18 }}>
                             <li>Beírsz egy problémát vagy célt.</li>
                             <li>Mutatom a kapcsolódó termékeket és cikkeket.</li>
-                            <li>
-                                Ha kell, a következő körben ide tesszük a „szofisztikált”
-                                szinoníma + kategória + AI-ajánló logikát is.
-                            </li>
                         </ol>
                     </section>
                 ) : !hasEnv ? (
