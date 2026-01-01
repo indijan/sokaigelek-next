@@ -22,7 +22,7 @@ export default async function ArticlesIndexPage({
     const from = (page - 1) * perPage;
     const to = from + perPage - 1;
 
-    const [categoriesRes, articlesRes] = await Promise.all([
+    const [categoriesRes, articlesRes, categoryCountRes] = await Promise.all([
         supabaseServer
             .from("categories")
             .select("*")
@@ -38,6 +38,10 @@ export default async function ArticlesIndexPage({
             .range(from, to);
           return activeCat ? q.eq("category_slug", activeCat) : q;
         })(),
+        supabaseServer
+            .from("articles")
+            .select("category_slug")
+            .eq("status", "published"),
     ]);
 
     const categories = (categoriesRes as any).data as any[] | null;
@@ -45,6 +49,15 @@ export default async function ArticlesIndexPage({
 
     const articles = (articlesRes as any).data as any[] | null;
     const error = (articlesRes as any).error as any;
+    const categoryRows = (categoryCountRes as any).data as any[] | null;
+    const totalAllCount = (categoryRows || []).length || totalCount;
+
+    const categoryCountMap = new Map<string, number>();
+    (categoryRows || []).forEach((row: any) => {
+        const key = String(row?.category_slug || "").trim();
+        if (!key) return;
+        categoryCountMap.set(key, (categoryCountMap.get(key) || 0) + 1);
+    });
 
 
     const totalCount = Number((articlesRes as any).count ?? 0);
@@ -92,7 +105,7 @@ export default async function ArticlesIndexPage({
                             : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
                     }`}
                 >
-                    Összes
+                    Összes ({totalAllCount})
                 </Link>
 
                 {(categories ?? []).map((c: any) => {
@@ -111,7 +124,7 @@ export default async function ArticlesIndexPage({
                                     : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
                             }`}
                         >
-                            {String(label)}
+                            {String(label)} ({categoryCountMap.get(String(slug)) || 0})
                         </Link>
                     );
                 })}
