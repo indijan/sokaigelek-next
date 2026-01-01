@@ -3,19 +3,32 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabaseServer";
 
+const PAGE_SIZE = 20;
+
 export default async function AdminArticlesPage({
     searchParams,
 }: {
-    searchParams: Promise<{ cat?: string; status?: string; q?: string; err?: string }>;
+    searchParams: Promise<{
+        cat?: string | string[];
+        status?: string | string[];
+        q?: string | string[];
+        err?: string | string[];
+        page?: string | string[];
+    }>;
 }) {
     const cookieStore = await cookies();
     const ok = cookieStore.get("admin_ok")?.value === "1";
     if (!ok) redirect("/admin");
 
-    const { cat, status, q: qParam, err } = await searchParams;
-    const selectedCat = (cat || "").trim();
-    const selectedStatus = (status || "").trim();
-    const searchQ = (qParam || "").trim();
+    const { cat, status, q: qParam, err, page: pageParam } = await searchParams;
+    const selectedCat = Array.isArray(cat) ? (cat[0] || "").trim() : (cat || "").trim();
+    const selectedStatus = Array.isArray(status) ? (status[0] || "").trim() : (status || "").trim();
+    const searchQ = Array.isArray(qParam) ? (qParam[0] || "").trim() : (qParam || "").trim();
+    const errMessage = Array.isArray(err) ? err[0] : err;
+    const rawPage = Array.isArray(pageParam) ? pageParam[0] : pageParam;
+    const page = Number(rawPage || "1");
+    const safePage = Number.isFinite(page) && page > 0 ? page : 1;
+    const offset = (safePage - 1) * PAGE_SIZE;
 
     const { data: categories } = await supabaseServer
         .from("categories")
@@ -24,7 +37,7 @@ export default async function AdminArticlesPage({
 
     let query = supabaseServer
         .from("articles")
-        .select("id, slug, title, status, updated_at, created_at, category_slug")
+        .select("id, slug, title, status, updated_at, created_at, category_slug", { count: "exact" })
         .order("updated_at", { ascending: false });
 
     if (selectedCat) query = query.eq("category_slug", selectedCat);
@@ -35,7 +48,10 @@ export default async function AdminArticlesPage({
         query = query.or(`title.ilike.${like},slug.ilike.${like}`);
     }
 
-    const { data: articles, error } = await query;
+    const { data: articles, error, count } = await query.range(
+        offset,
+        offset + PAGE_SIZE - 1
+    );
 
     if (error) {
         return (
@@ -45,11 +61,18 @@ export default async function AdminArticlesPage({
         );
     }
 
+    const total = count ?? 0;
+    const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+    const baseParams = new URLSearchParams();
+    if (selectedCat) baseParams.set("cat", selectedCat);
+    if (selectedStatus) baseParams.set("status", selectedStatus);
+    if (searchQ) baseParams.set("q", searchQ);
+
     return (
         <main className="max-w-3xl mx-auto px-4 py-10 space-y-6">
-            {err ? (
+            {errMessage ? (
                 <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl p-3 text-sm">
-                    {err}
+                    {errMessage}
                 </div>
             ) : null}
 
@@ -152,6 +175,31 @@ export default async function AdminArticlesPage({
                     </div>
                 ))}
             </div>
+
+            {totalPages > 1 ? (
+                <div className="flex items-center justify-center gap-2 flex-wrap">
+                    {Array.from({ length: totalPages }).map((_, i) => {
+                        const p = i + 1;
+                        const params = new URLSearchParams(baseParams);
+                        params.set("page", String(p));
+                        const href = `/admin/articles?${params.toString()}`;
+                        const active = p === safePage;
+                        return (
+                            <Link
+                                key={p}
+                                href={href}
+                                className={
+                                    active
+                                        ? "rounded-full bg-black px-3 py-1.5 text-xs font-semibold text-white"
+                                        : "rounded-full border border-gray-200 px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50"
+                                }
+                            >
+                                {p}
+                            </Link>
+                        );
+                    })}
+                </div>
+            ) : null}
         </main>
     );
 }

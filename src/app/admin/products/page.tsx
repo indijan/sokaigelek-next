@@ -3,6 +3,8 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabaseServer";
 
+const PAGE_SIZE = 20;
+
 export default async function AdminProductsPage({
   searchParams,
 }: {
@@ -21,10 +23,15 @@ export default async function AdminProductsPage({
   const qParam = (params as any).q;
   const searchQ = Array.isArray(qParam) ? qParam[0] : qParam;
   const trimmedQ = String(searchQ || "").trim();
+  const pageParam = (params as any).page;
+  const rawPage = Array.isArray(pageParam) ? pageParam[0] : pageParam;
+  const page = Number(rawPage || "1");
+  const safePage = Number.isFinite(page) && page > 0 ? page : 1;
+  const offset = (safePage - 1) * PAGE_SIZE;
 
   let query = supabaseServer
     .from("products")
-    .select("id, slug, name, updated_at, is_featured")
+    .select("id, slug, name, updated_at, is_featured", { count: "exact" })
     .order("updated_at", { ascending: false });
 
   if (trimmedQ) {
@@ -32,7 +39,10 @@ export default async function AdminProductsPage({
     query = query.or(`name.ilike.${like},slug.ilike.${like}`);
   }
 
-  const { data: products, error } = await query;
+  const { data: products, error, count } = await query.range(
+    offset,
+    offset + PAGE_SIZE - 1
+  );
 
   if (error) {
     return (
@@ -82,6 +92,12 @@ export default async function AdminProductsPage({
       </div>
     </div>
   ) : null;
+
+  const total = count ?? 0;
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+
+  const baseParams = new URLSearchParams();
+  if (trimmedQ) baseParams.set("q", trimmedQ);
 
   return (
     <main className="max-w-3xl mx-auto px-4 py-10 space-y-6">
@@ -153,6 +169,31 @@ export default async function AdminProductsPage({
           </div>
         ))}
       </div>
+
+      {totalPages > 1 ? (
+        <div className="flex items-center justify-center gap-2 flex-wrap">
+          {Array.from({ length: totalPages }).map((_, i) => {
+            const p = i + 1;
+            const params = new URLSearchParams(baseParams);
+            params.set("page", String(p));
+            const href = `/admin/products?${params.toString()}`;
+            const active = p === safePage;
+            return (
+              <Link
+                key={p}
+                href={href}
+                className={
+                  active
+                    ? "rounded-full bg-black px-3 py-1.5 text-xs font-semibold text-white"
+                    : "rounded-full border border-gray-200 px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50"
+                }
+              >
+                {p}
+              </Link>
+            );
+          })}
+        </div>
+      ) : null}
     </main>
   );
 }
