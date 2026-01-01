@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { supabaseServer } from "@/lib/supabaseServer";
+import ShareButtons from "@/components/Article/ShareButtons";
 
 type Props = {
   params: Promise<{ slug: string }>;
@@ -276,6 +277,8 @@ export default async function ArticlePageRoute({ params }: Props) {
   const contentWithEmbeds = injectProductEmbedsIntoHtml(contentHtml, inlineProductsMap);
 
   const coverUrl = (article as any).cover_image_url || (article as any).image_url || null;
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://sokaigelek.hu";
+  const shareUrl = `${siteUrl.replace(/\/$/, "")}/cikkek/${article.slug}`;
   const dateLabel = formatDate((article as any).published_at || (article as any).created_at || null);
 
   return (
@@ -478,6 +481,7 @@ export default async function ArticlePageRoute({ params }: Props) {
               </Link>
             </div>
           ) : null}
+          <ShareButtons url={shareUrl} title={article.title || ""} />
         </article>
       </section>
 

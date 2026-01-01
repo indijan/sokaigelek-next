@@ -50,6 +50,7 @@ export default async function ArticlesIndexPage({
     const articles = (articlesRes as any).data as any[] | null;
     const error = (articlesRes as any).error as any;
     const categoryRows = (categoryCountRes as any).data as any[] | null;
+    const totalCount = Number((articlesRes as any).count ?? 0);
     const totalAllCount = (categoryRows || []).length || totalCount;
 
     const categoryCountMap = new Map<string, number>();
@@ -60,7 +61,6 @@ export default async function ArticlesIndexPage({
     });
 
 
-    const totalCount = Number((articlesRes as any).count ?? 0);
     const totalPages = Math.max(1, Math.ceil(totalCount / perPage));
     const hasPrev = page > 1;
     const hasNext = page < totalPages;
