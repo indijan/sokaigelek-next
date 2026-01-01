@@ -35,6 +35,16 @@ export default async function AdminArticlesPage({
         .select("slug, name")
         .order("sort_order", { ascending: true });
 
+    const { data: categoryRows } = await supabaseServer
+        .from("articles")
+        .select("category_slug");
+    const categoryCountMap = new Map<string, number>();
+    (categoryRows || []).forEach((row: any) => {
+        const key = String(row?.category_slug || "").trim();
+        if (!key) return;
+        categoryCountMap.set(key, (categoryCountMap.get(key) || 0) + 1);
+    });
+
     let query = supabaseServer
         .from("articles")
         .select("id, slug, title, status, updated_at, created_at, category_slug", { count: "exact" })
@@ -87,7 +97,7 @@ export default async function AdminArticlesPage({
                         <option value="">— összes —</option>
                         {categories?.map((c) => (
                             <option key={c.slug} value={c.slug}>
-                                {c.name}
+                                {c.name} ({categoryCountMap.get(c.slug) || 0})
                             </option>
                         ))}
                     </select>

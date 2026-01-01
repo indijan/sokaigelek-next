@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabaseServer";
@@ -6,7 +7,7 @@ import AdminActionButton from "@/components/admin/AdminActionButton";
 export default async function AdminAutomationPage({
   searchParams,
 }: {
-  searchParams?: Promise<{ ok?: string | string[] }>;
+  searchParams?: Promise<{ ok?: string | string[]; err?: string | string[]; archived?: string | string[] }>;
 }) {
   const cookieStore = await cookies();
   const ok = cookieStore.get("admin_ok")?.value === "1";
@@ -19,6 +20,24 @@ export default async function AdminAutomationPage({
   const sp = searchParams ? await searchParams : undefined;
   const okParam = sp?.ok;
   const okMessage = Array.isArray(okParam) ? okParam[0] : okParam;
+  const errParam = sp?.err;
+  const errMessage = Array.isArray(errParam) ? errParam[0] : errParam;
+  const archivedParam = sp?.archived;
+  const showArchived = Array.isArray(archivedParam)
+    ? archivedParam[0] === "1"
+    : archivedParam === "1";
+
+  const { data: settingsRow, error: settingsErr } = await supabaseServer
+    .from("article_automation_settings")
+    .select("value")
+    .eq("key", "posts_per_week")
+    .maybeSingle();
+  const fallbackPostsPerWeek = 7;
+  const postsPerWeek = Number(settingsRow?.value || fallbackPostsPerWeek);
+  const safePostsPerWeek =
+    Number.isFinite(postsPerWeek) && postsPerWeek >= 1 && postsPerWeek <= 7
+      ? postsPerWeek
+      : fallbackPostsPerWeek;
 
   const { data: categories } = await supabaseServer
     .from("categories")
@@ -32,11 +51,15 @@ export default async function AdminAutomationPage({
     .limit(1)
     .maybeSingle();
 
-  const { data: queue } = await supabaseServer
+  let queueQuery = supabaseServer
     .from("article_automation_queue")
     .select("*")
     .order("position", { ascending: true })
     .order("created_at", { ascending: true });
+  if (!showArchived) {
+    queueQuery = queueQuery.neq("status", "archived");
+  }
+  const { data: queue } = await queueQuery;
 
   return (
     <div className="space-y-6">
@@ -45,6 +68,11 @@ export default async function AdminAutomationPage({
         <p className="text-sm text-gray-600 mt-1">
           Itt tudod előre felvinni a napi cikk promptokat. Sorrendben fognak lefutni.
         </p>
+        {errMessage ? (
+          <div className="mt-2 text-sm text-red-700 bg-red-50 border border-red-200 rounded-xl px-3 py-2">
+            {errMessage}
+          </div>
+        ) : null}
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <form
             action={async () => {
@@ -73,6 +101,51 @@ export default async function AdminAutomationPage({
                 Futtatás most
               </AdminActionButton>
             </form>
+            <form
+              action={async (formData) => {
+                "use server";
+                const value = String(formData.get("posts_per_week") || "").trim();
+                const num = Number(value);
+                if (!Number.isFinite(num) || num < 1 || num > 7) {
+                  redirect("/admin/automation?err=Hibás%20érték");
+                }
+                const { error } = await supabaseServer.from("article_automation_settings").upsert(
+                  {
+                    key: "posts_per_week",
+                    value: String(num),
+                  },
+                  { onConflict: "key" }
+                );
+                if (error) {
+                  redirect(`/admin/automation?err=${encodeURIComponent(error.message)}`);
+                }
+                redirect("/admin/automation?ok=settings");
+              }}
+            >
+              <div className="flex items-center gap-2">
+                <label className="text-xs text-gray-600">Heti posztok száma:</label>
+                <select
+                  name="posts_per_week"
+                  defaultValue={String(safePostsPerWeek)}
+                  className="border rounded-lg px-2 py-1 text-xs bg-white"
+                  disabled={Boolean(settingsErr)}
+                >
+                  {[1, 2, 3, 4, 5, 6, 7].map((n) => (
+                    <option key={n} value={String(n)}>
+                      {n} / hét
+                    </option>
+                  ))}
+                </select>
+                <AdminActionButton className="border rounded-lg px-2 py-1 text-xs" pendingText="Mentés...">
+                  Mentés
+                </AdminActionButton>
+              </div>
+            </form>
+            {okMessage === "settings" ? (
+              <span className="text-xs text-emerald-700">
+                Ütemezés mentve.
+              </span>
+            ) : null}
             <form
               action={async () => {
                 "use server";
@@ -125,6 +198,11 @@ export default async function AdminAutomationPage({
               CRON_SECRET nincs beállítva.
             </span>
           ) : null}
+          {settingsErr ? (
+            <span className="text-xs text-amber-700">
+              Hiányzik az article_automation_settings tábla.
+            </span>
+          ) : null}
           {lastRun ? (
             <span className="text-xs text-gray-600">
               Utolsó futás: {lastRun.run_date} • {lastRun.status}
@@ -138,6 +216,34 @@ export default async function AdminAutomationPage({
             Hiba: {lastRun.details}
           </div>
         ) : null}
+      </div>
+
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div className="text-xs text-gray-600">
+          {showArchived ? "Archivált elemek is látszanak." : "Archivált elemek rejtve."}
+        </div>
+        <div className="flex items-center gap-3 text-xs">
+          <Link
+            href={showArchived ? "/admin/automation" : "/admin/automation?archived=1"}
+            className="underline"
+          >
+            {showArchived ? "Archiváltak elrejtése" : "Archiváltak mutatása"}
+          </Link>
+          <form
+            action={async () => {
+              "use server";
+              await supabaseServer
+                .from("article_automation_queue")
+                .update({ status: "archived" })
+                .eq("status", "done");
+              redirect("/admin/automation");
+            }}
+          >
+            <AdminActionButton className="text-gray-700 underline" pendingText="Archiválás...">
+              Done elemek archiválása
+            </AdminActionButton>
+          </form>
+        </div>
       </div>
 
       <form
@@ -242,7 +348,23 @@ export default async function AdminAutomationPage({
               <div className="col-span-4 text-gray-700 whitespace-pre-wrap">
                 {q.prompt}
               </div>
-              <div className="col-span-2">
+              <div className="col-span-2 flex items-center gap-2 flex-wrap">
+                {q.status === "done" ? (
+                  <form
+                    action={async () => {
+                      "use server";
+                      await supabaseServer
+                        .from("article_automation_queue")
+                        .update({ status: "archived" })
+                        .eq("id", q.id);
+                      redirect("/admin/automation");
+                    }}
+                  >
+                    <AdminActionButton className="text-gray-700 underline text-sm" pendingText="Archiválás...">
+                      Archiválás
+                    </AdminActionButton>
+                  </form>
+                ) : null}
                 <form
                   action={async () => {
                     "use server";
@@ -250,13 +372,13 @@ export default async function AdminAutomationPage({
                     redirect("/admin/automation");
                   }}
                 >
-                <AdminActionButton className="text-red-700 underline text-sm" pendingText="Törlés...">
-                  Törlés
-                </AdminActionButton>
-              </form>
+                  <AdminActionButton className="text-red-700 underline text-sm" pendingText="Törlés...">
+                    Törlés
+                  </AdminActionButton>
+                </form>
+              </div>
             </div>
-          </div>
-        ))}
+          ))}
         </div>
 
         <div className="md:hidden space-y-3 p-3">
@@ -278,17 +400,35 @@ export default async function AdminAutomationPage({
                 {q.category_slug || "—"}
               </div>
               <div className="text-gray-700 whitespace-pre-wrap">{q.prompt}</div>
-              <form
-                action={async () => {
-                  "use server";
-                  await supabaseServer.from("article_automation_queue").delete().eq("id", q.id);
-                  redirect("/admin/automation");
-                }}
-              >
-                <AdminActionButton className="text-red-700 underline text-sm" pendingText="Törlés...">
-                  Törlés
-                </AdminActionButton>
-              </form>
+              <div className="flex items-center gap-2 flex-wrap">
+                {q.status === "done" ? (
+                  <form
+                    action={async () => {
+                      "use server";
+                      await supabaseServer
+                        .from("article_automation_queue")
+                        .update({ status: "archived" })
+                        .eq("id", q.id);
+                      redirect("/admin/automation");
+                    }}
+                  >
+                    <AdminActionButton className="text-gray-700 underline text-sm" pendingText="Archiválás...">
+                      Archiválás
+                    </AdminActionButton>
+                  </form>
+                ) : null}
+                <form
+                  action={async () => {
+                    "use server";
+                    await supabaseServer.from("article_automation_queue").delete().eq("id", q.id);
+                    redirect("/admin/automation");
+                  }}
+                >
+                  <AdminActionButton className="text-red-700 underline text-sm" pendingText="Törlés...">
+                    Törlés
+                  </AdminActionButton>
+                </form>
+              </div>
             </div>
           ))}
         </div>

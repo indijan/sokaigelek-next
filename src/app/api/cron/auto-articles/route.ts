@@ -90,6 +90,76 @@ function extractHeadings(html: string): string[] {
   return Array.from(new Set(headings));
 }
 
+function stripProductMarkers(html: string) {
+  return String(html || "").replace(/<!--\s*PRODUCT:[a-z0-9-]+\s*-->/gi, "");
+}
+
+function safeJsonParsePlacements(text: string): Array<{ slug: string; afterParagraph: number }> | null {
+  const parsed = extractJsonObject(text);
+  if (!parsed) return null;
+  const arr = Array.isArray(parsed?.placements)
+    ? (parsed.placements as Array<{ slug?: unknown; afterParagraph?: unknown }>)
+    : [];
+  return arr
+    .map((p) => ({
+      slug: String(p.slug || "").toLowerCase().trim(),
+      afterParagraph: Number(p.afterParagraph),
+    }))
+    .filter(
+      (p): p is { slug: string; afterParagraph: number } =>
+        Boolean(p.slug) && Number.isFinite(p.afterParagraph)
+    );
+}
+
+function getInsertPoints(html: string): number[] {
+  const s = String(html || "");
+  const closeP = "</p>";
+  const pointsP: number[] = [];
+  let from = 0;
+  while (true) {
+    const idx = s.indexOf(closeP, from);
+    if (idx === -1) break;
+    pointsP.push(idx + closeP.length);
+    from = idx + closeP.length;
+  }
+  if (pointsP.length) return pointsP;
+
+  const patterns = ["</h2>", "</h3>", "</li>", "<br>", "<br/>", "<br />"];
+  const pointsAlt: number[] = [];
+  for (const pat of patterns) {
+    let f = 0;
+    while (true) {
+      const idx = s.indexOf(pat, f);
+      if (idx === -1) break;
+      pointsAlt.push(idx + pat.length);
+      f = idx + pat.length;
+    }
+  }
+  pointsAlt.sort((a, b) => a - b);
+
+  const dedup: number[] = [];
+  for (const p of pointsAlt) {
+    if (!dedup.length || p - dedup[dedup.length - 1] > 30) dedup.push(p);
+  }
+  if (dedup.length) return dedup;
+
+  const L = s.length;
+  if (L < 200) return [];
+  return [Math.floor(L * 0.25), Math.floor(L * 0.55), Math.floor(L * 0.8)];
+}
+
+function insertMarkerAfterParagraph(html: string, afterParagraphIndex: number, marker: string) {
+  const s = String(html || "");
+  const points = getInsertPoints(s);
+
+  if (!points.length) {
+    return s + "\n" + marker;
+  }
+
+  const idx = points[Math.min(Math.max(0, afterParagraphIndex), points.length - 1)];
+  return s.slice(0, idx) + "\n" + marker + "\n" + s.slice(idx);
+}
+
 function pickKeySentences(text: string, count: number): string[] {
   const sentences = text
     .split(/(?<=[.!?])\s+/)
@@ -233,6 +303,126 @@ Ha semmi nem releváns: {"slugs":[]}
   return slugs;
 }
 
+async function placeInlineProductEmbeds(article: any, preferredSlugs: string[]) {
+  const { data: products, error: pErr } = await supabaseServer
+    .from("products")
+    .select("slug, name")
+    .order("name", { ascending: true });
+
+  if (pErr || !products) throw new Error("products_not_found");
+
+  const allowed = new Set(products.map((p) => p.slug));
+  const preferred = preferredSlugs.filter((s) => allowed.has(s));
+
+  const html0 = String(article.content_html || "");
+  const html = stripProductMarkers(html0);
+  const paragraphCount = getInsertPoints(html).length;
+  if (paragraphCount < 3) return [];
+
+  const productList = products.map((p) => `${p.slug} — ${p.name}`).join("\n");
+  const preferredLine = preferred.length ? preferred.join(", ") : "(nincs megadva)";
+
+  const prompt = `
+A feladatod: helyezd el 0-5 termék ajánlót a cikk HTML tartalmában LOGIKUS pontokra.
+
+A megjelenítés jelölője: <!--PRODUCT:slug-->
+
+Bemenet:
+- Cikk címe: ${article.title || ""}
+- Kivonat: ${article.excerpt || ""}
+- HTML: ${html}
+- Bekezdések száma (</p>): ${paragraphCount}
+
+Termékek (csak ebből választhatsz):
+${productList}
+
+Preferált slugok (ha releváns): ${preferredLine}
+
+Kimenet: CSAK egy JSON objektum legyen:
+{"placements":[{"slug":"duolife-aloes","afterParagraph":1}]}
+
+Szabályok:
+- afterParagraph 0 = első </p> után, 1 = második </p> után, stb.
+- 1–3 placement az ideális (csak akkor adj 4-et, ha nagyon hosszú a cikk)
+- NE tedd mindet a végére: a cél az elosztás (korai / közép / késői)
+- Ne rakj két ajánlót egymás után: legalább 2 bekezdés távolság legyen köztük
+- Lehetőleg ne az utolsó bekezdés után legyen (kerüld a zárást)
+- csak létező slugok
+- ha nincs jó hely: {"placements":[]}
+`.trim();
+
+  const data = await openaiJson(prompt);
+  const parsedPlacements = safeJsonParsePlacements(JSON.stringify(data));
+  if (!parsedPlacements) return [];
+
+  let placements = parsedPlacements
+    .filter((p) => allowed.has(p.slug))
+    .slice(0, 5);
+
+  if (!placements.length) {
+    return [];
+  }
+
+  const maxInsert = Math.max(0, paragraphCount - 2);
+  const bySlug = new Map<string, number>();
+  for (const p of placements) {
+    const idx = Math.max(0, Math.min(maxInsert, Math.floor(p.afterParagraph)));
+    bySlug.set(p.slug, idx);
+  }
+  let cleaned = Array.from(bySlug.entries()).map(([slug, afterParagraph]) => ({
+    slug,
+    afterParagraph,
+  }));
+
+  const idealMax = paragraphCount >= 12 ? 4 : 3;
+  cleaned = cleaned.slice(0, idealMax);
+
+  const tooEndHeavy = cleaned.length > 0 && cleaned.every((p) => p.afterParagraph >= maxInsert - 1);
+  const asc = [...cleaned].sort((a, b) => a.afterParagraph - b.afterParagraph);
+  let tooClustered = false;
+  for (let i = 1; i < asc.length; i++) {
+    if (asc[i].afterParagraph - asc[i - 1].afterParagraph < 2) {
+      tooClustered = true;
+      break;
+    }
+  }
+
+  if (tooEndHeavy || tooClustered) {
+    const n = cleaned.length;
+    const targets: number[] = [];
+    for (let i = 0; i < n; i++) {
+      const frac = (i + 1) / (n + 1);
+      targets.push(Math.max(0, Math.min(maxInsert, Math.floor(frac * maxInsert))));
+    }
+    for (let i = 1; i < targets.length; i++) {
+      if (targets[i] - targets[i - 1] < 2) targets[i] = Math.min(maxInsert, targets[i - 1] + 2);
+    }
+    for (let i = targets.length - 1; i >= 1; i--) {
+      if (targets[i] > maxInsert) targets[i] = maxInsert;
+      if (targets[i] - targets[i - 1] < 2) targets[i - 1] = Math.max(0, targets[i] - 2);
+    }
+    cleaned = cleaned.map((p, i) => ({
+      slug: p.slug,
+      afterParagraph: targets[i] ?? p.afterParagraph,
+    }));
+  }
+
+  cleaned = cleaned.sort((a, b) => b.afterParagraph - a.afterParagraph);
+
+  let nextHtml = html;
+  for (const p of cleaned) {
+    const marker = `<!--PRODUCT:${p.slug}-->`;
+    nextHtml = insertMarkerAfterParagraph(nextHtml, p.afterParagraph, marker);
+  }
+
+  await supabaseServer
+    .from("articles")
+    .update({ content_html: nextHtml })
+    .eq("id", article.id);
+
+  return cleaned.map((p) => p.slug);
+}
+
 async function postToFacebook(article: any) {
   const pageId = process.env.FACEBOOK_PAGE_ID;
   const accessToken = process.env.FACEBOOK_PAGE_ACCESS_TOKEN;
@@ -275,6 +465,34 @@ export async function GET(req: Request) {
 
   if (hour !== "08" && !force) {
     return NextResponse.json({ ok: true, skipped: "not_8am" });
+  }
+
+  if (!force) {
+    const { data: settingsRow, error: settingsErr } = await supabaseServer
+      .from("article_automation_settings")
+      .select("value")
+      .eq("key", "posts_per_week")
+      .maybeSingle();
+
+    if (!settingsErr) {
+      const postsPerWeek = Number(settingsRow?.value || 7);
+      const safePostsPerWeek =
+        Number.isFinite(postsPerWeek) && postsPerWeek >= 1 && postsPerWeek <= 7
+          ? postsPerWeek
+          : 7;
+
+      const since = new Date(now);
+      since.setDate(since.getDate() - 7);
+      const { count } = await supabaseServer
+        .from("article_automation_runs")
+        .select("id", { count: "exact" })
+        .eq("status", "ok")
+        .gte("created_at", since.toISOString());
+
+      if ((count || 0) >= safePostsPerWeek) {
+        return NextResponse.json({ ok: true, skipped: "weekly_limit" });
+      }
+    }
   }
 
   const { data: existingRun } = await supabaseServer
@@ -405,7 +623,8 @@ Adj vissza egyetlen JSON objektumot:
     article = inserted;
 
     await generateCoverImage(article);
-    await suggestRelatedProducts(article);
+    const relatedSlugs = await suggestRelatedProducts(article);
+    await placeInlineProductEmbeds(article, relatedSlugs);
     await postToFacebook(article);
 
     await supabaseServer
