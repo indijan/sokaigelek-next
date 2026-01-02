@@ -211,9 +211,14 @@ export default async function AdminAutomationPage({
             <span className="text-xs text-gray-600">Még nem volt futás.</span>
           )}
         </div>
-        {lastRun?.details ? (
+        {lastRun?.details && lastRun.status === "error" ? (
           <div className="mt-2 text-xs text-red-600 line-clamp-2">
             Hiba: {lastRun.details}
+          </div>
+        ) : null}
+        {lastRun?.details && lastRun.status !== "error" ? (
+          <div className="mt-2 text-xs text-gray-600 line-clamp-2">
+            Utolsó futás üzenete: {lastRun.details}
           </div>
         ) : null}
       </div>

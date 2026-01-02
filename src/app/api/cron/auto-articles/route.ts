@@ -454,8 +454,15 @@ export async function GET(req: Request) {
   const secret = searchParams.get("secret") || "";
   const force = searchParams.get("force") === "1";
   const expected = process.env.CRON_SECRET || "";
-  const isVercelCron = req.headers.get("x-vercel-cron") === "1";
+  const cronHeader = req.headers.get("x-vercel-cron");
+  const isVercelCron = cronHeader === "1" || cronHeader === "true";
   if (!isVercelCron && (!expected || secret !== expected)) {
+    console.warn("cron_unauthorized", {
+      hasCronHeader: Boolean(cronHeader),
+      cronHeader,
+      hasExpected: Boolean(expected),
+      hasSecret: Boolean(secret),
+    });
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
