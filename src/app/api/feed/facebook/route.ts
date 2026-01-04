@@ -67,9 +67,10 @@ export async function GET() {
       if (price === null) return "";
 
       const link = `${siteUrl}/termek/${encodeURIComponent(slug)}`;
-      const image = p.image_url
+      const rawImage = p.image_url
         ? cdnImageUrl(String(p.image_url))
         : `${siteUrl}/images/placeholder-product.jpg`;
+      const image = rawImage.startsWith("/") ? `${siteUrl}${rawImage}` : rawImage;
       const brand = defaultBrand.trim();
 
       return [
