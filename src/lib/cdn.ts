@@ -22,6 +22,7 @@ function isSupabasePublicUrl(url: string) {
 export function cdnImageUrl(url: string) {
   const raw = url.trim();
   if (!raw) return raw;
+  if (raw.startsWith("/api/image?url=")) return raw;
   if (isSupabasePublicUrl(raw)) {
     return `/api/image?url=${encodeURIComponent(raw)}`;
   }

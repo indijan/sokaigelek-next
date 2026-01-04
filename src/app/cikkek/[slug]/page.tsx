@@ -37,7 +37,7 @@ function rewriteImageSrcInHtml(html: string): string {
   return html.replace(/<img\b[^>]*\bsrc=(["'])(.*?)\1/gi, (match, quote, src) => {
     const updated = cdnImageUrl(String(src));
     if (!updated || updated === src) return match;
-    return match.replace(src, updated);
+    return match.replace(src, escapeHtml(updated));
   });
 }
 
