@@ -47,7 +47,7 @@ export async function GET() {
     .eq("status", "published");
 
   if (error) {
-    return new Response("Feed error", { status: 500 });
+    return new Response(`Feed error: ${error.message}`, { status: 500 });
   }
 
   const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || "https://sokaigelek.hu").replace(/\/$/, "");
