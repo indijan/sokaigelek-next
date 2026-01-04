@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabaseServer";
+import { uploadVercelBlob } from "@/lib/blobStorage";
 import { slugifyHu } from "@/lib/slugifyHu";
 
 export const runtime = "nodejs";
@@ -243,18 +244,27 @@ async function generateCoverImage(article: any) {
   const safeSlug = (article.slug || "article").toString();
   const path = `covers/${safeSlug}-${Date.now()}.png`;
 
-  const { error: upErr } = await supabaseServer.storage
-    .from(bucket)
-    .upload(path, buffer, { contentType: "image/png", upsert: true });
+  const blobUrl = await uploadVercelBlob(path, buffer, "image/png");
+  let publicUrl = "";
+  let coverImagePath: string | null = null;
 
-  if (upErr) throw new Error(`Upload error: ${upErr.message}`);
+  if (blobUrl) {
+    publicUrl = blobUrl;
+  } else {
+    const { error: upErr } = await supabaseServer.storage
+      .from(bucket)
+      .upload(path, buffer, { contentType: "image/png", upsert: true });
 
-  const { data: pub } = supabaseServer.storage.from(bucket).getPublicUrl(path);
-  const publicUrl = pub.publicUrl;
+    if (upErr) throw new Error(`Upload error: ${upErr.message}`);
+
+    const { data: pub } = supabaseServer.storage.from(bucket).getPublicUrl(path);
+    publicUrl = pub.publicUrl;
+    coverImagePath = path;
+  }
 
   const { error: uErr } = await supabaseServer
     .from("articles")
-    .update({ cover_image_url: publicUrl })
+    .update({ cover_image_url: publicUrl, cover_image_path: coverImagePath })
     .eq("id", article.id);
 
   if (uErr) throw new Error(`DB update error: ${uErr.message}`);

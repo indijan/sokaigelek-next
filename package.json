@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.89.0",
+    "@vercel/blob": "^2.0.0",
     "dotenv": "^17.2.3",
     "iconv-lite": "^0.7.1",
     "next": "16.1.0",

@@ -2,6 +2,7 @@ import ArticleSection from "./ArticleSection";
 import ProductSlot from "./ProductSlot";
 
 import Link from "next/link";
+import { cdnImageUrl } from "@/lib/cdn";
 
 function splitHtmlByProductMarkers(html: string) {
   const re = /<!--\s*PRODUCT:([a-z0-9-]+)\s*-->/gi;
@@ -62,7 +63,7 @@ export default function ArticlePage({ article }: { article: DbArticle }) {
       {article.cover_image_url ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-              src={article.cover_image_url}
+              src={cdnImageUrl(article.cover_image_url)}
               alt={article.title || "Borítókép"}
               className="w-full rounded-2xl border"
           />

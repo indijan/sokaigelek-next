@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { supabaseServer } from "@/lib/supabaseServer";
+import { cdnImageUrl } from "@/lib/cdn";
 
 export const revalidate = 60;
 
@@ -153,7 +154,7 @@ export default async function ArticlesIndexPage({
                             return img ? (
                               // eslint-disable-next-line @next/next/no-img-element
                               <img
-                                src={String(img)}
+                                src={cdnImageUrl(String(img))}
                                 alt={a.title}
                                 className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
                                 loading="lazy"

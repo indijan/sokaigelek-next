@@ -3,6 +3,7 @@ import ChatOpenButton from "@/components/ChatOpenButton";
 import Image from "next/image";
 import type { CSSProperties } from "react";
 import { supabaseServer } from "@/lib/supabaseServer";
+import { cdnImageUrl } from "@/lib/cdn";
 
 type Topic =
   | {
@@ -80,13 +81,14 @@ function CardMedia({
   if (!src) return <div style={placeholderStyle} aria-hidden="true" />;
 
   const isRemote = /^https?:\/\//i.test(src);
+  const remoteSrc = isRemote ? cdnImageUrl(src) : src;
 
   return (
     <div style={placeholderStyle}>
       {isRemote ? (
         // Using <img> avoids Next.js image optimizer fetch issues during dev for some remote hosts.
         <img
-          src={src}
+          src={remoteSrc}
           alt={alt}
           loading={variant === "topic" ? "eager" : "lazy"}
           style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}

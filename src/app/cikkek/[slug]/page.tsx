@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { supabaseServer } from "@/lib/supabaseServer";
 import ShareButtons from "@/components/Article/ShareButtons";
+import { cdnImageUrl } from "@/lib/cdn";
 
 type Props = {
   params: Promise<{ slug: string }>;
@@ -29,6 +30,15 @@ function buildDescription(article: any): string {
 function safeHtml(article: any): string {
   // Normalize newlines so SSR and client hydration see identical HTML text.
   return String(article?.content_html || article?.html || "").replace(/\r\n/g, "\n");
+}
+
+function rewriteImageSrcInHtml(html: string): string {
+  if (!html) return html;
+  return html.replace(/<img\b[^>]*\bsrc=(["'])(.*?)\1/gi, (match, quote, src) => {
+    const updated = cdnImageUrl(String(src));
+    if (!updated || updated === src) return match;
+    return match.replace(src, updated);
+  });
 }
 
 function extractProductSlugsFromHtml(html: string): string[] {
@@ -95,7 +105,7 @@ function buildInlineProductHtml(product: any, slug: string, sideClass: string): 
   const url = `/termek/${safeSlug}`;
   const img = product?.image_url || product?.cover_image_url || product?.image || null;
   const imgTag = img
-    ? `<img src="${escapeHtml(String(img))}" alt="${safeTitle}" style="width:100%;height:100%;object-fit:cover;" />`
+    ? `<img src="${escapeHtml(cdnImageUrl(String(img)))}" alt="${safeTitle}" style="width:100%;height:100%;object-fit:cover;" />`
     : "";
   const excerptHtml = String(product?.excerpt || product?.short_description || "").trim();
   const excerptBlock = excerptHtml
@@ -275,8 +285,10 @@ export default async function ArticlePageRoute({ params }: Props) {
   }
 
   const contentWithEmbeds = injectProductEmbedsIntoHtml(contentHtml, inlineProductsMap);
+  const contentWithImages = rewriteImageSrcInHtml(contentWithEmbeds);
 
-  const coverUrl = (article as any).cover_image_url || (article as any).image_url || null;
+  const coverRaw = (article as any).cover_image_url || (article as any).image_url || null;
+  const coverUrl = coverRaw ? cdnImageUrl(String(coverRaw)) : null;
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://sokaigelek.hu";
   const shareUrl = `${siteUrl.replace(/\/$/, "")}/cikkek/${article.slug}`;
   const dateLabel = formatDate((article as any).published_at || (article as any).created_at || null);
@@ -468,7 +480,7 @@ export default async function ArticlePageRoute({ params }: Props) {
           <div
             className="article-html-block"
             suppressHydrationWarning
-            dangerouslySetInnerHTML={{ __html: contentWithEmbeds }}
+            dangerouslySetInnerHTML={{ __html: contentWithImages }}
           />
           {relatedProductSlugs.length ? (
             <div style={{ marginTop: 24, display: "flex", justifyContent: "center" }}>

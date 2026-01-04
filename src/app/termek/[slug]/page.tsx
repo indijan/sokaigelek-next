@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { supabaseServer } from "@/lib/supabaseServer";
+import { cdnImageUrl } from "@/lib/cdn";
 
 type Props = {
     params: Promise<{ slug: string }>;
@@ -18,11 +19,7 @@ function safeRemoteImageUrl(url: any): string | null {
   // (This prevents Next image optimizer / browser from choking on broken WP filenames like "¬Æ".)
   if (/[\u0000-\u001F\u007F\u00AC\u00C3\u00C5]/.test(raw)) return null;
 
-  try {
-    return encodeURI(raw);
-  } catch {
-    return null;
-  }
+  return cdnImageUrl(raw);
 }
 
 function buildProductDescription(product: any): string {

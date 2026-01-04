@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { supabaseServer } from "@/lib/supabaseServer";
+import { uploadVercelBlob } from "@/lib/blobStorage";
 
 export async function POST(req: Request) {
     const cookieStore = await cookies();
@@ -26,31 +27,42 @@ export async function POST(req: Request) {
     const arrayBuffer = await file.arrayBuffer();
     const body = Buffer.from(arrayBuffer);
 
-    const { error: uploadErr } = await supabaseServer.storage
-        .from("article-images")
-        .upload(path, body, {
-            contentType: file.type || "image/jpeg",
-            upsert: true,
-        });
+    const contentType = file.type || "image/jpeg";
+    const blobUrl = await uploadVercelBlob(path, body, contentType);
 
-    if (uploadErr) {
-        return NextResponse.json({ error: uploadErr.message }, { status: 500 });
+    let url = "";
+    let coverImagePath: string | null = null;
+
+    if (blobUrl) {
+        url = blobUrl;
+    } else {
+        const { error: uploadErr } = await supabaseServer.storage
+            .from("article-images")
+            .upload(path, body, {
+                contentType,
+                upsert: true,
+            });
+
+        if (uploadErr) {
+            return NextResponse.json({ error: uploadErr.message }, { status: 500 });
+        }
+
+        const { data: pub } = supabaseServer.storage
+            .from("article-images")
+            .getPublicUrl(path);
+
+        url = pub.publicUrl;
+        coverImagePath = path;
     }
-
-    const { data: pub } = supabaseServer.storage
-        .from("article-images")
-        .getPublicUrl(path);
-
-    const url = pub.publicUrl;
 
     const { error: dbErr } = await supabaseServer
         .from("articles")
-        .update({ cover_image_url: url, cover_image_path: path })
+        .update({ cover_image_url: url, cover_image_path: coverImagePath })
         .eq("id", articleId);
 
     if (dbErr) {
         return NextResponse.json({ error: dbErr.message }, { status: 500 });
     }
 
-    return NextResponse.json({ url, path });
+    return NextResponse.json({ url, path: coverImagePath });
 }

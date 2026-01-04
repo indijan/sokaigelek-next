@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { supabaseServer } from "@/lib/supabaseServer";
+import { uploadVercelBlob } from "@/lib/blobStorage";
 
 export const runtime = "nodejs";
 
@@ -139,26 +140,35 @@ export async function POST(req: Request) {
 
     const buffer = Buffer.from(b64, "base64");
 
-    // 4) feltöltés Supabase Storage
+    // 4) feltöltés Supabase Storage vagy Vercel Blob
     const bucket = process.env.ARTICLE_IMAGES_BUCKET || "article-images";
     const safeSlug = (article.slug || "article").toString();
     const path = `covers/${safeSlug}-${Date.now()}.png`;
 
-    const { error: upErr } = await supabase.storage
-        .from(bucket)
-        .upload(path, buffer, { contentType: "image/png", upsert: true });
+    const blobUrl = await uploadVercelBlob(path, buffer, "image/png");
+    let publicUrl = "";
+    let coverImagePath: string | null = null;
 
-    if (upErr) {
-        return NextResponse.json({ error: `Upload error: ${upErr.message}` }, { status: 500 });
+    if (blobUrl) {
+        publicUrl = blobUrl;
+    } else {
+        const { error: upErr } = await supabase.storage
+            .from(bucket)
+            .upload(path, buffer, { contentType: "image/png", upsert: true });
+
+        if (upErr) {
+            return NextResponse.json({ error: `Upload error: ${upErr.message}` }, { status: 500 });
+        }
+
+        const { data: pub } = supabase.storage.from(bucket).getPublicUrl(path);
+        publicUrl = pub.publicUrl;
+        coverImagePath = path;
     }
-
-    const { data: pub } = supabase.storage.from(bucket).getPublicUrl(path);
-    const publicUrl = pub.publicUrl;
 
     // 5) DB update
     const { error: uErr } = await supabase
         .from("articles")
-        .update({ cover_image_url: publicUrl })
+        .update({ cover_image_url: publicUrl, cover_image_path: coverImagePath })
         .eq("id", article.id);
 
     if (uErr) {

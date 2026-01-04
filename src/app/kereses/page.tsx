@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { cdnImageUrl } from "@/lib/cdn";
 
 type SearchParams = {
     q?: string;
@@ -299,7 +300,7 @@ function safeImg(src?: string | null) {
     const s = (src || "").trim();
     if (!s) return null;
     // next/image remote loader + onError event handler problémák helyett egyszerű <img>
-    return s;
+    return cdnImageUrl(s);
 }
 
 export default async function KeresesPage(props: {

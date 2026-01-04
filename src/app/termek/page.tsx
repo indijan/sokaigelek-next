@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { supabaseServer } from "@/lib/supabaseServer";
+import { cdnImageUrl } from "@/lib/cdn";
 
 const PAGE_SIZE = 12;
 
@@ -32,12 +33,7 @@ function safeImageUrl(input: unknown) {
   // Examples seen: "¬Æ", "Ã", "Å".
   if (/[¬ÃÅ]/.test(raw)) return "/images/placeholder-product.jpg";
 
-  // Encode only unsafe characters while keeping the URL readable
-  try {
-    return encodeURI(raw);
-  } catch {
-    return "/images/placeholder-product.jpg";
-  }
+  return cdnImageUrl(raw);
 }
 
 function formatFt(value: unknown) {

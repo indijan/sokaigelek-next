@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { supabaseServer } from "@/lib/supabaseServer";
+import { uploadVercelBlob } from "@/lib/blobStorage";
 
 export async function POST(req: Request) {
     const cookieStore = await cookies();
@@ -15,24 +16,33 @@ export async function POST(req: Request) {
     if (!file) return NextResponse.json({ error: "Missing file" }, { status: 400 });
 
     const arrayBuffer = await file.arrayBuffer();
-    const bytes = new Uint8Array(arrayBuffer);
+    const body = Buffer.from(arrayBuffer);
 
     const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
     const path = `products/${slug}.${ext}`;
 
-    const { error: upErr } = await supabaseServer.storage
-        .from("images")
-        .upload(path, bytes, {
-            contentType: file.type || "image/jpeg",
-            upsert: true,
-        });
+    const contentType = file.type || "image/jpeg";
+    const blobUrl = await uploadVercelBlob(path, body, contentType);
 
-    if (upErr) {
-        return NextResponse.json({ error: upErr.message }, { status: 500 });
+    let publicUrl = "";
+
+    if (blobUrl) {
+        publicUrl = blobUrl;
+    } else {
+        const { error: upErr } = await supabaseServer.storage
+            .from("images")
+            .upload(path, body, {
+                contentType,
+                upsert: true,
+            });
+
+        if (upErr) {
+            return NextResponse.json({ error: upErr.message }, { status: 500 });
+        }
+
+        const { data } = supabaseServer.storage.from("images").getPublicUrl(path);
+        publicUrl = data.publicUrl;
     }
-
-    const { data } = supabaseServer.storage.from("images").getPublicUrl(path);
-    const publicUrl = data.publicUrl;
 
     const { error: dbErr } = await supabaseServer
         .from("products")

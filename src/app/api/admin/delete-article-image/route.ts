@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { supabaseServer } from "@/lib/supabaseServer";
+import { deleteVercelBlob, isVercelBlobUrl } from "@/lib/blobStorage";
 
 export async function POST(req: Request) {
     const cookieStore = await cookies();
@@ -16,7 +17,7 @@ export async function POST(req: Request) {
     // lekérjük, mi van most beállítva
     const { data: article, error: readErr } = await supabaseServer
         .from("articles")
-        .select("cover_image_path")
+        .select("cover_image_path, cover_image_url")
         .eq("id", articleId)
         .single();
 
@@ -25,9 +26,11 @@ export async function POST(req: Request) {
     }
 
     const path = article?.cover_image_path as string | null;
+    const url = article?.cover_image_url as string | null;
 
-    // storage törlés (ha van path)
-    if (path) {
+    if (url && isVercelBlobUrl(url)) {
+        await deleteVercelBlob(url);
+    } else if (path) {
         const { error: delErr } = await supabaseServer.storage
             .from("article-images")
             .remove([path]);
