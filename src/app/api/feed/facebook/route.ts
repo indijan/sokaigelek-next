@@ -10,9 +10,6 @@ type ProductRow = {
   image_url: string | null;
   price: string | number | null;
   regular_price: string | number | null;
-  brand?: string | null;
-  sku?: string | null;
-  gtin?: string | null;
   status: string | null;
 };
 
@@ -43,7 +40,7 @@ function normalizePrice(value: ProductRow["price"]) {
 export async function GET() {
   const { data, error } = await supabaseServer
     .from("products")
-    .select("id, slug, name, short, description, image_url, price, regular_price, brand, sku, gtin, status")
+    .select("id, slug, name, short, description, image_url, price, regular_price, status")
     .eq("status", "published");
 
   if (error) {
@@ -73,7 +70,7 @@ export async function GET() {
       const image = p.image_url
         ? cdnImageUrl(String(p.image_url))
         : `${siteUrl}/images/placeholder-product.jpg`;
-      const brand = (p.brand || defaultBrand).trim();
+      const brand = defaultBrand.trim();
 
       return [
         "<item>",
@@ -90,8 +87,6 @@ export async function GET() {
         salePrice && basePrice && salePrice < basePrice
           ? `<g:sale_price>${salePrice.toFixed(2)} HUF</g:sale_price>`
           : "",
-        p.sku ? `<g:mpn>${escapeXml(String(p.sku))}</g:mpn>` : "",
-        p.gtin ? `<g:gtin>${escapeXml(String(p.gtin))}</g:gtin>` : "",
         "</item>",
       ]
         .filter(Boolean)
