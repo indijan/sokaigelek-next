@@ -10,6 +10,9 @@ type ProductRow = {
   image_url: string | null;
   price: string | number | null;
   regular_price: string | number | null;
+  brand?: string | null;
+  sku?: string | null;
+  gtin?: string | null;
   status: string | null;
 };
 
@@ -40,7 +43,7 @@ function normalizePrice(value: ProductRow["price"]) {
 export async function GET() {
   const { data, error } = await supabaseServer
     .from("products")
-    .select("id, slug, name, short, description, image_url, price, regular_price, status")
+    .select("id, slug, name, short, description, image_url, price, regular_price, brand, sku, gtin, status")
     .eq("status", "published");
 
   if (error) {
@@ -48,6 +51,8 @@ export async function GET() {
   }
 
   const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || "https://sokaigelek.hu").replace(/\/$/, "");
+  const defaultBrand = process.env.FB_FEED_BRAND || "Sokaigelek";
+  const defaultCategory = process.env.FB_FEED_CATEGORY || "";
 
   const items = (data as ProductRow[] | null) ?? [];
   const xmlItems = items
@@ -59,11 +64,16 @@ export async function GET() {
       const descSource = (p.short || p.description || "").trim();
       const description = descSource ? stripHtml(descSource) : title;
 
-      const price = normalizePrice(p.price ?? p.regular_price);
+      const basePrice = normalizePrice(p.regular_price);
+      const salePrice = normalizePrice(p.price);
+      const price = salePrice ?? basePrice;
       if (price === null) return "";
 
       const link = `${siteUrl}/termek/${encodeURIComponent(slug)}`;
-      const image = p.image_url ? cdnImageUrl(String(p.image_url)) : "";
+      const image = p.image_url
+        ? cdnImageUrl(String(p.image_url))
+        : `${siteUrl}/images/placeholder-product.jpg`;
+      const brand = (p.brand || defaultBrand).trim();
 
       return [
         "<item>",
@@ -71,10 +81,17 @@ export async function GET() {
         `<g:title>${escapeXml(title)}</g:title>`,
         `<g:description>${escapeXml(description)}</g:description>`,
         `<g:link>${escapeXml(link)}</g:link>`,
-        image ? `<g:image_link>${escapeXml(image)}</g:image_link>` : "",
+        `<g:image_link>${escapeXml(image)}</g:image_link>`,
+        brand ? `<g:brand>${escapeXml(brand)}</g:brand>` : "",
+        defaultCategory ? `<g:google_product_category>${escapeXml(defaultCategory)}</g:google_product_category>` : "",
         "<g:condition>new</g:condition>",
         "<g:availability>in stock</g:availability>",
-        `<g:price>${price.toFixed(2)} HUF</g:price>`,
+        `<g:price>${(basePrice ?? price).toFixed(2)} HUF</g:price>`,
+        salePrice && basePrice && salePrice < basePrice
+          ? `<g:sale_price>${salePrice.toFixed(2)} HUF</g:sale_price>`
+          : "",
+        p.sku ? `<g:mpn>${escapeXml(String(p.sku))}</g:mpn>` : "",
+        p.gtin ? `<g:gtin>${escapeXml(String(p.gtin))}</g:gtin>` : "",
         "</item>",
       ]
         .filter(Boolean)
