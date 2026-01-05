@@ -176,7 +176,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   const { data: article } = await supabaseServer
     .from("articles")
-    .select("id, slug, title, excerpt, content_html, html, cover_image_url, status")
+    .select("*")
     .eq("slug", slug)
     .eq("status", "published")
     .single();
@@ -226,7 +226,7 @@ export default async function ArticlePageRoute({ params }: Props) {
 
   const { data: article, error } = await supabaseServer
     .from("articles")
-    .select("id, slug, title, excerpt, content_html, html, cover_image_url, image_url, published_at, created_at, related_product_slugs, status")
+    .select("*")
     .eq("slug", slug)
     .eq("status", "published")
     .single();
