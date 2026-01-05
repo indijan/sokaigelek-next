@@ -20,8 +20,8 @@ type Topic =
 
 const TOPICS: Topic[] = [
   {
-    label: "Tudatos élet",
-    href: "/cikkek?cat=tudatos-elet",
+    label: "Jóllét Kalauz",
+    href: "/cikkek",
     image: "/images/home/topic-tudatos-elet.jpeg",
   },
   {
