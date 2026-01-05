@@ -340,7 +340,9 @@ export default async function KeresesPage(props: {
                 // ezért biztonságos a szerver-oldali "select *" + JS szűrés.
                 const { data, error } = await supabase
                     .from("products")
-                    .select("*")
+                    .select(
+                        "id, slug, name, title, post_title, product_title, short_description, excerpt, post_excerpt, description, content, post_content, featured_image_url, image_url, price, regular_price"
+                    )
                     // legyen stabil a találatok köre (ne essen ki releváns elem csak azért, mert túl alacsony a limit)
                     .order("id", { ascending: false })
                     .limit(2000);
@@ -400,7 +402,9 @@ export default async function KeresesPage(props: {
                 // elhasalni attól, hogy pl. `intro` vagy `cover_url` oszlop nincs.
                 const { data, error } = await supabase
                     .from("articles")
-                    .select("*")
+                    .select(
+                        "id, slug, title, post_title, intro, excerpt, post_excerpt, content, post_content, cover_image_url, featured_image_url, cover_url"
+                    )
                     // legyen stabil a találatok köre (ne essen ki releváns elem csak azért, mert túl alacsony a limit)
                     .order("id", { ascending: false })
                     .limit(2000);

@@ -111,7 +111,7 @@ function CardMedia({
 export default async function Home() {
   const { data: featuredProducts } = await supabaseServer
     .from("products")
-    .select("*")
+    .select("id, slug, name, short, image_url, price, regular_price, status")
     .eq("is_featured", true)
     .order("updated_at", { ascending: false })
     .limit(4);

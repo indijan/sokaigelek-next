@@ -342,10 +342,18 @@ export async function GET(req: Request) {
         const supabase = createClient(supabaseUrl, supabaseKey, { auth: { persistSession: false } });
 
         const [pRes, aRes] = await Promise.all([
-            supabase.from("products").select("*").order("id", { ascending: false }).limit(2000),
+            supabase
+                .from("products")
+                .select(
+                    "id, slug, name, title, post_title, product_title, short_description, excerpt, post_excerpt, description, content, post_content, featured_image_url, image_url"
+                )
+                .order("id", { ascending: false })
+                .limit(2000),
             supabase
                 .from("articles")
-                .select("*")
+                .select(
+                    "id, slug, title, post_title, intro, excerpt, post_excerpt, content, post_content, featured_image_url, cover_url"
+                )
                 .eq("status", "published")
                 .order("id", { ascending: false })
                 .limit(2000),

@@ -246,7 +246,9 @@ export default async function ProductPageRoute({ params }: Props) {
 
   const { data: product, error } = await supabaseServer
     .from("products")
-    .select("*")
+    .select(
+      "id, slug, name, short, description, image_url, affiliate_label_1, affiliate_label_2, price, regular_price, status, tags, benefits, ingredients, how_to_use, warnings, faq, nutrition, nutrition_facts, nutrition_table, composition, composition_html"
+    )
     .eq("slug", slug)
     .single();
 
@@ -305,7 +307,7 @@ export default async function ProductPageRoute({ params }: Props) {
   if (tags.length && tagsArray) {
     const { data: related, error: relErr } = await supabaseServer
       .from("products")
-      .select("*")
+      .select("id, slug, name, short, description, image_url, status")
       .overlaps("tags", tags)
       .neq("id", product.id)
       .limit(6);

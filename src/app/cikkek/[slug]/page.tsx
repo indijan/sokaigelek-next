@@ -176,7 +176,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   const { data: article } = await supabaseServer
     .from("articles")
-    .select("*")
+    .select("id, slug, title, excerpt, content_html, html, cover_image_url, status")
     .eq("slug", slug)
     .eq("status", "published")
     .single();
@@ -226,7 +226,7 @@ export default async function ArticlePageRoute({ params }: Props) {
 
   const { data: article, error } = await supabaseServer
     .from("articles")
-    .select("*")
+    .select("id, slug, title, excerpt, content_html, html, cover_image_url, image_url, published_at, created_at, related_product_slugs, status")
     .eq("slug", slug)
     .eq("status", "published")
     .single();
@@ -276,7 +276,7 @@ export default async function ArticlePageRoute({ params }: Props) {
   if (inlineProductSlugs.length) {
     const { data: inlineProducts } = await supabaseServer
       .from("products")
-      .select("*")
+      .select("id, slug, name, title, image_url, cover_image_url, image, excerpt, short_description, tags")
       .in("slug", inlineProductSlugs);
 
     (inlineProducts || []).forEach((p: any) => {

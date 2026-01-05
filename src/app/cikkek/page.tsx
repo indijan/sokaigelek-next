@@ -26,14 +26,17 @@ export default async function ArticlesIndexPage({
     const [categoriesRes, articlesRes, categoryCountRes] = await Promise.all([
         supabaseServer
             .from("categories")
-            .select("*")
+            .select("id, name, slug, sort_order, created_at")
             .order("sort_order", { ascending: true })
             .order("created_at", { ascending: true }),
 
         (() => {
           const q = supabaseServer
             .from("articles")
-            .select("*", { count: "exact" })
+            .select(
+              "id, slug, title, excerpt, category_slug, image_url, featured_image_url, cover_image_url, thumbnail_url, image, featured_image, hero_image_url, created_at",
+              { count: "exact" }
+            )
             .eq("status", "published")
             .order("created_at", { ascending: false })
             .range(from, to);

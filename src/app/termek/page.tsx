@@ -94,9 +94,10 @@ export default async function ProductsIndexPage({
     dynamicTags = Array.from(tagMap.values()).sort((a, b) => a.localeCompare(b, "hu"));
   }
 
+  const selectFields = "id, slug, name, short, description, image_url, price, regular_price, status";
   let query = slugFilter.length
-    ? supabaseServer.from("products").select("*").order("name", { ascending: true })
-    : supabaseServer.from("products").select("*", { count: "exact" }).order("name", { ascending: true });
+    ? supabaseServer.from("products").select(selectFields).order("name", { ascending: true })
+    : supabaseServer.from("products").select(selectFields, { count: "exact" }).order("name", { ascending: true });
 
   // Tag filter (will work once tags are stored, e.g. in `tags` array column)
   const activeTagRaw = String(params.tag ?? "osszes");
