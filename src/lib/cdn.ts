@@ -23,6 +23,12 @@ export function cdnImageUrl(url: string) {
   const raw = url.trim();
   if (!raw) return raw;
   if (raw.startsWith("/api/image?url=")) return raw;
+  try {
+    const u = new URL(raw);
+    if (u.pathname === "/api/image" && u.searchParams.has("url")) return raw;
+  } catch {
+    // ignore parse errors
+  }
   if (isSupabasePublicUrl(raw)) {
     return `/api/image?url=${encodeURIComponent(raw)}`;
   }

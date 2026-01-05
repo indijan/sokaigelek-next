@@ -70,7 +70,7 @@ export default function ShareButtons({ url, title }: Props) {
         <button
           type="button"
           onClick={onNativeShare}
-          className="group inline-flex items-center justify-between rounded-xl border border-emerald-200 bg-gradient-to-r from-emerald-50 to-white px-4 py-3 text-sm font-semibold text-emerald-900 transition hover:-translate-y-0.5 hover:shadow-md"
+          className="group inline-flex cursor-pointer items-center justify-between rounded-xl border border-emerald-200 bg-gradient-to-r from-emerald-50 to-white px-4 py-3 text-sm font-semibold text-emerald-900 transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2"
         >
           Megosztás
           <span className="opacity-60 transition group-hover:translate-x-0.5">→</span>
@@ -78,7 +78,7 @@ export default function ShareButtons({ url, title }: Props) {
         <button
           type="button"
           onClick={onFacebook}
-          className="group inline-flex items-center justify-between rounded-xl border border-blue-200 bg-gradient-to-r from-blue-50 to-white px-4 py-3 text-sm font-semibold text-blue-900 transition hover:-translate-y-0.5 hover:shadow-md"
+          className="group inline-flex cursor-pointer items-center justify-between rounded-xl border border-blue-200 bg-gradient-to-r from-blue-50 to-white px-4 py-3 text-sm font-semibold text-blue-900 transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300 focus-visible:ring-offset-2"
         >
           Facebook
           <span className="opacity-60 transition group-hover:translate-x-0.5">→</span>

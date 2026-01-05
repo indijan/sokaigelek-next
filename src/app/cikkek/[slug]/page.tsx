@@ -58,6 +58,13 @@ function buildRecommendationLine(product: any, slug: string): string {
     if (typeof value === "string") {
       const trimmed = value.trim();
       if (!trimmed) return [];
+      if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
+        return trimmed
+          .slice(1, -1)
+          .split(",")
+          .map((s) => s.trim().replace(/^"(.*)"$/, "$1"))
+          .filter(Boolean);
+      }
       if (trimmed.startsWith("[")) {
         try {
           const parsed = JSON.parse(trimmed);
@@ -301,7 +308,7 @@ export default async function ArticlePageRoute({ params }: Props) {
   if (inlineProductSlugs.length) {
     const { data: inlineProducts } = await supabaseServer
       .from("products")
-      .select("id, slug, name, title, image_url, cover_image_url, image, excerpt, short_description, tags")
+      .select("*")
       .in("slug", inlineProductSlugs);
 
     (inlineProducts || []).forEach((p: any) => {
