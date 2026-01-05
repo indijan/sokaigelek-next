@@ -52,7 +52,29 @@ function extractProductSlugsFromHtml(html: string): string[] {
 }
 
 function buildRecommendationLine(product: any, slug: string): string {
-  const rawTags = Array.isArray(product?.tags) ? product.tags : [];
+  const parseTags = (value: any): string[] => {
+    if (!value) return [];
+    if (Array.isArray(value)) return value.map(String).filter(Boolean);
+    if (typeof value === "string") {
+      const trimmed = value.trim();
+      if (!trimmed) return [];
+      if (trimmed.startsWith("[")) {
+        try {
+          const parsed = JSON.parse(trimmed);
+          if (Array.isArray(parsed)) return parsed.map(String).filter(Boolean);
+        } catch {
+          // fallback to comma split below
+        }
+      }
+      return trimmed
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+    }
+    return [];
+  };
+
+  const rawTags = parseTags(product?.tags);
   const tag = String(rawTags[0] || "").trim();
   const name = String(product?.name || product?.title || slug).trim();
   const fallback = name ? `${name} ehhez a részhez különösen jól passzol.` : "Ehhez a részhez ezt ajánlom neked.";
@@ -104,8 +126,11 @@ function buildInlineProductHtml(product: any, slug: string, sideClass: string): 
   const safeSlug = encodeURIComponent(slug);
   const url = `/termek/${safeSlug}`;
   const img = product?.image_url || product?.cover_image_url || product?.image || null;
+  const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || "https://sokaigelek.hu").replace(/\/$/, "");
+  const imgUrl = img ? cdnImageUrl(String(img)) : "";
+  const imgSrc = imgUrl && imgUrl.startsWith("/") ? `${siteUrl}${imgUrl}` : imgUrl;
   const imgTag = img
-    ? `<img src="${escapeHtml(cdnImageUrl(String(img)))}" alt="${safeTitle}" style="width:100%;height:100%;object-fit:cover;" />`
+    ? `<img src="${escapeHtml(imgSrc)}" alt="${safeTitle}" style="width:100%;height:100%;object-fit:cover;" />`
     : "";
   const excerptHtml = String(product?.excerpt || product?.short_description || "").trim();
   const excerptBlock = excerptHtml
