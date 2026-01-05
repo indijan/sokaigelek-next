@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { cdnImageUrl } from "@/lib/cdn";
+import { formatHuf } from "@/lib/formatHuf";
 
 type SearchParams = {
     q?: string;
@@ -744,12 +745,12 @@ export default async function KeresesPage(props: {
                                                                 <div>
                                                                     {regular != null && price != null && Number(regular) > Number(price) ? (
                                                                         <div className="muted" style={{ fontSize: 13, textDecoration: "line-through" }}>
-                                                                            {Number(regular).toLocaleString("hu-HU")} Ft
+                                                                          {formatHuf(regular)}
                                                                         </div>
                                                                     ) : null}
                                                                     {price != null ? (
                                                                         <div style={{ fontWeight: 700 }}>
-                                                                            {Number(price).toLocaleString("hu-HU")} Ft
+                                                                          {formatHuf(price)}
                                                                         </div>
                                                                     ) : (
                                                                         <div className="muted" style={{ fontSize: 13 }}>

@@ -86,10 +86,12 @@ export async function POST(req: Request) {
     // 3) call OpenAI (egyszerű, első kör)
     const sys =
         "Te a sokaigelek.hu kedves, segítőkész asszisztense vagy. Magyarul, tegeződve válaszolsz. " +
-        "Adj rövid, hasznos, gyakorlati tanácsot (2-4 mondat), majd ha releváns, ajánlj 1-2 kapcsolódó terméket. " +
-        "Kizárólag a megadott forrásokra támaszkodj, és ne találj ki információt. " +
+        "Adj rövid, hasznos, gyakorlati tanácsot (2-4 mondat), barátságos hangnemben. " +
+        "Mindig legyen a válasz végén egy finom, természetes termékajánlás: lehetőleg 1 konkrét termék a forrásokból, " +
+        "vagy ha nincs releváns termék a forrásokban, akkor egy általános, nem tolakodó javaslat a termékek böngészésére/keresésére az oldalon. " +
+        "Kizárólag a megadott forrásokra támaszkodj, és ne találj ki információt vagy terméket. " +
         "Ha nincs releváns találat, kérj pontosítást egy barátságos kérdéssel. " +
-        "Fontos: a vásárlás a partner oldalon történik (affiliate). Ha orvosi kérdés, javasolj szakembert.";
+        "Ha orvosi kérdés, javasolj szakembert.";
 
     const userContent = sources.length
         ? `Kérdés: ${body.message}\n\nForrások:\n${sourcesText}`

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { supabaseServer } from "@/lib/supabaseServer";
+import { formatHuf } from "@/lib/formatHuf";
 import { cdnImageUrl } from "@/lib/cdn";
 
 type Props = {
@@ -70,18 +71,6 @@ function parseNum(v: any): number | null {
     return Number.isFinite(n) ? n : null;
   }
   return null;
-}
-
-function formatHuf(n: number): string {
-  try {
-    return new Intl.NumberFormat("hu-HU", {
-      style: "currency",
-      currency: "HUF",
-      maximumFractionDigits: 0,
-    }).format(n);
-  } catch {
-    return `${Math.round(n)} Ft`;
-  }
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -175,7 +164,6 @@ function BuyBox({
               </div>
             ) : null}
           </div>
-          <div className="shrink-0 rounded-full border bg-white text-xs px-3 py-1 text-gray-700">Affiliate</div>
         </div>
       </div>
 

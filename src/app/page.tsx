@@ -4,6 +4,7 @@ import Image from "next/image";
 import type { CSSProperties } from "react";
 import { supabaseServer } from "@/lib/supabaseServer";
 import { cdnImageUrl } from "@/lib/cdn";
+import { formatHuf } from "@/lib/formatHuf";
 
 type Topic =
   | {
@@ -121,10 +122,7 @@ export default async function Home() {
     return !status || status === "published";
   });
 
-  const money = (n: number | null | undefined) =>
-    typeof n === "number" && Number.isFinite(n)
-      ? new Intl.NumberFormat("hu-HU").format(Math.round(n))
-      : "";
+  const money = (n: number | null | undefined) => (typeof n === "number" ? formatHuf(n, false) : "");
 
   const clamp3: CSSProperties = {
     display: "-webkit-box",

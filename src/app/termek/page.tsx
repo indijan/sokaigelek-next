@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { supabaseServer } from "@/lib/supabaseServer";
 import { cdnImageUrl } from "@/lib/cdn";
+import { formatHuf } from "@/lib/formatHuf";
 
 const PAGE_SIZE = 12;
 
@@ -37,9 +38,7 @@ function safeImageUrl(input: unknown) {
 }
 
 function formatFt(value: unknown) {
-  const n = typeof value === "number" ? value : Number(String(value ?? "").replace(/\s/g, "").replace(",", "."));
-  if (!Number.isFinite(n)) return "";
-  return new Intl.NumberFormat("hu-HU").format(Math.round(n)) + " Ft";
+  return formatHuf(value);
 }
 
 export default async function ProductsIndexPage({

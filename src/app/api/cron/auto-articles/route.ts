@@ -574,6 +574,7 @@ Követelmények:
 - Kíméletes, hiteles tone of voice; ne ígérj gyógyulást.
 - 900-1400 szó.
 - A bekezdések legyenek rövidek és könnyen olvashatók.
+- Rövid, tömör cím: max 60 karakter, lehetőleg 6-9 szó.
 
 Adj vissza egyetlen JSON objektumot:
 {
