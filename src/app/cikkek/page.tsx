@@ -34,7 +34,7 @@ export default async function ArticlesIndexPage({
           const q = supabaseServer
             .from("articles")
             .select(
-              "id, slug, title, excerpt, category_slug, image_url, featured_image_url, cover_image_url, thumbnail_url, image, featured_image, hero_image_url, created_at",
+              "id, slug, title, excerpt, category_slug, cover_image_url, created_at",
               { count: "exact" }
             )
             .eq("status", "published")

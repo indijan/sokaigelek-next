@@ -341,7 +341,7 @@ export default async function KeresesPage(props: {
                 const { data, error } = await supabase
                     .from("products")
                     .select(
-                        "id, slug, name, title, post_title, product_title, short_description, excerpt, post_excerpt, description, content, post_content, featured_image_url, image_url, price, regular_price"
+                        "id, slug, name, short, description, image_url, price, regular_price"
                     )
                     // legyen stabil a találatok köre (ne essen ki releváns elem csak azért, mert túl alacsony a limit)
                     .order("id", { ascending: false })
@@ -356,17 +356,8 @@ export default async function KeresesPage(props: {
                 const haystackOf = (p: any) => {
                     const parts = [
                         textOf(p.name),
-                        textOf(p.title),
-                        textOf(p.post_title),
-                        textOf(p.product_title),
-
-                        textOf(p.short_description),
-                        textOf(p.excerpt),
-                        textOf(p.post_excerpt),
-
+                        textOf(p.short),
                         textOf(p.description),
-                        textOf(p.content),
-                        textOf(p.post_content),
                     ];
                     return parts.join("\n");
                 };
@@ -403,7 +394,7 @@ export default async function KeresesPage(props: {
                 const { data, error } = await supabase
                     .from("articles")
                     .select(
-                        "id, slug, title, post_title, intro, excerpt, post_excerpt, content, post_content, cover_image_url, featured_image_url, cover_url"
+                        "id, slug, title, excerpt, content_html, cover_image_url, published_at, created_at"
                     )
                     // legyen stabil a találatok köre (ne essen ki releváns elem csak azért, mert túl alacsony a limit)
                     .order("id", { ascending: false })
@@ -418,14 +409,8 @@ export default async function KeresesPage(props: {
                 const haystackOf = (a: any) => {
                     const parts = [
                         textOf(a.title),
-                        textOf(a.post_title),
-
-                        // opcionális mezők (ha léteznek, akkor lesz benne szöveg)
-                        textOf(a.intro),
                         textOf(a.excerpt),
-                        textOf(a.post_excerpt),
-                        textOf(a.content),
-                        textOf(a.post_content),
+                        textOf(a.content_html),
                     ];
                     return parts.join("\n");
                 };
@@ -631,8 +616,8 @@ export default async function KeresesPage(props: {
                                 ) : (
                                     <div className="grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 14 }}>
                                         {articles.map((a) => {
-                                            const img = safeImg(a.cover_image_url || a.featured_image_url || a.cover_url);
-                                            const text = excerptFrom(a.excerpt || a.intro || a.content || "", 110);
+                                            const img = safeImg(a.cover_image_url);
+                                            const text = excerptFrom(a.excerpt || a.content_html || "", 110);
 
                                             return (
                                                 <article key={a.id} className="card card-hover" style={{ padding: 16 }}>
@@ -704,11 +689,11 @@ export default async function KeresesPage(props: {
                                 ) : (
                                     <div className="grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 14 }}>
                                         {products.map((p) => {
-                                            const img = safeImg(p.featured_image_url || p.image_url);
+                                            const img = safeImg(p.image_url);
                                             const price = p.price ?? null;
                                             const regular = p.regular_price ?? null;
                                             const text = excerptFrom(
-                                                p.excerpt || p.post_excerpt || p.short_description || p.description || p.post_content || "",
+                                                p.short || p.description || "",
                                                 96
                                             );
 
@@ -730,7 +715,7 @@ export default async function KeresesPage(props: {
                                                                 // sima img: nem kell next/image config, és nincs onError handler
                                                                 <img
                                                                     src={img}
-                                                                    alt={(p.title || p.name || p.post_title || p.product_title) || "Termék"}
+                                                                    alt={(p.name || "Termék")}
                                                                     style={{ width: "100%", height: "100%", objectFit: "cover" }}
                                                                     loading="lazy"
                                                                     referrerPolicy="no-referrer"

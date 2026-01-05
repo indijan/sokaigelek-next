@@ -208,26 +208,22 @@ function pickTitle(row: any) {
     return (
         row?.title ||
         row?.name ||
-        row?.post_title ||
-        row?.product_title ||
         ""
     );
 }
 
 function productHaystack(p: any) {
     const parts = [
-        p?.name, p?.title, p?.post_title, p?.product_title,
-        p?.short_description, p?.excerpt, p?.post_excerpt,
-        p?.description, p?.content, p?.post_content,
+        p?.name, p?.short, p?.description,
     ];
     return parts.filter((x) => typeof x === "string" && x.trim()).join("\n");
 }
 
 function articleHaystack(a: any) {
     const parts = [
-        a?.title, a?.post_title,
-        a?.intro, a?.excerpt, a?.post_excerpt,
-        a?.content, a?.post_content,
+        a?.title,
+        a?.excerpt,
+        a?.content_html,
     ];
     return parts.filter((x) => typeof x === "string" && x.trim()).join("\n");
 }
@@ -345,14 +341,14 @@ export async function GET(req: Request) {
             supabase
                 .from("products")
                 .select(
-                    "id, slug, name, title, post_title, product_title, short_description, excerpt, post_excerpt, description, content, post_content, featured_image_url, image_url"
+                    "id, slug, name, short, description, image_url"
                 )
                 .order("id", { ascending: false })
                 .limit(2000),
             supabase
                 .from("articles")
                 .select(
-                    "id, slug, title, post_title, intro, excerpt, post_excerpt, content, post_content, featured_image_url, cover_url"
+                    "id, slug, title, excerpt, content_html, cover_image_url"
                 )
                 .eq("status", "published")
                 .order("id", { ascending: false })
@@ -385,7 +381,7 @@ export async function GET(req: Request) {
                     score,
                     path: a.slug ? `/cikkek/${a.slug}` : null,
                     url: a.slug ? absUrl(`/cikkek/${a.slug}`) : null,
-                    image_url: a.featured_image_url || a.cover_url || null,
+                    image_url: a.cover_image_url || null,
                     excerpt: excerptFrom(a.excerpt || a.intro || a.content || a.post_content || "", 220),
                     snippet: snippetFrom(a.excerpt || a.intro || a.content || a.post_content || "", 1400),
                 }));
@@ -409,7 +405,7 @@ export async function GET(req: Request) {
                     score,
                     path: p.slug ? `/termek/${p.slug}` : null,
                     url: p.slug ? absUrl(`/termek/${p.slug}`) : null,
-                    image_url: p.featured_image_url || p.image_url || null,
+                    image_url: p.image_url || null,
                     price: p.price ?? null,
                     regular_price: p.regular_price ?? null,
                     excerpt: excerptFrom(
