@@ -6,6 +6,7 @@ import Script from "next/script";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import ChatWidget from "@/components/ChatWidget";
+import CookieNotice from "@/components/CookieNotice";
 
 export const metadata: Metadata = {
   title: "Sokáig élek",
@@ -51,6 +52,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
         <main className="min-h-screen container mx-auto px-4 py-6">{children}</main>
 
         <SiteFooter />
+        <CookieNotice />
 
         {/* Globális chat widget – pontosan egyszer */}
         <ChatWidget />
