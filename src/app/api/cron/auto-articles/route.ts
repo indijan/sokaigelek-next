@@ -466,10 +466,13 @@ export async function GET(req: Request) {
   const expected = process.env.CRON_SECRET || "";
   const cronHeader = req.headers.get("x-vercel-cron");
   const isVercelCron = cronHeader === "1" || cronHeader === "true";
-  if (!isVercelCron && (!expected || secret !== expected)) {
+  const ua = req.headers.get("user-agent") || "";
+  const isVercelCronUa = ua.toLowerCase().includes("vercel-cron/");
+  if (!(isVercelCron || isVercelCronUa) && (!expected || secret !== expected)) {
     console.warn("cron_unauthorized", {
       hasCronHeader: Boolean(cronHeader),
       cronHeader,
+      hasCronUa: isVercelCronUa,
       hasExpected: Boolean(expected),
       hasSecret: Boolean(secret),
     });
