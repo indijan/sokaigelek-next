@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { supabaseServer } from "@/lib/supabaseServer";
 
 type ChatReq = {
     message: string;
@@ -47,7 +47,7 @@ export async function POST(req: Request) {
     let conversationId = body.conversationId;
 
     if (!conversationId) {
-        const { data, error } = await supabase
+        const { data, error } = await supabaseServer
             .from("conversations")
             .insert({
                 page_url: body.pageUrl ?? null,
@@ -67,7 +67,7 @@ export async function POST(req: Request) {
 
     // 2) log user msg
     {
-        const { error } = await supabase.from("messages").insert({
+        const { error } = await supabaseServer.from("messages").insert({
             conversation_id: conversationId,
             role: "user",
             content: body.message,
@@ -123,7 +123,7 @@ export async function POST(req: Request) {
 
     // 4) log assistant msg
     {
-        const { error } = await supabase.from("messages").insert({
+        const { error } = await supabaseServer.from("messages").insert({
             conversation_id: conversationId,
             role: "assistant",
             content: answer,

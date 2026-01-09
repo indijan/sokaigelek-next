@@ -39,7 +39,7 @@ function snippet(text: string, max = 140) {
 export default async function AdminChatSessionsPage({
   searchParams,
 }: {
-  searchParams?: Promise<{ q?: string | string[] }>;
+  searchParams?: Promise<{ q?: string | string[]; from?: string | string[]; to?: string | string[] }>;
 }) {
   const cookieStore = await cookies();
   const ok = cookieStore.get("admin_ok")?.value === "1";
@@ -49,6 +49,12 @@ export default async function AdminChatSessionsPage({
   const qParam = (params as any).q;
   const searchQ = Array.isArray(qParam) ? qParam[0] : qParam;
   const trimmedQ = String(searchQ || "").trim();
+  const fromParam = (params as any).from;
+  const toParam = (params as any).to;
+  const fromValue = Array.isArray(fromParam) ? fromParam[0] : fromParam;
+  const toValue = Array.isArray(toParam) ? toParam[0] : toParam;
+  const fromDate = String(fromValue || "").trim();
+  const toDate = String(toValue || "").trim();
 
   let query = supabaseServer
     .from("conversations")
@@ -61,6 +67,17 @@ export default async function AdminChatSessionsPage({
     query = query.or(
       `page_url.ilike.${like},visitor_hash.ilike.${like},page_slug.ilike.${like},page_type.ilike.${like}`
     );
+  }
+
+  if (fromDate) {
+    const fromIso = new Date(`${fromDate}T00:00:00Z`).toISOString();
+    query = query.gte("created_at", fromIso);
+  }
+
+  if (toDate) {
+    const toStart = new Date(`${toDate}T00:00:00Z`);
+    const nextDay = new Date(toStart.getTime() + 24 * 60 * 60 * 1000);
+    query = query.lt("created_at", nextDay.toISOString());
   }
 
   const { data: conversations, error } = await query;
@@ -141,6 +158,28 @@ export default async function AdminChatSessionsPage({
             fontSize: 13,
           }}
         />
+        <input
+          type="date"
+          name="from"
+          defaultValue={fromDate}
+          style={{
+            borderRadius: 12,
+            border: "1px solid rgba(15,23,42,0.15)",
+            padding: "10px 12px",
+            fontSize: 13,
+          }}
+        />
+        <input
+          type="date"
+          name="to"
+          defaultValue={toDate}
+          style={{
+            borderRadius: 12,
+            border: "1px solid rgba(15,23,42,0.15)",
+            padding: "10px 12px",
+            fontSize: 13,
+          }}
+        />
         <button
           type="submit"
           style={{
@@ -155,7 +194,7 @@ export default async function AdminChatSessionsPage({
         >
           Szűrés
         </button>
-        {trimmedQ ? (
+        {trimmedQ || fromDate || toDate ? (
           <Link
             href="/admin/chat-sessions"
             style={{
