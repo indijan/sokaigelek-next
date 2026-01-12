@@ -11,6 +11,21 @@ import CookieNotice from "@/components/CookieNotice";
 export const metadata: Metadata = {
   title: "Sokáig élek",
   description: "Egészség, tudatosság, természetes megoldások – Sokáig élek.",
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://www.sokaigelek.hu"),
+  alternates: { canonical: "/" },
+  openGraph: {
+    type: "website",
+    title: "Sokáig élek",
+    description: "Egészség, tudatosság, természetes megoldások – Sokáig élek.",
+    siteName: "Sokáig élek",
+    locale: "hu_HU",
+    url: "/",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Sokáig élek",
+    description: "Egészség, tudatosság, természetes megoldások – Sokáig élek.",
+  },
 };
 
 export default function RootLayout({
