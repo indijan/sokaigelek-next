@@ -67,6 +67,7 @@ export default function ArticlePage({ article }: { article: DbArticle }) {
               alt={article.title || "Borítókép"}
               loading="eager"
               fetchPriority="high"
+              decoding="async"
               className="w-full rounded-2xl border"
           />
       ) : null}

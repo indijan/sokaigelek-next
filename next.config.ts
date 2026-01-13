@@ -46,6 +46,9 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  experimental: {
+    legacyBrowsers: false,
+  },
 };
 
 export default nextConfig;

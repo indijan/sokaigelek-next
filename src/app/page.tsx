@@ -128,6 +128,7 @@ function CardMedia({
           style={{ width: "100%", height: "100%", objectFit: "cover" }}
           priority={priority}
           fetchPriority={fetchPriority}
+          quality={70}
         />
       )}
     </div>

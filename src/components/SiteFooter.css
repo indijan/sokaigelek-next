@@ -1,0 +1,109 @@
+/* =========================
+   FOOTER – ENHANCED UI
+========================= */
+
+footer {
+  background: linear-gradient(180deg, #1f2937 0%, #020617 100%);
+  color: #e5e7eb;
+  padding-top: 3.5rem;
+}
+
+footer a {
+  color: #e5e7eb;
+  text-decoration: none;
+}
+
+footer a:hover {
+  color: #fde68a;
+  text-decoration: none;
+}
+
+/* linkek rácsban, nem egymás alatt */
+.footer-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+  align-items: center;
+}
+
+.footer-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  font-size: 0.85rem;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  width: auto;
+  max-width: max-content;
+  transition: all 0.2s ease;
+}
+
+.footer-link:hover {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.35);
+}
+
+.site-footer .links {
+  display: inline-flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+/* 3-column footer layout (matches your earlier “3-as” feel) */
+.site-footer .footer-grid {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr 1fr;
+  gap: 1.75rem;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .site-footer .footer-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* make the small description text visible on the dark footer */
+.site-footer .footer-muted {
+  color: rgba(229, 231, 235, 0.80);
+}
+
+.site-footer .footer-brand {
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+/* Footer is below the fold; defer render work. */
+.site-footer {
+  content-visibility: auto;
+  contain-intrinsic-size: 600px;
+}
+
+/* alsó sáv */
+.footer-bottom {
+  margin-top: 2rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.15);
+  font-size: 0.8rem;
+  color: #9ca3af;
+}
+
+/* === FOOTER TEXT COLOR FIX === */
+footer,
+footer p,
+footer span,
+footer li,
+footer div {
+  color: #e5e7eb;
+}
+
+footer .footer-muted,
+footer .muted,
+footer .text-muted {
+  color: rgba(229, 231, 235, 0.85);
+}

@@ -338,6 +338,7 @@ export default async function ProductPageRoute({ params }: Props) {
                   alt={`${product?.name || "Termék"} termék kép`}
                   loading="eager"
                   fetchPriority="high"
+                  decoding="async"
                   className="h-full w-full object-contain"
                 />
               ) : (
@@ -568,6 +569,7 @@ export default async function ProductPageRoute({ params }: Props) {
                       src={productCardImage(p.image_url)}
                       alt={p.name || "Termék"}
                       loading="lazy"
+                      decoding="async"
                       className="absolute inset-0 h-full w-full object-contain p-4 transition group-hover:scale-[1.02]"
                     />
                   </div>

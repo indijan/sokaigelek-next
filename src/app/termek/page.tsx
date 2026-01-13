@@ -5,7 +5,7 @@ import { formatHuf } from "@/lib/formatHuf";
 
 const PAGE_SIZE = 12;
 
-export const revalidate = 60;
+export const revalidate = 300;
 
 function stripHtml(input: string) {
   return input

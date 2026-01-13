@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
+import "./SiteHeader.css";
 
 export default function SiteHeader() {
   const pathname = usePathname() || "/";
@@ -46,6 +47,8 @@ export default function SiteHeader() {
             width={130}
             height={32}
             priority
+            sizes="130px"
+            quality={70}
             style={{ height: "auto", width: "auto", maxHeight: "65px" }}
           />
         </Link>
