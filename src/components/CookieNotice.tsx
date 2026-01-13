@@ -24,6 +24,7 @@ export default function CookieNotice() {
           type="button"
           onClick={() => {
             window.localStorage.setItem(STORAGE_KEY, "1");
+            window.dispatchEvent(new CustomEvent("sg:consent:gtm"));
             setHidden(true);
           }}
           className="shrink-0 rounded-full border border-gray-300 bg-white px-3 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-50"
