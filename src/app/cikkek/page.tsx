@@ -161,6 +161,9 @@ export default async function ArticlesIndexPage({
                                 alt={a.title}
                                 className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
                                 loading="lazy"
+                                decoding="async"
+                                width={480}
+                                height={270}
                               />
                             ) : (
                               <div className="h-full w-full bg-gradient-to-br from-amber-50 via-white to-rose-50" />

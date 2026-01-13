@@ -2,6 +2,9 @@ import type { Metadata } from "next";
 import { supabaseServer } from "@/lib/supabaseServer";
 import { formatHuf } from "@/lib/formatHuf";
 import { cdnImageUrl } from "@/lib/cdn";
+import "../product.css";
+
+export const revalidate = 3600;
 
 type Props = {
     params: Promise<{ slug: string }>;
@@ -333,7 +336,8 @@ export default async function ProductPageRoute({ params }: Props) {
                 <img
                   src={safeRemoteImageUrl((product as any)?.image_url) as string}
                   alt={`${product?.name || "Termék"} termék kép`}
-                  loading="lazy"
+                  loading="eager"
+                  fetchPriority="high"
                   className="h-full w-full object-contain"
                 />
               ) : (

@@ -1,0 +1,104 @@
+/* =========================
+   ADMIN UX HELPERS
+   ========================= */
+
+.admin-shell button {
+  cursor: pointer;
+}
+
+.admin-shell button:disabled {
+  cursor: not-allowed;
+}
+
+.admin-shell button[data-pending="true"] {
+  opacity: 0.7;
+}
+
+/* =========================
+   TÁBLÁK (admin)
+   ========================= */
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th {
+  text-align: left;
+  font-size: 0.875rem;
+  color: var(--muted);
+  padding: 0.5rem;
+  border-bottom: 1px solid var(--border);
+}
+
+td {
+  padding: 0.75rem 0.5rem;
+  border-bottom: 1px solid var(--border);
+}
+
+tr:hover td {
+  background: var(--card-muted);
+}
+
+.admin-editor {
+  border: 1px solid rgba(0,0,0,.12);
+  border-radius: 16px;
+  overflow: hidden;
+  background: #fff;
+}
+
+.admin-editor__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px;
+  border-bottom: 1px solid rgba(0,0,0,.10);
+  background: rgba(0,0,0,.03);
+}
+
+.admin-editor__group {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.admin-editor__select {
+  border: 1px solid rgba(0,0,0,.15);
+  border-radius: 12px;
+  padding: 8px 10px;
+  background: #fff;
+}
+
+.admin-editor__btn {
+  border: 1px solid rgba(0,0,0,.15);
+  border-radius: 12px;
+  padding: 8px 10px;
+  background: #fff;
+  cursor: pointer;
+}
+
+.admin-editor__btn:hover {
+  filter: brightness(0.97);
+}
+
+.admin-editor__btn--danger {
+  border-color: rgba(194, 65, 11, .35);
+  color: #c2410b;
+}
+
+.admin-editor__canvas {
+  padding: 14px;
+  min-height: 380px;
+  outline: none;
+}
+
+.admin-editor__canvas :is(h2, h3) {
+  margin-top: 18px;
+}
+
+.admin-editor__hint {
+  padding: 10px 14px;
+  font-size: 12px;
+  opacity: 0.75;
+  border-top: 1px solid rgba(0,0,0,.08);
+}

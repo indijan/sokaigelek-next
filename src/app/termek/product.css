@@ -1,0 +1,211 @@
+/* =========================
+   PRODUCT PAGE STYLES
+   ========================= */
+
+.product-title {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.product-shortbox {
+  margin-top: 8px;
+  width: 100%;
+  background: rgba(194, 65, 11, 0.06);
+  border: 1px solid rgba(194, 65, 11, 0.18);
+  border-radius: 18px;
+  padding: 16px 20px;
+}
+
+.product-shortbox-title {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  opacity: 0.85;
+  margin-bottom: 6px;
+}
+
+/* =========================
+   PRODUCT BUY BOX (termékoldali ár/kosár doboz)
+   ========================= */
+
+.product-buy-box {
+  position: relative;
+  border-radius: 22px;
+  border: 1px solid rgba(194, 65, 12, 0.22);
+  background:
+    radial-gradient(120% 140% at 12% 8%, rgba(194, 65, 12, 0.16), transparent 52%),
+    radial-gradient(120% 140% at 92% 12%, rgba(101, 163, 13, 0.16), transparent 56%),
+    linear-gradient(180deg, rgba(255,255,255,0.98), rgba(255,247,237,0.90));
+  box-shadow:
+    0 18px 46px rgba(2, 6, 23, 0.10),
+    0 1px 0 rgba(255,255,255,0.7) inset;
+  overflow: hidden;
+}
+
+/* branded top edge */
+.product-buy-box::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 5px;
+  pointer-events: none;
+  background: linear-gradient(
+    90deg,
+    rgba(194, 65, 12, 0.55),
+    rgba(245, 158, 11, 0.45),
+    rgba(101, 163, 13, 0.55)
+  );
+}
+
+/* optional: nicer header line if markup has a heading */
+.product-buy-box h3,
+.product-buy-box .buybox-title {
+  margin: 0;
+  padding: 16px 18px 10px;
+  font-size: 1.1rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+/* inner content spacing safety */
+.product-buy-box .buybox-body {
+  padding: 0 18px 18px;
+}
+
+/* If you have an inner "price" card, make it feel premium */
+.product-buy-box .buybox-price,
+.product-buy-box .price-card,
+.product-buy-box .buybox-prices {
+  border-radius: 18px;
+  border: 1px solid rgba(194, 65, 12, 0.16);
+  background:
+    radial-gradient(140% 140% at 18% 10%, rgba(194, 65, 12, 0.14), transparent 60%),
+    radial-gradient(140% 140% at 92% 18%, rgba(101, 163, 13, 0.14), transparent 62%),
+    rgba(255,255,255,0.94);
+  padding: 14px 14px;
+  box-shadow:
+    0 10px 24px rgba(2, 6, 23, 0.08),
+    0 1px 0 rgba(255,255,255,0.7) inset;
+}
+
+.product-buy-box .buybox-actions {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+/* price typography (works with multiple markup variants) */
+.product-buy-box .price,
+.product-buy-box .buybox-price-value,
+.product-buy-box .buybox-price .price,
+.product-buy-box .price-card .price {
+  font-size: 1.35rem;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  color: #111827;
+}
+
+.product-buy-box .regular-price,
+.product-buy-box .compare-at,
+.product-buy-box del,
+.product-buy-box s {
+  color: rgba(75, 85, 99, 0.85);
+  opacity: 0.95;
+}
+
+/* small highlight chip if present */
+.product-buy-box .badge,
+.product-buy-box .discount,
+.product-buy-box .discount-pill {
+  background: rgba(194, 65, 12, 0.92);
+  color: #fff;
+  border: 1px solid rgba(194, 65, 12, 0.35);
+  box-shadow: 0 10px 22px rgba(194, 65, 12, 0.20);
+}
+
+.product-buy-box .buybox-primary,
+.product-buy-box .buybox-secondary,
+.product-buy-box .buybox-assistant {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 999px;
+  font-weight: 800;
+  text-decoration: none;
+  border: 1px solid transparent;
+  transition:
+    transform 120ms ease,
+    box-shadow 120ms ease,
+    background 120ms ease,
+    border-color 120ms ease,
+    color 120ms ease;
+}
+
+/* Primary CTA (brand terracotta) */
+.product-buy-box .buybox-primary {
+  background: var(--primary);
+  color: var(--primary-fg);
+  border-color: rgba(194, 65, 12, 0.45);
+  box-shadow: 0 12px 28px rgba(194, 65, 12, 0.28);
+}
+
+.product-buy-box .buybox-primary:hover {
+  background: var(--primary-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 16px 36px rgba(194, 65, 12, 0.34);
+}
+
+/* Secondary (clean white, warm border) */
+.product-buy-box .buybox-secondary {
+  background: rgba(255,255,255,0.94);
+  color: var(--fg);
+  border-color: rgba(194, 65, 12, 0.28);
+  box-shadow: 0 10px 22px rgba(2, 6, 23, 0.06);
+}
+
+.product-buy-box .buybox-secondary:hover {
+  background: rgba(255,255,255,1);
+  transform: translateY(-1px);
+  border-color: rgba(194, 65, 12, 0.30);
+}
+
+/* Assistant (accent green tint) */
+.product-buy-box .buybox-assistant {
+  background: rgba(101, 163, 13, 0.16);
+  color: rgba(17,24,39,0.95);
+  border-color: rgba(101, 163, 13, 0.32);
+}
+
+.product-buy-box .buybox-assistant:hover {
+  background: rgba(101, 163, 13, 0.20);
+  transform: translateY(-1px);
+}
+
+/* Small helper text inside buy box */
+.product-buy-box .small,
+.product-buy-box .muted,
+.product-buy-box .text-muted {
+  color: rgba(75, 85, 99, 0.95);
+}
+
+/* --- Product tabs: global CSS only --- */
+.product-tabs .product-tab-panel { display: none; }
+
+/* Show correct panel based on checked radio (uses :has) */
+section.product-tabs:has(#tab-desc:checked) .product-tab-desc { display: block; }
+section.product-tabs:has(#tab-nutri:checked) .product-tab-nutri { display: block; }
+section.product-tabs:has(#tab-comp:checked) .product-tab-comp { display: block; }
+
+/* Active tab label styling (labels are immediately after inputs) */
+section.product-tabs #tab-desc:checked + label,
+section.product-tabs #tab-nutri:checked + label,
+section.product-tabs #tab-comp:checked + label {
+  background: #111827;
+  color: #ffffff;
+  border-color: #111827;
+}

@@ -1,5 +1,6 @@
 "use client";
 
+import "./ChatWidget.css";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 

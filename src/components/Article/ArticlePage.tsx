@@ -65,6 +65,8 @@ export default function ArticlePage({ article }: { article: DbArticle }) {
           <img
               src={cdnImageUrl(article.cover_image_url)}
               alt={article.title || "Borítókép"}
+              loading="eager"
+              fetchPriority="high"
               className="w-full rounded-2xl border"
           />
       ) : null}

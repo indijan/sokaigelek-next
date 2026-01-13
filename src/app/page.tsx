@@ -5,6 +5,8 @@ import type { CSSProperties } from "react";
 import { supabaseServer } from "@/lib/supabaseServer";
 import { cdnImageUrl } from "@/lib/cdn";
 import { formatHuf } from "@/lib/formatHuf";
+import YouTubeEmbed from "@/components/YouTubeEmbed";
+import "./home.css";
 
 type Topic =
   | {
@@ -57,16 +59,36 @@ function CardMedia({
   src,
   alt,
   variant,
+  priority = false,
+  fetchPriority,
 }: {
   src?: string;
   alt: string;
   variant: "topic" | "topic-tall" | "problem" | "product" | "icon";
+  priority?: boolean;
+  fetchPriority?: "high" | "low" | "auto";
 }) {
   const aspect =
     variant === "topic" ? "16 / 9" :
     variant === "topic-tall" ? "4 / 3" :
     variant === "product" ? "4 / 3" :
     "1 / 1";
+  const sizes =
+    variant === "topic"
+      ? "(max-width: 768px) 100vw, 480px"
+      : variant === "topic-tall"
+        ? "(max-width: 768px) 100vw, 360px"
+        : variant === "icon"
+          ? "160px"
+          : "(max-width: 640px) 100vw, 33vw";
+  const dimensions =
+    variant === "topic"
+      ? { width: 480, height: 320 }
+      : variant === "topic-tall" || variant === "product"
+        ? { width: 480, height: 360 }
+        : variant === "icon"
+          ? { width: 160, height: 160 }
+          : { width: 320, height: 320 };
 
   // No-network placeholder (industry-standard: skeleton/gradient slot until real image exists)
   const placeholderStyle: CSSProperties = {
@@ -91,7 +113,8 @@ function CardMedia({
         <img
           src={remoteSrc}
           alt={alt}
-          loading={variant === "topic" ? "eager" : "lazy"}
+          loading={priority ? "eager" : "lazy"}
+          fetchPriority={fetchPriority}
           style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
           referrerPolicy="no-referrer"
         />
@@ -99,10 +122,12 @@ function CardMedia({
         <Image
           src={src}
           alt={alt}
-          width={1200}
-          height={675}
+          width={dimensions.width}
+          height={dimensions.height}
+          sizes={sizes}
           style={{ width: "100%", height: "100%", objectFit: "cover" }}
-          priority={variant === "topic"}
+          priority={priority}
+          fetchPriority={fetchPriority}
         />
       )}
     </div>
@@ -191,7 +216,7 @@ export default async function Home() {
                 gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))",
               }}
           >
-            {TOPICS.map((t) =>
+            {TOPICS.map((t, index) =>
                 t.action === "chat" ? (
                   <ChatOpenButton
                     key={t.label}
@@ -241,7 +266,13 @@ export default async function Home() {
                   </Link>
                 ) : (
                   <Link key={t.href} className="card card-hover" href={t.href} style={{ padding: 14 }}>
-                    <CardMedia src={t.image} alt={t.label} variant="topic" />
+                    <CardMedia
+                      src={t.image}
+                      alt={t.label}
+                      variant="topic"
+                      priority={index === 0}
+                      fetchPriority={index === 0 ? "high" : "auto"}
+                    />
                     <div className="card-title" style={{ marginBottom: 6, marginTop: 10 }}>
                       {t.label}
                     </div>
@@ -253,7 +284,7 @@ export default async function Home() {
         </section>
 
         {/* RAJTAD MÚLIK */}
-        <section className="section">
+        <section className="section defer-section">
           <div
               className="grid"
               style={{ gap: 16, gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))" }}
@@ -300,7 +331,7 @@ export default async function Home() {
         </section>
 
         {/* TERMÉKCSOPORT + USP */}
-        <section className="section">
+        <section className="section defer-section">
           <h2>Természetes, tudományos, egészséges</h2>
           <p className="muted" style={{ maxWidth: 840 }}>
             A Duolife folyékony formulái egyszerűen fogyaszthatók, és a
@@ -330,7 +361,7 @@ export default async function Home() {
         </section>
 
         {/* PROBLÉMÁK / KERESÉS */}
-        <section className="section">
+        <section className="section defer-section">
           <div className="callout">
             <div>
               <div className="callout-title">Erre keresek megoldást…</div>
@@ -369,7 +400,7 @@ export default async function Home() {
         </section>
 
         {/* KIEMELT TERMÉKEK */}
-        <section className="section">
+        <section className="section defer-section">
           <h2>Kiemelt termékek</h2>
 
           <div
@@ -460,7 +491,7 @@ export default async function Home() {
         </section>
 
         {/* TANÁCSADÓ CTA */}
-        <section className="section">
+        <section className="section defer-section">
           <div className="callout">
             <div>
               <div className="callout-title">Beszélgess a Jóllét felelőssel</div>
@@ -476,18 +507,10 @@ export default async function Home() {
         </section>
 
         {/* VIDEÓ */}
-        <section className="section">
+        <section className="section defer-section">
           <h2>Bemutató videó</h2>
           <div className="card" style={{ padding: 14 }}>
-            <div style={{ position: "relative", paddingTop: "56.25%", borderRadius: 14, overflow: "hidden" }}>
-              <iframe
-                  src="https://www.youtube.com/embed/PQLUIodpTGg"
-                  title="Sokáig Élek – Bemutató"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                  allowFullScreen
-                  style={{ position: "absolute", inset: 0, width: "100%", height: "100%", border: 0 }}
-              />
-            </div>
+            <YouTubeEmbed videoId="PQLUIodpTGg" title="Sokáig Élek – Bemutató" />
           </div>
         </section>
       </div>

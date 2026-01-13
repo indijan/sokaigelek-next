@@ -221,6 +221,8 @@ export default async function ProductsIndexPage({
                   alt={p.name}
                   loading="lazy"
                   decoding="async"
+                  width={480}
+                  height={300}
                   className="absolute inset-0 h-full w-full object-contain p-6 transition group-hover:scale-[1.02]"
                 />
               </div>

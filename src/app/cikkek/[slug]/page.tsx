@@ -4,6 +4,9 @@ import type { Metadata } from "next";
 import { supabaseServer } from "@/lib/supabaseServer";
 import ShareButtons from "@/components/Article/ShareButtons";
 import { cdnImageUrl } from "@/lib/cdn";
+import "../article.css";
+
+export const revalidate = 3600;
 
 type Props = {
   params: Promise<{ slug: string }>;

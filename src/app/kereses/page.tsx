@@ -641,6 +641,9 @@ export default async function KeresesPage(props: {
                                                             alt={a.title || "Cikk"}
                                                             style={{ width: "100%", height: "100%", objectFit: "cover" }}
                                                             loading="lazy"
+                                                            decoding="async"
+                                                            width={320}
+                                                            height={240}
                                                             referrerPolicy="no-referrer"
                                                           />
                                                         ) : (
@@ -719,6 +722,9 @@ export default async function KeresesPage(props: {
                                                                     alt={(p.name || "Termék")}
                                                                     style={{ width: "100%", height: "100%", objectFit: "cover" }}
                                                                     loading="lazy"
+                                                                    decoding="async"
+                                                                    width={320}
+                                                                    height={240}
                                                                     referrerPolicy="no-referrer"
                                                                 />
                                                             ) : (
