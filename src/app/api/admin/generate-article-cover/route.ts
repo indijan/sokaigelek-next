@@ -94,11 +94,7 @@ export async function POST(req: Request) {
         "Do NOT always use female figures; mix genders and ages or omit people entirely.",
         "People are optional. Use objects, hands, silhouettes, or abstract/still-life scenes when fitting.",
         "If the topic is anatomy (heart, blood vessels, organs), use stylized or abstract visuals, not realistic organs.",
-        "Add the article title as visible overlay text on the image.",
-        "Use the exact title text as provided. Do not change, shorten, correct, or paraphrase it. No typos.",
-        "If you cannot render the title exactly as provided without errors, omit the title entirely.",
-        "Typography: clean, modern sans-serif, high contrast, readable at small sizes.",
-        "Place the title in a safe area (not covering the main subject).",
+        "Do not include any text, letters, or typography on the image.",
         styleHint ? `Style hint: ${styleHint}` : "",
         `Title concept: ${title}`,
         category ? `Category: ${category}` : "",
@@ -114,25 +110,36 @@ export async function POST(req: Request) {
 
     // 3) OpenAI image generálás
     // Megjegyzés: ha nálad más image model név van, itt kell átírni.
-    const imgRes = await fetch("https://api.openai.com/v1/images/generations", {
-        method: "POST",
-        headers: {
-            "Authorization": `Bearer ${apiKey}`,
-            "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-            model: "gpt-image-1",
-            prompt,
-            size: imageSize,
-        }),
+    const payload = JSON.stringify({
+        model: "gpt-image-1",
+        prompt,
+        size: imageSize,
     });
 
-    if (!imgRes.ok) {
-        const t = await imgRes.text();
+    let imgRes: Response | null = null;
+    const maxAttempts = 3;
+    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+        imgRes = await fetch("https://api.openai.com/v1/images/generations", {
+            method: "POST",
+            headers: {
+                "Authorization": `Bearer ${apiKey}`,
+                "Content-Type": "application/json",
+            },
+            body: payload,
+        });
+        if (imgRes.ok) break;
+        if (attempt < maxAttempts) {
+            const delayMs = 500 * Math.pow(2, attempt - 1);
+            await new Promise((resolve) => setTimeout(resolve, delayMs));
+        }
+    }
+
+    if (!imgRes || !imgRes.ok) {
+        const t = imgRes ? await imgRes.text() : "no_response";
         return NextResponse.json({ error: `OpenAI image error: ${t}` }, { status: 500 });
     }
 
-    const imgJson = await imgRes.json() as any;
+    const imgJson = (await imgRes.json()) as any;
     const b64 = imgJson?.data?.[0]?.b64_json;
     if (!b64) {
         return NextResponse.json({ error: "No image returned" }, { status: 500 });
@@ -142,7 +149,11 @@ export async function POST(req: Request) {
 
     // 4) feltöltés Supabase Storage vagy Vercel Blob
     const bucket = process.env.ARTICLE_IMAGES_BUCKET || "article-images";
-    const safeSlug = (article.slug || "article").toString();
+    const safeSlug = String(article.slug || "article")
+        .toLowerCase()
+        .replace(/[^a-z0-9._-]+/g, "-")
+        .replace(/^-+|-+$/g, "")
+        .slice(0, 80) || "article";
     const path = `covers/${safeSlug}-${Date.now()}.png`;
 
     const blobUrl = await uploadVercelBlob(path, buffer, "image/png");

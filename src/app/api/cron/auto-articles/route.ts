@@ -202,11 +202,7 @@ async function generateCoverImage(article: any) {
     "Do NOT always use female figures; mix genders and ages or omit people entirely.",
     "People are optional. Use objects, hands, silhouettes, or abstract/still-life scenes when fitting.",
     "If the topic is anatomy (heart, blood vessels, organs), use stylized or abstract visuals, not realistic organs.",
-    "Add the article title as visible overlay text on the image.",
-    "Use the exact title text as provided. Do not change, shorten, correct, or paraphrase it. No typos.",
-    "If you cannot render the title exactly as provided without errors, omit the title entirely.",
-    "Typography: clean, modern sans-serif, high contrast, readable at small sizes.",
-    "Place the title in a safe area (not covering the main subject).",
+    "Do not include any text, letters, or typography on the image.",
     styleHint ? `Style hint: ${styleHint}` : "",
     `Title concept: ${title}`,
     category ? `Category: ${category}` : "",
@@ -217,21 +213,33 @@ async function generateCoverImage(article: any) {
     .filter(Boolean)
     .join("\n");
 
-  const imgRes = await fetch("https://api.openai.com/v1/images/generations", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: "gpt-image-1",
-      prompt,
-      size: imageSize,
-    }),
+  const payload = JSON.stringify({
+    model: "gpt-image-1",
+    prompt,
+    size: imageSize,
   });
 
-  if (!imgRes.ok) {
-    const t = await imgRes.text();
+  let imgRes: Response | null = null;
+  const maxAttempts = 3;
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    imgRes = await fetch("https://api.openai.com/v1/images/generations", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: payload,
+    });
+
+    if (imgRes.ok) break;
+    if (attempt < maxAttempts) {
+      const delayMs = 500 * Math.pow(2, attempt - 1);
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+  }
+
+  if (!imgRes || !imgRes.ok) {
+    const t = imgRes ? await imgRes.text() : "no_response";
     throw new Error(`OpenAI image error: ${t}`);
   }
 
@@ -241,7 +249,12 @@ async function generateCoverImage(article: any) {
 
   const buffer = Buffer.from(b64, "base64");
   const bucket = process.env.ARTICLE_IMAGES_BUCKET || "article-images";
-  const safeSlug = (article.slug || "article").toString();
+  const safeSlug =
+    String(article.slug || "article")
+      .toLowerCase()
+      .replace(/[^a-z0-9._-]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 80) || "article";
   const path = `covers/${safeSlug}-${Date.now()}.png`;
 
   const blobUrl = await uploadVercelBlob(path, buffer, "image/png");
@@ -459,6 +472,68 @@ async function postToFacebook(article: any) {
   return { ok: true, post_id: data?.id || null };
 }
 
+async function postToPinterest(article: any, imageUrl: string) {
+  const accessToken = process.env.PINTEREST_ACCESS_TOKEN;
+  const boardId = process.env.PINTEREST_BOARD_ID;
+  if (!accessToken || !boardId) return { skipped: true, reason: "missing_env" };
+  if (!imageUrl) return { skipped: true, reason: "missing_image" };
+
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://sokaigelek.hu";
+  const link = `${siteUrl.replace(/\/$/, "")}/cikkek/${article.slug}`;
+  const title = String(article.title || "").slice(0, 100);
+  const description = [article.title, article.excerpt].filter(Boolean).join(" — ").slice(0, 500);
+
+  const r = await fetch("https://api.pinterest.com/v5/pins", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      board_id: boardId,
+      title,
+      description,
+      link,
+      media_source: {
+        source_type: "image_url",
+        url: imageUrl,
+      },
+    }),
+  });
+
+  const data = await r.json();
+  if (!r.ok || data?.error) {
+    throw new Error(data?.message || data?.error?.message || "pinterest_error");
+  }
+
+  return { ok: true, pin_id: data?.id || null };
+}
+
+async function postToX(article: any) {
+  const accessToken = process.env.X_ACCESS_TOKEN;
+  if (!accessToken) return { skipped: true, reason: "missing_env" };
+
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://sokaigelek.hu";
+  const link = `${siteUrl.replace(/\/$/, "")}/cikkek/${article.slug}`;
+  const text = [article.title, article.excerpt, link].filter(Boolean).join("\n\n").slice(0, 280);
+
+  const r = await fetch("https://api.x.com/2/tweets", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ text }),
+  });
+
+  const data = await r.json();
+  if (!r.ok || data?.errors) {
+    throw new Error(data?.errors?.[0]?.message || "x_error");
+  }
+
+  return { ok: true, tweet_id: data?.data?.id || null };
+}
+
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const secret = searchParams.get("secret") || "";
@@ -480,65 +555,34 @@ export async function GET(req: Request) {
   }
 
   const now = new Date();
-  const { year, month, day, hour } = getBudapestParts(now);
+  const { year, month, day } = getBudapestParts(now);
   const runDate = `${year}-${month}-${day}`;
-
-  if (hour !== "08" && !force) {
-    return NextResponse.json({ ok: true, skipped: "not_8am" });
-  }
-
-  if (!force) {
-    const { data: settingsRow, error: settingsErr } = await supabaseServer
-      .from("article_automation_settings")
-      .select("value")
-      .eq("key", "posts_per_week")
-      .maybeSingle();
-
-    if (!settingsErr) {
-      const postsPerWeek = Number(settingsRow?.value || 7);
-      const safePostsPerWeek =
-        Number.isFinite(postsPerWeek) && postsPerWeek >= 1 && postsPerWeek <= 7
-          ? postsPerWeek
-          : 7;
-
-      const since = new Date(now);
-      since.setDate(since.getDate() - 7);
-      const { count } = await supabaseServer
-        .from("article_automation_runs")
-        .select("id", { count: "exact" })
-        .eq("status", "ok")
-        .gte("created_at", since.toISOString());
-
-      if ((count || 0) >= safePostsPerWeek) {
-        return NextResponse.json({ ok: true, skipped: "weekly_limit" });
-      }
-    }
-  }
-
-  const { data: existingRun } = await supabaseServer
-    .from("article_automation_runs")
-    .select("id, status")
-    .eq("run_date", runDate)
-    .maybeSingle();
-
-  if (existingRun && !force) {
-    return NextResponse.json({ ok: true, skipped: "already_ran" });
-  }
-
-  if (existingRun && force && existingRun.status === "ok") {
-    return NextResponse.json({ ok: true, skipped: "already_ran_ok" });
-  }
+  const nowIso = now.toISOString();
 
   const { data: nextItem } = await supabaseServer
     .from("article_automation_queue")
     .select("*")
     .eq("status", "pending")
+    .or(`publish_at.lte.${nowIso},publish_at.is.null`)
+    .order("publish_at", { ascending: true, nullsFirst: false })
     .order("position", { ascending: true })
     .order("created_at", { ascending: true })
     .limit(1)
     .maybeSingle();
 
   if (!nextItem) {
+    const { count: pendingCount } = await supabaseServer
+      .from("article_automation_queue")
+      .select("id", { count: "exact" })
+      .eq("status", "pending");
+    if ((pendingCount || 0) > 0) {
+      await supabaseServer.from("article_automation_runs").insert({
+        run_date: runDate,
+        status: "skipped_not_due",
+        details: "Pending items exist but none are due yet.",
+      });
+      return NextResponse.json({ ok: true, skipped: "not_due" });
+    }
     await supabaseServer.from("article_automation_runs").insert({
       run_date: runDate,
       status: "skipped_empty",
@@ -564,7 +608,21 @@ export async function GET(req: Request) {
   let details = "";
 
   try {
-    const prompt = `
+    if (String(nextItem.prompt || "").toLowerCase().includes("manual reprocess") && !nextItem.article_id) {
+      throw new Error("manual_reprocess_missing_article_id");
+    }
+    if (nextItem.article_id) {
+      const { data: existingArticle, error: existingErr } = await supabaseServer
+        .from("articles")
+        .select("*")
+        .eq("id", nextItem.article_id)
+        .maybeSingle();
+      if (existingErr || !existingArticle) {
+        throw new Error("article_not_found");
+      }
+      article = existingArticle;
+    } else {
+      const prompt = `
 Te egy magyar egészség/életmód magazin szerzője vagy.
 Készíts egy cikket a következő témára/prompt alapján.
 
@@ -587,84 +645,111 @@ Adj vissza egyetlen JSON objektumot:
 }
 `.trim();
 
-    const generated = await openaiJson(prompt);
-    const title = String(generated?.title || "").trim();
-    const excerpt = String(generated?.excerpt || "").trim();
-    let content_html = String(generated?.content_html || "").trim();
-    const disclaimer =
-      "Megjegyzés: A cikkben szereplő információk tájékoztató jellegűek, nem helyettesítik az orvosi tanácsadást. Egészségügyi problémák esetén kérjük, fordulj szakorvoshoz vagy egészségügyi szakemberhez.";
+      const generated = await openaiJson(prompt);
+      const title = String(generated?.title || "").trim();
+      const excerpt = String(generated?.excerpt || "").trim();
+      let content_html = String(generated?.content_html || "").trim();
+      const disclaimer =
+        "Megjegyzés: A cikkben szereplő információk tájékoztató jellegűek, nem helyettesítik az orvosi tanácsadást. Egészségügyi problémák esetén kérjük, fordulj szakorvoshoz vagy egészségügyi szakemberhez.";
 
-    if (content_html && !content_html.includes("Megjegyzés: A cikkben szereplő információk")) {
-      content_html = `${content_html}\n<p><em>${disclaimer}</em></p>`;
-    }
+      if (content_html && !content_html.includes("Megjegyzés: A cikkben szereplő információk")) {
+        content_html = `${content_html}\n<p><em>${disclaimer}</em></p>`;
+      }
 
-    if (!title || !content_html) {
-      throw new Error("empty_article");
-    }
+      if (!title || !content_html) {
+        throw new Error("empty_article");
+      }
 
-    const baseSlug = slugifyHu(title);
-    let nextSlug = baseSlug || `cikk-${Date.now()}`;
+      const baseSlug = slugifyHu(title);
+      let nextSlug = baseSlug || `cikk-${Date.now()}`;
 
-    if (nextSlug) {
-      let candidate = nextSlug;
-      let i = 2;
-      while (true) {
-        const { data: existing } = await supabaseServer
-          .from("articles")
-          .select("id")
-          .eq("slug", candidate)
-          .maybeSingle();
-        if (!existing) {
-          nextSlug = candidate;
-          break;
+      if (nextSlug) {
+        let candidate = nextSlug;
+        let i = 2;
+        while (true) {
+          const { data: existing } = await supabaseServer
+            .from("articles")
+            .select("id")
+            .eq("slug", candidate)
+            .maybeSingle();
+          if (!existing) {
+            nextSlug = candidate;
+            break;
+          }
+          candidate = `${nextSlug}-${i}`;
+          i += 1;
         }
-        candidate = `${nextSlug}-${i}`;
-        i += 1;
+      }
+
+      const { data: inserted, error: insertErr } = await supabaseServer
+        .from("articles")
+        .insert({
+          slug: nextSlug,
+          title,
+          excerpt,
+          content_html,
+          status: "published",
+          category_slug: nextItem.category_slug || null,
+          published_at: new Date().toISOString(),
+        })
+        .select("*")
+        .single();
+
+      if (insertErr || !inserted) {
+        throw new Error(insertErr?.message || "insert_failed");
+      }
+
+      article = inserted;
+      await supabaseServer
+        .from("article_automation_queue")
+        .update({ article_id: article.id })
+        .eq("id", nextItem.id);
+    }
+
+    let coverImageUrl = article?.cover_image_url || "";
+    if (!coverImageUrl) {
+      try {
+        coverImageUrl = await generateCoverImage(article);
+      } catch (err) {
+        console.warn("cover_image_failed", String((err as Error)?.message || err));
       }
     }
-
-    const { data: inserted, error: insertErr } = await supabaseServer
-      .from("articles")
-      .insert({
-        slug: nextSlug,
-        title,
-        excerpt,
-        content_html,
-        status: "published",
-        category_slug: nextItem.category_slug || null,
-        published_at: new Date().toISOString(),
-      })
-      .select("*")
-      .single();
-
-    if (insertErr || !inserted) {
-      throw new Error(insertErr?.message || "insert_failed");
-    }
-
-    article = inserted;
-
-    await generateCoverImage(article);
     const relatedSlugs = await suggestRelatedProducts(article);
     await placeInlineProductEmbeds(article, relatedSlugs);
-    await postToFacebook(article);
+    const shouldPostToFacebook = nextItem?.post_to_facebook ?? true;
+    const shouldPostToPinterest = Boolean(nextItem?.post_to_pinterest);
+    const shouldPostToX = Boolean(nextItem?.post_to_x);
+    const imageUrl = coverImageUrl || article.cover_image_url || "";
+
+    if (shouldPostToFacebook) {
+      await postToFacebook(article);
+    }
+    if (shouldPostToPinterest) {
+      await postToPinterest(article, imageUrl);
+    }
+    if (shouldPostToX) {
+      await postToX(article);
+    }
 
     await supabaseServer
       .from("article_automation_queue")
       .update({
         status: "done",
         used_at: new Date().toISOString(),
-        article_id: article.id,
+        article_id: article?.id || nextItem.article_id,
       })
       .eq("id", nextItem.id);
   } catch (err: any) {
     runStatus = "error";
     details = String(err?.message || err);
 
+    const articleIdForQueue = article?.id || nextItem.article_id || null;
     await supabaseServer
       .from("article_automation_queue")
       .update({
         status: "error",
         last_error: details,
+        article_id: articleIdForQueue,
       })
       .eq("id", nextItem.id);
   }
