@@ -521,7 +521,17 @@ async function postToX(article: any) {
 
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://sokaigelek.hu";
   const link = `${siteUrl.replace(/\/$/, "")}/cikkek/${article.slug}`;
-  const text = [article.title, article.excerpt, link].filter(Boolean).join("\n\n").slice(0, 280);
+  const title = String(article.title || "").trim();
+  const excerpt = String(article.excerpt || "").trim();
+  const body = [title, excerpt].filter(Boolean).join("\n\n");
+  const maxLen = 280;
+  const suffix = body ? `\n\n${link}` : link;
+  const allowedBodyLen = Math.max(0, maxLen - suffix.length);
+  const trimmedBody =
+    allowedBodyLen > 0 && body.length > allowedBodyLen
+      ? body.slice(0, allowedBodyLen).replace(/\s+\S*$/, "").trim()
+      : body;
+  const text = trimmedBody ? `${trimmedBody}\n\n${link}` : link;
 
   const url = "https://api.x.com/2/tweets";
   const oauthHeader = buildOAuthHeader({
