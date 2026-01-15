@@ -544,7 +544,17 @@ async function postToX(article: any) {
 
   const data = await r.json();
   if (!r.ok || data?.errors) {
-    throw new Error(data?.errors?.[0]?.message || "x_error");
+    const errorMessage =
+      data?.errors?.[0]?.message ||
+      data?.error?.message ||
+      (typeof data?.detail === "string" ? data.detail : null) ||
+      (typeof data?.title === "string" ? data.title : null) ||
+      null;
+    const extra =
+      typeof data === "string"
+        ? data
+        : JSON.stringify(data).slice(0, 600);
+    throw new Error(errorMessage ? `${errorMessage} | ${extra}` : `x_error | ${extra}`);
   }
 
   return { ok: true, tweet_id: data?.data?.id || null };
