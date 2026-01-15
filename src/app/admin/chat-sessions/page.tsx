@@ -119,17 +119,22 @@ export default async function AdminChatSessionsPage({
       lastMessage?: MessageRow;
     }
   >();
+  const byConversation = new Map<ConversationRow["id"], MessageRow[]>();
 
   for (const m of messages) {
     const existing = summary.get(m.conversation_id);
     if (!existing) {
       summary.set(m.conversation_id, { count: 1, lastMessage: m });
-      continue;
+    } else {
+      existing.count += 1;
+      if (!existing.lastMessage) {
+        existing.lastMessage = m;
+      }
     }
-    existing.count += 1;
-    if (!existing.lastMessage) {
-      existing.lastMessage = m;
-    }
+
+    const list = byConversation.get(m.conversation_id) || [];
+    list.push(m);
+    byConversation.set(m.conversation_id, list);
   }
 
   return (
@@ -227,6 +232,11 @@ export default async function AdminChatSessionsPage({
         {convoList.map((c) => {
           const meta = summary.get(c.id);
           const last = meta?.lastMessage;
+          const convoMessages = (byConversation.get(c.id) || []).slice().sort((a, b) => {
+            const aTs = a.created_at ? Date.parse(a.created_at) : 0;
+            const bTs = b.created_at ? Date.parse(b.created_at) : 0;
+            return aTs - bTs;
+          });
           return (
             <div
               key={String(c.id)}
@@ -303,6 +313,32 @@ export default async function AdminChatSessionsPage({
                     {formatTs(last.created_at)}
                   </div>
                 </div>
+              ) : null}
+
+              {convoMessages.length > 0 ? (
+                <details
+                  style={{
+                    borderTop: "1px solid rgba(15,23,42,0.08)",
+                    paddingTop: 8,
+                    fontSize: 13,
+                  }}
+                >
+                  <summary style={{ cursor: "pointer", fontWeight: 600 }}>
+                    Teljes beszélgetés
+                  </summary>
+                  <div style={{ display: "grid", gap: 8, marginTop: 10 }}>
+                    {convoMessages.map((m) => (
+                      <div key={String(m.id)} style={{ display: "grid", gap: 4 }}>
+                        <div style={{ fontSize: 12, opacity: 0.7 }}>
+                          {m.role} · {formatTs(m.created_at)}
+                        </div>
+                        <div style={{ whiteSpace: "pre-wrap", color: "#0f172a" }}>
+                          {m.content}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </details>
               ) : null}
             </div>
           );

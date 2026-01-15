@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import crypto from "crypto";
 import { supabaseServer } from "@/lib/supabaseServer";
 import { uploadVercelBlob } from "@/lib/blobStorage";
 import { slugifyHu } from "@/lib/slugifyHu";
@@ -511,16 +512,31 @@ async function postToPinterest(article: any, imageUrl: string) {
 
 async function postToX(article: any) {
   const accessToken = process.env.X_ACCESS_TOKEN;
-  if (!accessToken) return { skipped: true, reason: "missing_env" };
+  const accessTokenSecret = process.env.X_ACCESS_TOKEN_SECRET;
+  const consumerKey = process.env.X_CONSUMER_KEY;
+  const consumerSecret = process.env.X_CONSUMER_SECRET;
+  if (!accessToken || !accessTokenSecret || !consumerKey || !consumerSecret) {
+    return { skipped: true, reason: "missing_env" };
+  }
 
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://sokaigelek.hu";
   const link = `${siteUrl.replace(/\/$/, "")}/cikkek/${article.slug}`;
   const text = [article.title, article.excerpt, link].filter(Boolean).join("\n\n").slice(0, 280);
 
-  const r = await fetch("https://api.x.com/2/tweets", {
+  const url = "https://api.x.com/2/tweets";
+  const oauthHeader = buildOAuthHeader({
+    method: "POST",
+    url,
+    consumerKey,
+    consumerSecret,
+    token: accessToken,
+    tokenSecret: accessTokenSecret,
+  });
+
+  const r = await fetch(url, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${accessToken}`,
+      Authorization: oauthHeader,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({ text }),
@@ -532,6 +548,51 @@ async function postToX(article: any) {
   }
 
   return { ok: true, tweet_id: data?.data?.id || null };
+}
+
+function buildOAuthHeader({
+  method,
+  url,
+  consumerKey,
+  consumerSecret,
+  token,
+  tokenSecret,
+}: {
+  method: string;
+  url: string;
+  consumerKey: string;
+  consumerSecret: string;
+  token: string;
+  tokenSecret: string;
+}) {
+  const oauthParams: Record<string, string> = {
+    oauth_consumer_key: consumerKey,
+    oauth_nonce: crypto.randomBytes(16).toString("hex"),
+    oauth_signature_method: "HMAC-SHA1",
+    oauth_timestamp: String(Math.floor(Date.now() / 1000)),
+    oauth_token: token,
+    oauth_version: "1.0",
+  };
+
+  const baseUrl = url.split("?")[0];
+  const paramString = Object.keys(oauthParams)
+    .sort()
+    .map((k) => `${encodeOauth(k)}=${encodeOauth(oauthParams[k])}`)
+    .join("&");
+  const baseString = [method.toUpperCase(), encodeOauth(baseUrl), encodeOauth(paramString)].join("&");
+  const signingKey = `${encodeOauth(consumerSecret)}&${encodeOauth(tokenSecret)}`;
+  const signature = crypto.createHmac("sha1", signingKey).update(baseString).digest("base64");
+  oauthParams.oauth_signature = signature;
+
+  const headerParams = Object.keys(oauthParams)
+    .sort()
+    .map((k) => `${encodeOauth(k)}="${encodeOauth(oauthParams[k])}"`)
+    .join(", ");
+  return `OAuth ${headerParams}`;
+}
+
+function encodeOauth(input: string) {
+  return encodeURIComponent(input).replace(/[!'()*]/g, (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`);
 }
 
 export async function GET(req: Request) {
