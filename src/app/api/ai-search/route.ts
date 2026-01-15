@@ -341,14 +341,14 @@ export async function GET(req: Request) {
             supabase
                 .from("products")
                 .select(
-                    "id, slug, name, short, description, image_url"
+                    "id, slug, name, short, description"
                 )
                 .order("id", { ascending: false })
                 .limit(2000),
             supabase
                 .from("articles")
                 .select(
-                    "id, slug, title, excerpt, content_html, cover_image_url"
+                    "id, slug, title, excerpt, content_html"
                 )
                 .eq("status", "published")
                 .order("id", { ascending: false })

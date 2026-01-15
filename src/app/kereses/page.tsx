@@ -395,7 +395,7 @@ export default async function KeresesPage(props: {
                 const { data, error } = await supabase
                     .from("articles")
                     .select(
-                        "id, slug, title, excerpt, content_html, cover_image_url, published_at, created_at"
+                        "id, slug, title, excerpt, content_html, cover_image_url"
                     )
                     // legyen stabil a találatok köre (ne essen ki releváns elem csak azért, mert túl alacsony a limit)
                     .order("id", { ascending: false })

@@ -5,7 +5,7 @@ import { formatHuf } from "@/lib/formatHuf";
 
 const PAGE_SIZE = 12;
 
-export const revalidate = 300;
+export const revalidate = 900;
 
 function stripHtml(input: string) {
   return input
@@ -67,12 +67,12 @@ export default async function ProductsIndexPage({
   let totalAllCount = 0;
   let dynamicTags: string[] = [];
   if (!slugFilter.length) {
-    const { data: tagRows } = await supabaseServer
-      .from("products")
-      .select(supportsStatus ? "tags,status" : "tags");
+    const tagQuery = supabaseServer.from("products").select("tags");
+    const { data: tagRows } = supportsStatus
+      ? await tagQuery.eq("status", "published")
+      : await tagQuery;
 
     (tagRows ?? []).forEach((row: any) => {
-      if (supportsStatus && row.status !== "published") return;
       totalAllCount += 1;
       if (Array.isArray(row.tags)) {
         const seen = new Set<string>();
@@ -93,7 +93,7 @@ export default async function ProductsIndexPage({
     dynamicTags = Array.from(tagMap.values()).sort((a, b) => a.localeCompare(b, "hu"));
   }
 
-  const selectFields = "id, slug, name, short, description, image_url, price, regular_price, status";
+  const selectFields = "id, slug, name, short, image_url, price, regular_price, status";
   let query = slugFilter.length
     ? supabaseServer.from("products").select(selectFields).order("name", { ascending: true })
     : supabaseServer.from("products").select(selectFields, { count: "exact" }).order("name", { ascending: true });

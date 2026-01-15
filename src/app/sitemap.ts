@@ -3,6 +3,8 @@ import { supabaseServer } from "@/lib/supabaseServer";
 
 type SitemapEntry = MetadataRoute.Sitemap[number];
 
+export const revalidate = 3600;
+
 function safeDate(input?: string | null): Date | undefined {
   if (!input) return undefined;
   const d = new Date(input);

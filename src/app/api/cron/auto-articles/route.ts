@@ -622,7 +622,9 @@ export async function GET(req: Request) {
 
   const { data: nextItem } = await supabaseServer
     .from("article_automation_queue")
-    .select("*")
+    .select(
+      "id, prompt, article_id, category_slug, post_to_facebook, post_to_pinterest, post_to_x"
+    )
     .eq("status", "pending")
     .or(`publish_at.lte.${nowIso},publish_at.is.null`)
     .order("publish_at", { ascending: true, nullsFirst: false })
@@ -675,7 +677,9 @@ export async function GET(req: Request) {
     if (nextItem.article_id) {
       const { data: existingArticle, error: existingErr } = await supabaseServer
         .from("articles")
-        .select("*")
+        .select(
+          "id, slug, title, excerpt, content_html, category_slug, cover_image_url, related_product_slugs"
+        )
         .eq("id", nextItem.article_id)
         .maybeSingle();
       if (existingErr || !existingArticle) {
@@ -753,7 +757,9 @@ Adj vissza egyetlen JSON objektumot:
           category_slug: nextItem.category_slug || null,
           published_at: new Date().toISOString(),
         })
-        .select("*")
+        .select(
+          "id, slug, title, excerpt, content_html, category_slug, cover_image_url, related_product_slugs"
+        )
         .single();
 
       if (insertErr || !inserted) {
