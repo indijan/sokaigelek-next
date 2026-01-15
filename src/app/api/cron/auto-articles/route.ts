@@ -788,14 +788,53 @@ Adj vissza egyetlen JSON objektumot:
     const shouldPostToX = Boolean(nextItem?.post_to_x);
     const imageUrl = coverImageUrl || article.cover_image_url || "";
 
+    const socialResults: Record<
+      string,
+      { status: "ok" | "skipped" | "error"; reason?: string; id?: string }
+    > = {};
+
     if (shouldPostToFacebook) {
-      await postToFacebook(article);
+      try {
+        const fbRes = await postToFacebook(article);
+        if (fbRes?.skipped) {
+          socialResults.facebook = { status: "skipped", reason: fbRes.reason };
+        } else {
+          socialResults.facebook = { status: "ok", id: fbRes?.post_id || undefined };
+        }
+      } catch (err: any) {
+        socialResults.facebook = { status: "error", reason: String(err?.message || err) };
+      }
     }
     if (shouldPostToPinterest) {
-      await postToPinterest(article, imageUrl);
+      try {
+        const pinRes = await postToPinterest(article, imageUrl);
+        if (pinRes?.skipped) {
+          socialResults.pinterest = { status: "skipped", reason: pinRes.reason };
+        } else {
+          socialResults.pinterest = { status: "ok", id: pinRes?.pin_id || undefined };
+        }
+      } catch (err: any) {
+        socialResults.pinterest = { status: "error", reason: String(err?.message || err) };
+      }
     }
     if (shouldPostToX) {
-      await postToX(article);
+      try {
+        const xRes = await postToX(article);
+        if (xRes?.skipped) {
+          socialResults.x = { status: "skipped", reason: xRes.reason };
+        } else {
+          socialResults.x = { status: "ok", id: xRes?.tweet_id || undefined };
+        }
+      } catch (err: any) {
+        socialResults.x = { status: "error", reason: String(err?.message || err) };
+      }
+    }
+
+    const socialSummary = Object.entries(socialResults)
+      .map(([key, value]) => `${key}:${value.status}${value.reason ? `(${value.reason})` : ""}`)
+      .join(", ");
+    if (socialSummary) {
+      details = `social=${socialSummary}`;
     }
 
     await supabaseServer
@@ -804,6 +843,9 @@ Adj vissza egyetlen JSON objektumot:
         status: "done",
         used_at: new Date().toISOString(),
         article_id: article?.id || nextItem.article_id,
+        last_error: socialSummary
+          ? `Social: ${socialSummary}`
+          : null,
       })
       .eq("id", nextItem.id);
   } catch (err: any) {
