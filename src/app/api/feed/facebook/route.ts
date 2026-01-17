@@ -34,7 +34,7 @@ function escapeXml(input: string) {
 function normalizePrice(value: ProductRow["price"]) {
   if (value === null || value === undefined) return null;
   const n = typeof value === "number" ? value : Number(String(value).replace(/\s/g, "").replace(",", "."));
-  return Number.isFinite(n) ? n : null;
+  return Number.isFinite(n) && n > 0 ? n : null;
 }
 
 export async function GET() {
