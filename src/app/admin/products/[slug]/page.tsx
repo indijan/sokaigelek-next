@@ -64,6 +64,14 @@ export default async function AdminProductEditPage({ params, searchParams }: Pro
     const supportsNutrition = Boolean(nutritionField);
     const supportsComposition = Boolean(compositionField);
 
+    function parseOptionalNumber(value: FormDataEntryValue | null) {
+        const raw = String(value || "").trim();
+        if (!raw) return null;
+        const normalized = raw.replace(/\s/g, "").replace(/,/g, ".");
+        const num = Number(normalized);
+        return Number.isFinite(num) ? num : null;
+    }
+
     return (
         <main className="max-w-3xl mx-auto px-4 py-10 space-y-6">
             {errMessage ? (
@@ -84,8 +92,8 @@ export default async function AdminProductEditPage({ params, searchParams }: Pro
                     const short = String(formData.get("short") || "");
                     const tags = toTags(String(formData.get("tags") || ""));
                     const description = String(formData.get("description") || "");
-                    const regular_price = Number(formData.get("regular_price") || 0);
-                    const price = Number(formData.get("price") || 0);
+                    const regular_price = parseOptionalNumber(formData.get("regular_price"));
+                    const price = parseOptionalNumber(formData.get("price"));
                     const status = supportsStatus ? String(formData.get("status") || "draft") : null;
                     const isNewMode = slug === "uj";
                     const nutrition = supportsNutrition && nutritionField
@@ -132,10 +140,21 @@ export default async function AdminProductEditPage({ params, searchParams }: Pro
                         }
                     }
 
-                    const affiliate_label_1 = String(formData.get("affiliate_label_1") || "");
-                    const affiliate_url_1 = String(formData.get("affiliate_url_1") || "");
-                    const affiliate_label_2 = String(formData.get("affiliate_label_2") || "");
-                    const affiliate_url_2 = String(formData.get("affiliate_url_2") || "");
+                    const affiliate_label_1 = String(formData.get("affiliate_label_1") || "").trim();
+                    const affiliate_url_1 = String(formData.get("affiliate_url_1") || "").trim();
+                    const affiliate_label_2 = String(formData.get("affiliate_label_2") || "").trim();
+                    const affiliate_url_2 = String(formData.get("affiliate_url_2") || "").trim();
+
+                    const hasAffiliate1 = Boolean(affiliate_label_1) || Boolean(affiliate_url_1);
+                    const hasAffiliate2 = Boolean(affiliate_label_2) || Boolean(affiliate_url_2);
+
+                    if (hasAffiliate1 && (!affiliate_label_1 || !affiliate_url_1)) {
+                        redirect(`/admin/products/${slug}?err=${encodeURIComponent("Affiliate link 1-hez címke és URL is szükséges.")}`);
+                    }
+
+                    if (hasAffiliate2 && (!affiliate_label_2 || !affiliate_url_2)) {
+                        redirect(`/admin/products/${slug}?err=${encodeURIComponent("Affiliate link 2-höz címke és URL is szükséges.")}`);
+                    }
 
                     const updateData: Record<string, unknown> = {
                         slug: nextSlug,

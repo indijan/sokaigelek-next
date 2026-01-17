@@ -153,6 +153,14 @@ function BuyBox({
   sokaigelekPrice: number | null;
 }) {
   const clubPrice = basePrice !== null ? basePrice * 0.7 : null;
+  const affiliateLabel1 = String(product?.affiliate_label_1 || "").trim();
+  const affiliateUrl1 = String(product?.affiliate_url_1 || "").trim();
+  const affiliateLabel2 = String(product?.affiliate_label_2 || "").trim();
+  const affiliateUrl2 = String(product?.affiliate_url_2 || "").trim();
+  const hasAffiliate1 = affiliateLabel1 && affiliateUrl1;
+  const hasAffiliate2 = affiliateLabel2 && affiliateUrl2;
+  const hasAnyAffiliate = hasAffiliate1 || hasAffiliate2;
+  if (!hasAnyPrice && !hasAnyAffiliate) return null;
   return (
     <div className="product-buy-box rounded-3xl border bg-white p-5 space-y-4 shadow-sm overflow-hidden">
       <div className="-mx-5 -mt-5 px-5 pt-5 pb-4 bg-gradient-to-b from-gray-50 to-white border-b">
@@ -208,25 +216,31 @@ function BuyBox({
         </div>
       ) : null}
 
-      <div className="buybox-actions">
-        <a
-          className="buybox-primary"
-          href={`/out/${product.slug}?to=1`}
-          target="_blank"
-          rel="noopener noreferrer nofollow"
-        >
-          {product.affiliate_label_1 || "Megveszem Sokáig élek áron"}
-        </a>
+      {hasAnyAffiliate ? (
+        <div className="buybox-actions">
+          {hasAffiliate1 ? (
+            <a
+              className="buybox-primary"
+              href={`/out/${product.slug}?to=1`}
+              target="_blank"
+              rel="noopener noreferrer nofollow"
+            >
+              {affiliateLabel1}
+            </a>
+          ) : null}
 
-        <a
-          className="buybox-secondary"
-          href={`/out/${product.slug}?to=2`}
-          target="_blank"
-          rel="noopener noreferrer nofollow"
-        >
-          {product.affiliate_label_2 || "Alternatív link"}
-        </a>
-      </div>
+          {hasAffiliate2 ? (
+            <a
+              className="buybox-secondary"
+              href={`/out/${product.slug}?to=2`}
+              target="_blank"
+              rel="noopener noreferrer nofollow"
+            >
+              {affiliateLabel2}
+            </a>
+          ) : null}
+        </div>
+      ) : null}
 
     </div>
   );
@@ -238,7 +252,7 @@ export default async function ProductPageRoute({ params }: Props) {
   const { data: product, error } = await supabaseServer
     .from("products")
     .select(
-      "id, slug, name, short, description, image_url, affiliate_label_1, affiliate_label_2, price, regular_price, status, tags, ingredients, warnings, nutrition, composition_html"
+      "id, slug, name, short, description, image_url, affiliate_label_1, affiliate_url_1, affiliate_label_2, affiliate_url_2, price, regular_price, status, tags, ingredients, warnings, nutrition, composition_html"
     )
     .eq("slug", slug)
     .single();
