@@ -11,6 +11,14 @@ type Props = {
     searchParams?: Promise<{ err?: string | string[] }>;
 };
 
+function parseOptionalNumber(value: FormDataEntryValue | null) {
+    const raw = String(value || "").trim();
+    if (!raw) return null;
+    const normalized = raw.replace(/\s/g, "").replace(/,/g, ".");
+    const num = Number(normalized);
+    return Number.isFinite(num) ? num : null;
+}
+
 function toTags(value: string) {
     return value
         .split(",")
@@ -63,14 +71,6 @@ export default async function AdminProductEditPage({ params, searchParams }: Pro
         : null;
     const supportsNutrition = Boolean(nutritionField);
     const supportsComposition = Boolean(compositionField);
-
-    function parseOptionalNumber(value: FormDataEntryValue | null) {
-        const raw = String(value || "").trim();
-        if (!raw) return null;
-        const normalized = raw.replace(/\s/g, "").replace(/,/g, ".");
-        const num = Number(normalized);
-        return Number.isFinite(num) ? num : null;
-    }
 
     return (
         <main className="max-w-3xl mx-auto px-4 py-10 space-y-6">

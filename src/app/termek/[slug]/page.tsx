@@ -67,11 +67,11 @@ function renderHtml(html?: string) {
 
 function parseNum(v: any): number | null {
   if (v === null || v === undefined) return null;
-  if (typeof v === "number" && Number.isFinite(v)) return v;
+  if (typeof v === "number" && Number.isFinite(v)) return v > 0 ? v : null;
   if (typeof v === "string") {
     const cleaned = v.replace(/\s/g, "").replace(/,/g, ".");
     const n = Number(cleaned);
-    return Number.isFinite(n) ? n : null;
+    return Number.isFinite(n) && n > 0 ? n : null;
   }
   return null;
 }
@@ -167,7 +167,7 @@ function BuyBox({
         <div className="flex items-start justify-between gap-3">
           <div>
             <div className="text-xs font-semibold tracking-wide text-gray-700">Vásárlás</div>
-            <div className="mt-1 text-sm text-gray-600">A vásárlás a DuoLife oldalán történik.</div>
+            <div className="mt-1 text-sm text-gray-600">A vásárlás a külső oldalon történik.</div>
             {discountPct !== null ? (
               <div className="mt-1 text-sm text-gray-600">
                 A Sokáig élek kedvezmény az alap árból:{" "}
