@@ -148,7 +148,8 @@ export default async function Home() {
     return !status || status === "published";
   });
 
-  const money = (n: number | null | undefined) => (typeof n === "number" ? formatHuf(n, false) : "");
+  const money = (n: number | null | undefined) =>
+    typeof n === "number" && n > 0 ? formatHuf(n, false) : "";
 
   const clamp3: CSSProperties = {
     display: "-webkit-box",
@@ -427,12 +428,16 @@ export default async function Home() {
               </div>
             ) : (
               visibleFeatured.map((p) => {
+                const basePrice =
+                  typeof p.regular_price === "number" && p.regular_price > 0
+                    ? p.regular_price
+                    : null;
+                const dealPrice =
+                  typeof p.price === "number" && p.price > 0 ? p.price : null;
                 const hasDiscount =
-                  typeof p.regular_price === "number" &&
-                  typeof p.price === "number" &&
-                  p.regular_price > 0 &&
-                  p.price > 0 &&
-                  p.price < p.regular_price;
+                  basePrice !== null &&
+                  dealPrice !== null &&
+                  dealPrice < basePrice;
 
                 return (
                   <Link key={p.id} className="card card-hover" href={`/termek/${p.slug}`}>
@@ -456,15 +461,15 @@ export default async function Home() {
                         </div>
                     ) : null}
 
-                    {(p.price || p.regular_price) ? (
+                    {(dealPrice || basePrice) ? (
                       <div style={{ marginTop: 10, display: "flex", gap: 10, alignItems: "baseline" }}>
                         {hasDiscount ? (
                           <div className="muted" style={{ textDecoration: "line-through" }}>
-                            {money(p.regular_price)} Ft
+                            {money(basePrice)} Ft
                           </div>
                         ) : null}
                         <div style={{ fontWeight: 700 }}>
-                          {money(hasDiscount ? p.price : (p.price || p.regular_price))} Ft
+                          {money(hasDiscount ? dealPrice : (dealPrice || basePrice))} Ft
                         </div>
                       </div>
                     ) : null}

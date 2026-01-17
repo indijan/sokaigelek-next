@@ -38,7 +38,9 @@ function safeImageUrl(input: unknown) {
 }
 
 function formatFt(value: unknown) {
-  return formatHuf(value);
+  const n = typeof value === "number" ? value : Number(String(value || "").replace(/\s/g, "").replace(/,/g, "."));
+  if (!Number.isFinite(n) || n <= 0) return "";
+  return formatHuf(n);
 }
 
 export default async function ProductsIndexPage({
