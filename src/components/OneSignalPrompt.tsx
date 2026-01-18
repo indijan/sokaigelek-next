@@ -85,32 +85,12 @@ export default function OneSignalPrompt() {
     if (!ready || !canRun || denied) return;
     if (open) return;
 
-    const handleMouseMove = (e: MouseEvent) => {
-      if (e.clientY <= 6) {
-        setOpen(true);
-      }
-    };
-
-    let lastScrollY = 0;
-    const handleScroll = () => {
-      const y = window.scrollY || 0;
-      if (y < 120 && lastScrollY > 480) {
-        setOpen(true);
-      }
-      lastScrollY = y;
-    };
-
     const timer = window.setTimeout(() => {
       setOpen(true);
     }, 20000);
 
-    document.addEventListener("mousemove", handleMouseMove);
-    window.addEventListener("scroll", handleScroll, { passive: true });
-
     return () => {
       window.clearTimeout(timer);
-      document.removeEventListener("mousemove", handleMouseMove);
-      window.removeEventListener("scroll", handleScroll);
     };
   }, [ready, canRun, denied, open]);
 
