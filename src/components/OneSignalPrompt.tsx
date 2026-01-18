@@ -85,8 +85,8 @@ export default function OneSignalPrompt() {
     if (!ready || !canRun || denied) return;
     if (open) return;
 
-    const handleMouseLeave = (e: MouseEvent) => {
-      if (e.clientY <= 8) {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (e.clientY <= 6) {
         setOpen(true);
       }
     };
@@ -100,11 +100,16 @@ export default function OneSignalPrompt() {
       lastScrollY = y;
     };
 
-    document.addEventListener("mouseleave", handleMouseLeave);
+    const timer = window.setTimeout(() => {
+      setOpen(true);
+    }, 20000);
+
+    document.addEventListener("mousemove", handleMouseMove);
     window.addEventListener("scroll", handleScroll, { passive: true });
 
     return () => {
-      document.removeEventListener("mouseleave", handleMouseLeave);
+      window.clearTimeout(timer);
+      document.removeEventListener("mousemove", handleMouseMove);
       window.removeEventListener("scroll", handleScroll);
     };
   }, [ready, canRun, denied, open]);
