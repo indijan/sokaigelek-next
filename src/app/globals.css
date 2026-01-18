@@ -325,6 +325,74 @@ p {
   color: var(--muted);
 }
 
+/* OneSignal prompt */
+.onesignal-prompt {
+  position: fixed;
+  left: 12px;
+  right: 12px;
+  bottom: 96px;
+  z-index: 2147483000;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.onesignal-card {
+  pointer-events: auto;
+  max-width: 420px;
+  width: 100%;
+  border-radius: 18px;
+  border: 1px solid rgba(17, 24, 39, 0.12);
+  padding: 14px 16px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(255, 248, 243, 0.94));
+  box-shadow: 0 14px 36px rgba(15, 23, 42, 0.14);
+}
+
+.onesignal-title {
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1.5;
+}
+
+.onesignal-sub {
+  margin-top: 4px;
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+.onesignal-actions {
+  margin-top: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.onesignal-btn {
+  border-radius: 999px;
+  border: 1px solid rgba(17, 24, 39, 0.12);
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  background: #fff;
+  cursor: pointer;
+}
+
+.onesignal-btn.primary {
+  border: none;
+  background: linear-gradient(135deg, #c2410b, #f97316);
+  color: #fff;
+}
+
+.onesignal-btn.ghost {
+  background: transparent;
+}
+
+@media (max-width: 640px) {
+  .onesignal-prompt {
+    bottom: 108px;
+  }
+}
+
 /* =========================
    FORM ELEMEK
    ========================= */

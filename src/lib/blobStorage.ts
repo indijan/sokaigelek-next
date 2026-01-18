@@ -1,6 +1,6 @@
 import { del, put } from "@vercel/blob";
 
-const TOKEN = process.env.VERCEL_BLOB_READ_WRITE_TOKEN || "";
+const TOKEN = process.env.VERCEL_BLOB_READ_WRITE_TOKEN || process.env.BLOB_READ_WRITE_TOKEN || "";
 const HOST = process.env.VERCEL_BLOB_HOST || "";
 
 export function isVercelBlobUrl(raw: string) {

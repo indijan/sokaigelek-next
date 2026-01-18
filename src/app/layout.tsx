@@ -7,6 +7,7 @@ import SiteFooter from "@/components/SiteFooter";
 import ChatWidgetClient from "@/components/ChatWidgetClient";
 import CookieNotice from "@/components/CookieNotice";
 import GtmConsentLoader from "@/components/GtmConsentLoader";
+import OneSignalPrompt from "@/components/OneSignalPrompt";
 
 export const metadata: Metadata = {
   title: "Sokáig élek",
@@ -44,6 +45,7 @@ export default function RootLayout({
 
         <SiteFooter />
         <CookieNotice />
+        <OneSignalPrompt />
 
         {/* Globális chat widget – pontosan egyszer */}
         <ChatWidgetClient />

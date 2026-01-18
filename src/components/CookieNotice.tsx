@@ -15,7 +15,7 @@ export default function CookieNotice() {
   if (hidden) return null;
 
   return (
-    <div className="fixed bottom-3 left-3 right-3 z-50">
+    <div className="fixed bottom-3 left-3 right-3 z-50 pr-20 sm:pr-3">
       <div className="mx-auto flex max-w-3xl items-center justify-between gap-4 rounded-2xl border border-gray-200 bg-white/90 px-4 py-3 text-xs text-gray-700 shadow-md backdrop-blur">
         <div>
           Az oldal sütiket használ a jobb élményért. A folytatással elfogadod.

@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { supabaseServer } from "@/lib/supabaseServer";
 import ShareButtons from "@/components/Article/ShareButtons";
+import ArticleAudioSummary from "@/components/Article/ArticleAudioSummary";
 import { cdnImageUrl } from "@/lib/cdn";
 import "../article.css";
 
@@ -327,6 +328,9 @@ export default async function ArticlePageRoute({ params }: Props) {
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://sokaigelek.hu";
   const shareUrl = `${siteUrl.replace(/\/$/, "")}/cikkek/${article.slug}`;
   const dateLabel = formatDate((article as any).published_at || (article as any).created_at || null);
+  const relatedProductsUrl = relatedProductSlugs.length
+    ? `/termek?slugs=${encodeURIComponent(relatedProductSlugs.join(","))}`
+    : null;
 
   return (
     <main className="container page">
@@ -488,6 +492,13 @@ export default async function ArticlePageRoute({ params }: Props) {
             <p style={{ margin: 0, fontSize: 18, lineHeight: 1.65, opacity: 0.92 }}>{article.excerpt}</p>
           </div>
         ) : null}
+
+        <ArticleAudioSummary
+          slug={article.slug}
+          title={article.title || ""}
+          shareUrl={shareUrl}
+          relatedProductsUrl={relatedProductsUrl}
+        />
       </header>
 
       {/* Content + Sidebar */}
@@ -517,10 +528,10 @@ export default async function ArticlePageRoute({ params }: Props) {
             suppressHydrationWarning
             dangerouslySetInnerHTML={{ __html: contentWithImages }}
           />
-          {relatedProductSlugs.length ? (
+          {relatedProductsUrl ? (
             <div style={{ marginTop: 24, display: "flex", justifyContent: "center" }}>
               <Link
-                href={`/termek?slugs=${encodeURIComponent(relatedProductSlugs.join(","))}`}
+                href={relatedProductsUrl}
                 className="related-products-cta"
               >
                 A témához kapcsolódó Étrend-kiegészítők megtekintése
