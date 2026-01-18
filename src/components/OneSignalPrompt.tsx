@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
 
 const PROMPT_KEY = "sg_onesignal_prompt_ts";
-const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+const COOLDOWN_MS = 14 * 24 * 60 * 60 * 1000;
 
 function shouldSkipPath(pathname: string) {
   return pathname === "/termek" || pathname.startsWith("/termek/");
@@ -47,7 +47,7 @@ export default function OneSignalPrompt() {
     if (typeof window === "undefined") return;
 
     const lastTs = getLastPromptTs();
-    if (lastTs && Date.now() - lastTs < WEEK_MS) return;
+    if (lastTs && Date.now() - lastTs < COOLDOWN_MS) return;
 
     if (!document.getElementById("onesignal-sdk")) {
       const script = document.createElement("script");
@@ -84,8 +84,11 @@ export default function OneSignalPrompt() {
   useEffect(() => {
     if (!ready || !canRun || denied) return;
     if (open) return;
+    const lastTs = getLastPromptTs();
+    if (lastTs && Date.now() - lastTs < COOLDOWN_MS) return;
 
     const timer = window.setTimeout(() => {
+      setLastPromptTs(Date.now());
       setOpen(true);
     }, 20000);
 
