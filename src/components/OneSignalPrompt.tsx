@@ -116,16 +116,18 @@ export default function OneSignalPrompt() {
       setError("A feliratkozás betöltése folyamatban van, próbáld újra.");
       return;
     }
-    if (!oneSignalRef.current) {
+    setError("");
+    const w = window as any;
+    const OneSignal = oneSignalRef.current || w.OneSignal;
+    if (!OneSignal) {
       setError("A feliratkozás előkészítése még tart, próbáld újra pár másodperc múlva.");
       return;
     }
-    setError("");
     try {
-      if (oneSignalRef.current?.Slidedown?.promptPush) {
-        void oneSignalRef.current.Slidedown.promptPush();
-      } else if (oneSignalRef.current?.Notifications?.requestPermission) {
-        void oneSignalRef.current.Notifications.requestPermission();
+      if (OneSignal?.Slidedown?.promptPush) {
+        void OneSignal.Slidedown.promptPush();
+      } else if (OneSignal?.Notifications?.requestPermission) {
+        void OneSignal.Notifications.requestPermission();
       }
     } catch {}
     close();
