@@ -365,6 +365,8 @@ p {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+  position: relative;
+  z-index: 1;
 }
 
 .onesignal-error {
@@ -382,6 +384,9 @@ p {
   font-weight: 700;
   background: #fff;
   cursor: pointer;
+  pointer-events: auto;
+  position: relative;
+  z-index: 1;
 }
 
 .onesignal-btn.primary {
