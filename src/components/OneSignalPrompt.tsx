@@ -30,6 +30,7 @@ export default function OneSignalPrompt() {
   const [ready, setReady] = useState(false);
   const [open, setOpen] = useState(false);
   const [denied, setDenied] = useState(false);
+  const [error, setError] = useState("");
 
   const appId = process.env.NEXT_PUBLIC_ONESIGNAL_APP_ID || "";
   const safariWebId = process.env.NEXT_PUBLIC_ONESIGNAL_SAFARI_WEB_ID || "";
@@ -106,10 +107,21 @@ export default function OneSignalPrompt() {
 
   const subscribe = () => {
     const w = window as any;
+    if (!ready) {
+      setError("A feliratkozás betöltése folyamatban van, próbáld újra.");
+      return;
+    }
+    setError("");
     w.OneSignal = w.OneSignal || [];
     w.OneSignal.push(async () => {
       try {
-        await w.OneSignal.Notifications.requestPermission();
+        const notif = w.OneSignal.Notifications;
+        if (notif?.requestPermission) {
+          await notif.requestPermission();
+        }
+        if (w.OneSignal?.Slidedown?.promptPush) {
+          await w.OneSignal.Slidedown.promptPush();
+        }
       } catch {}
       close();
     });
@@ -122,6 +134,7 @@ export default function OneSignalPrompt() {
       <div className="onesignal-card">
         <div className="onesignal-title">Értesülni szeretnél hasonló tartalmak megjelenéséről az oldalon?</div>
         <div className="onesignal-sub">Akkor kérlek iratkozz fel.</div>
+        {error ? <div className="onesignal-error">{error}</div> : null}
         <div className="onesignal-actions">
           <button type="button" className="onesignal-btn primary" onClick={subscribe}>
             Feliratkozom
