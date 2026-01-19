@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
 
 const PROMPT_KEY = "sg_onesignal_prompt_ts";
@@ -28,10 +28,7 @@ function setLastPromptTs(ts: number) {
 export default function OneSignalPrompt() {
   const pathname = usePathname();
   const [ready, setReady] = useState(false);
-  const oneSignalRef = useRef<any>(null);
-  const [open, setOpen] = useState(false);
   const [denied, setDenied] = useState(false);
-  const [error, setError] = useState("");
 
   const appId = process.env.NEXT_PUBLIC_ONESIGNAL_APP_ID || "";
   const safariWebId = process.env.NEXT_PUBLIC_ONESIGNAL_SAFARI_WEB_ID || "";
@@ -74,7 +71,6 @@ export default function OneSignalPrompt() {
         notifyButton: { enable: false },
         allowLocalhostAsSecureOrigin: true,
       });
-      oneSignalRef.current = OneSignal;
 
       try {
         if (OneSignal?.User?.setLanguage) {
@@ -90,66 +86,28 @@ export default function OneSignalPrompt() {
 
   useEffect(() => {
     if (!ready || !canRun || denied) return;
-    if (open) return;
     const lastTs = getLastPromptTs();
     if (lastTs && Date.now() - lastTs < COOLDOWN_MS) return;
 
     const timer = window.setTimeout(() => {
-      setLastPromptTs(Date.now());
-      setOpen(true);
+      const w = window as any;
+      w.OneSignalDeferred = w.OneSignalDeferred || [];
+      w.OneSignalDeferred.push(async (OneSignal: any) => {
+        try {
+          if (OneSignal?.Slidedown?.promptPush) {
+            await OneSignal.Slidedown.promptPush();
+          } else if (OneSignal?.Notifications?.requestPermission) {
+            await OneSignal.Notifications.requestPermission();
+          }
+        } catch {}
+        setLastPromptTs(Date.now());
+      });
     }, 20000);
 
     return () => {
       window.clearTimeout(timer);
     };
-  }, [ready, canRun, denied, open]);
+  }, [ready, canRun, denied]);
 
-  if (!canRun || denied) return null;
-
-  const close = () => {
-    setLastPromptTs(Date.now());
-    setOpen(false);
-  };
-
-  const subscribe = () => {
-    if (!ready) {
-      setError("A feliratkozás betöltése folyamatban van, próbáld újra.");
-      return;
-    }
-    setError("");
-    const w = window as any;
-    const OneSignal = oneSignalRef.current || w.OneSignal;
-    if (!OneSignal) {
-      setError("A feliratkozás előkészítése még tart, próbáld újra pár másodperc múlva.");
-      return;
-    }
-    try {
-      if (OneSignal?.Slidedown?.promptPush) {
-        void OneSignal.Slidedown.promptPush();
-      } else if (OneSignal?.Notifications?.requestPermission) {
-        void OneSignal.Notifications.requestPermission();
-      }
-    } catch {}
-    close();
-  };
-
-  if (!open) return null;
-
-  return (
-    <div className="onesignal-prompt">
-      <div className="onesignal-card">
-        <div className="onesignal-title">Értesülni szeretnél hasonló tartalmak megjelenéséről az oldalon?</div>
-        <div className="onesignal-sub">Akkor kérlek iratkozz fel.</div>
-        {error ? <div className="onesignal-error">{error}</div> : null}
-        <div className="onesignal-actions">
-          <button type="button" className="onesignal-btn primary" onClick={subscribe}>
-            Feliratkozom
-          </button>
-          <button type="button" className="onesignal-btn ghost" onClick={close}>
-            Most nem
-          </button>
-        </div>
-      </div>
-    </div>
-  );
+  return null;
 }
