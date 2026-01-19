@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 
 const PROMPT_KEY = "sg_onesignal_prompt_ts";
 const COOLDOWN_MS = 14 * 24 * 60 * 60 * 1000;
+const PWA_PROMPT_KEY = "sg_pwa_prompt_ts";
 
 function shouldSkipPath(pathname: string) {
   return pathname === "/termek" || pathname.startsWith("/termek/");
@@ -13,6 +14,22 @@ function shouldSkipPath(pathname: string) {
 function isLocalhost() {
   if (typeof window === "undefined") return false;
   return window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
+}
+
+function isIos() {
+  if (typeof navigator === "undefined") return false;
+  return /iphone|ipad|ipod/i.test(navigator.userAgent || "");
+}
+
+function isStandalone() {
+  if (typeof window === "undefined") return false;
+  return (window.navigator as any).standalone === true || window.matchMedia?.("(display-mode: standalone)")?.matches;
+}
+
+function isSafari() {
+  if (typeof navigator === "undefined") return false;
+  const ua = navigator.userAgent || "";
+  return /safari/i.test(ua) && !/chrome|crios|fxios|edgios|opios/i.test(ua);
 }
 
 function getLastPromptTs() {
@@ -25,10 +42,21 @@ function setLastPromptTs(ts: number) {
   window.localStorage.setItem(PROMPT_KEY, String(ts));
 }
 
+function getPromptTs(key: string) {
+  const raw = window.localStorage.getItem(key);
+  const n = Number(raw || "");
+  return Number.isFinite(n) ? n : 0;
+}
+
+function setPromptTs(key: string, ts: number) {
+  window.localStorage.setItem(key, String(ts));
+}
+
 export default function OneSignalPrompt() {
   const pathname = usePathname();
   const [ready, setReady] = useState(false);
   const [denied, setDenied] = useState(false);
+  const [showPwa, setShowPwa] = useState(false);
 
   const appId = process.env.NEXT_PUBLIC_ONESIGNAL_APP_ID || "";
   const safariWebId = process.env.NEXT_PUBLIC_ONESIGNAL_SAFARI_WEB_ID || "";
@@ -79,6 +107,18 @@ export default function OneSignalPrompt() {
     const lastTs = getLastPromptTs();
     if (lastTs && Date.now() - lastTs < COOLDOWN_MS) return;
 
+    if (isIos() && isSafari() && !isStandalone()) {
+      const pwaTs = getPromptTs(PWA_PROMPT_KEY);
+      if (!pwaTs || Date.now() - pwaTs >= COOLDOWN_MS) {
+        const timer = window.setTimeout(() => {
+          setPromptTs(PWA_PROMPT_KEY, Date.now());
+          setShowPwa(true);
+        }, 20000);
+        return () => window.clearTimeout(timer);
+      }
+      return;
+    }
+
     const promptOnce = (retriesLeft: number) => {
       const w = window as any;
       const OneSignal = w.OneSignal || null;
@@ -108,5 +148,26 @@ export default function OneSignalPrompt() {
     };
   }, [ready, canRun, denied]);
 
-  return null;
+  if (!showPwa) return null;
+
+  return (
+    <div className="pwa-prompt">
+      <div className="pwa-card">
+        <div className="pwa-title">iPhone/iPad értesítések</div>
+        <div className="pwa-sub">
+          iOS-en a push értesítések csak akkor működnek, ha az oldalt hozzáadod a Főképernyőhöz.
+        </div>
+        <div className="pwa-steps">
+          1. Nyisd meg a Megosztás ikont. 2. Válaszd a "Hozzáadás a Főképernyőhöz" opciót.
+        </div>
+        <button
+          type="button"
+          className="pwa-btn"
+          onClick={() => setShowPwa(false)}
+        >
+          Értem
+        </button>
+      </div>
+    </div>
+  );
 }
