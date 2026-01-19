@@ -70,11 +70,14 @@ export default function OneSignalPrompt() {
       await OneSignal.init({
         appId,
         safari_web_id: safariWebId || undefined,
-        notifyButton: { enable: true },
+        notifyButton: { enable: false },
         allowLocalhostAsSecureOrigin: true,
       });
 
       try {
+        if (OneSignal?.User?.setLanguage) {
+          await OneSignal.User.setLanguage("hu");
+        }
         const perm = OneSignal?.Notifications?.permission;
         if (perm === "denied") {
           setDenied(true);
