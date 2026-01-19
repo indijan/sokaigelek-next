@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 
 const PROMPT_KEY = "sg_onesignal_prompt_ts";
@@ -28,6 +28,7 @@ function setLastPromptTs(ts: number) {
 export default function OneSignalPrompt() {
   const pathname = usePathname();
   const [ready, setReady] = useState(false);
+  const oneSignalRef = useRef<any>(null);
   const [open, setOpen] = useState(false);
   const [denied, setDenied] = useState(false);
   const [error, setError] = useState("");
@@ -73,6 +74,7 @@ export default function OneSignalPrompt() {
         notifyButton: { enable: false },
         allowLocalhostAsSecureOrigin: true,
       });
+      oneSignalRef.current = OneSignal;
 
       try {
         if (OneSignal?.User?.setLanguage) {
@@ -114,19 +116,19 @@ export default function OneSignalPrompt() {
       setError("A feliratkozás betöltése folyamatban van, próbáld újra.");
       return;
     }
+    if (!oneSignalRef.current) {
+      setError("A feliratkozás előkészítése még tart, próbáld újra pár másodperc múlva.");
+      return;
+    }
     setError("");
-    const w = window as any;
-    w.OneSignalDeferred = w.OneSignalDeferred || [];
-    w.OneSignalDeferred.push(async (OneSignal: any) => {
-      try {
-        if (OneSignal?.Slidedown?.promptPush) {
-          await OneSignal.Slidedown.promptPush();
-        } else if (OneSignal?.Notifications?.requestPermission) {
-          await OneSignal.Notifications.requestPermission();
-        }
-      } catch {}
-      close();
-    });
+    try {
+      if (oneSignalRef.current?.Slidedown?.promptPush) {
+        void oneSignalRef.current.Slidedown.promptPush();
+      } else if (oneSignalRef.current?.Notifications?.requestPermission) {
+        void oneSignalRef.current.Notifications.requestPermission();
+      }
+    } catch {}
+    close();
   };
 
   if (!open) return null;
