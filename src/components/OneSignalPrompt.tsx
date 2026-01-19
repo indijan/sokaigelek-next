@@ -65,17 +65,7 @@ export default function OneSignalPrompt() {
     const w = window as any;
     w.OneSignalDeferred = w.OneSignalDeferred || [];
     w.OneSignalDeferred.push(async (OneSignal: any) => {
-      await OneSignal.init({
-        appId,
-        safari_web_id: safariWebId || undefined,
-        notifyButton: { enable: false },
-        allowLocalhostAsSecureOrigin: true,
-      });
-
       try {
-        if (OneSignal?.User?.setLanguage) {
-          await OneSignal.User.setLanguage("hu");
-        }
         const perm = OneSignal?.Notifications?.permission;
         if (perm === "denied") {
           setDenied(true);
@@ -89,19 +79,28 @@ export default function OneSignalPrompt() {
     const lastTs = getLastPromptTs();
     if (lastTs && Date.now() - lastTs < COOLDOWN_MS) return;
 
-    const timer = window.setTimeout(() => {
+    const promptOnce = (retriesLeft: number) => {
       const w = window as any;
+      const OneSignal = w.OneSignal || null;
+      if (!OneSignal && retriesLeft > 0) {
+        window.setTimeout(() => promptOnce(retriesLeft - 1), 500);
+        return;
+      }
       w.OneSignalDeferred = w.OneSignalDeferred || [];
-      w.OneSignalDeferred.push(async (OneSignal: any) => {
+      w.OneSignalDeferred.push(async (os: any) => {
         try {
-          if (OneSignal?.Slidedown?.promptPush) {
-            await OneSignal.Slidedown.promptPush();
-          } else if (OneSignal?.Notifications?.requestPermission) {
-            await OneSignal.Notifications.requestPermission();
+          if (os?.Slidedown?.promptPush) {
+            await os.Slidedown.promptPush();
+          } else if (os?.Notifications?.requestPermission) {
+            await os.Notifications.requestPermission();
           }
         } catch {}
         setLastPromptTs(Date.now());
       });
+    };
+
+    const timer = window.setTimeout(() => {
+      promptOnce(20);
     }, 20000);
 
     return () => {
