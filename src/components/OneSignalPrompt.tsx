@@ -53,8 +53,8 @@ export default function OneSignalPrompt() {
     if (!document.getElementById("onesignal-sdk")) {
       const script = document.createElement("script");
       script.id = "onesignal-sdk";
-      script.src = "https://cdn.onesignal.com/sdks/OneSignalSDK.js";
-      script.async = true;
+      script.src = "https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js";
+      script.defer = true;
       script.onload = () => setReady(true);
       document.head.appendChild(script);
     } else {
@@ -65,16 +65,17 @@ export default function OneSignalPrompt() {
   useEffect(() => {
     if (!ready || !canRun) return;
     const w = window as any;
-    w.OneSignal = w.OneSignal || [];
-    w.OneSignal.push(() => {
-      w.OneSignal.init({
+    w.OneSignalDeferred = w.OneSignalDeferred || [];
+    w.OneSignalDeferred.push(async (OneSignal: any) => {
+      await OneSignal.init({
         appId,
         safari_web_id: safariWebId || undefined,
+        notifyButton: { enable: true },
         allowLocalhostAsSecureOrigin: true,
       });
 
       try {
-        const perm = w.OneSignal.Notifications?.permission;
+        const perm = OneSignal?.Notifications?.permission;
         if (perm === "denied") {
           setDenied(true);
         }
@@ -106,21 +107,19 @@ export default function OneSignalPrompt() {
   };
 
   const subscribe = () => {
-    const w = window as any;
     if (!ready) {
       setError("A feliratkozás betöltése folyamatban van, próbáld újra.");
       return;
     }
     setError("");
-    w.OneSignal = w.OneSignal || [];
-    w.OneSignal.push(async () => {
+    const w = window as any;
+    w.OneSignalDeferred = w.OneSignalDeferred || [];
+    w.OneSignalDeferred.push(async (OneSignal: any) => {
       try {
-        const notif = w.OneSignal.Notifications;
-        if (notif?.requestPermission) {
-          await notif.requestPermission();
-        }
-        if (w.OneSignal?.Slidedown?.promptPush) {
-          await w.OneSignal.Slidedown.promptPush();
+        if (OneSignal?.Slidedown?.promptPush) {
+          await OneSignal.Slidedown.promptPush();
+        } else if (OneSignal?.Notifications?.requestPermission) {
+          await OneSignal.Notifications.requestPermission();
         }
       } catch {}
       close();
