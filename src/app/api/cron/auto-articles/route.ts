@@ -717,10 +717,16 @@ PROMPT: ${nextItem.prompt}
 Követelmények:
 - Magyar nyelv.
 - HTML tartalom, bekezdések, alcímek (h2/h3), felsorolás ha indokolt.
-- Kíméletes, hiteles tone of voice; ne ígérj gyógyulást.
+- Kíméletes, empatikus és hiteles hangvétel; ne ígérj gyógyulást.
+- Mindig tegezés, ne váltogasd a megszólítást.
 - 900-1400 szó.
 - A bekezdések legyenek rövidek és könnyen olvashatók.
 - Rövid, tömör cím: max 60 karakter, lehetőleg 6-9 szó.
+- Ne írj meta-szöveget a stílusról (pl. "a cikk barátságos hangvételben...").
+- Ne kezdeményezz párbeszédet, ne tegyél "ha szeretnéd..." típusú záró felhívást.
+- Írj természetes, szakértői hangon, mintha egy tapasztalt egészségügyi szakíró fogalmazna.
+- Kerüld a sablonos, AI-szerű fordulatokat és az ismétlődő mondatszerkezeteket.
+- Legyen változatos a mondathossz és a ritmus; ne legyen “tankönyvszagú”.
 
 Adj vissza egyetlen JSON objektumot:
 {
