@@ -23,6 +23,7 @@ function buildEmailHtml(params: {
   dateLabel: string;
   articles: Array<{ title: string; excerpt: string; url: string }>;
   product?: { name: string; short?: string | null; url: string; imageUrl?: string | null };
+  preferencesUrl?: string | null;
 }) {
   const items = params.articles
     .map(
@@ -65,6 +66,16 @@ function buildEmailHtml(params: {
         ${items}
       </table>
       ${productBlock}
+      ${
+        params.preferencesUrl
+          ? `
+        <div style="margin-top:28px;color:#6b7280;font-size:13px;">
+          Szeretnél más kategóriákról is értesülni?
+          <a href="${params.preferencesUrl}" style="color:#c2410c;text-decoration:none;font-weight:600;">Itt tudod beállítani</a>.
+        </div>
+      `
+          : ""
+      }
     </div>
   `;
 }
@@ -88,6 +99,7 @@ export async function GET(req: Request) {
   const fromEmail = process.env.MAILERLITE_FROM_EMAIL || "";
   const fromName = process.env.MAILERLITE_FROM_NAME || "";
   const replyTo = process.env.MAILERLITE_REPLY_TO || "";
+  const preferencesTag = process.env.MAILERLITE_PREFERENCES_TAG || "{$preferences}";
   if (!fromEmail || !fromName) {
     return NextResponse.json({ error: "Missing MAILERLITE_FROM_EMAIL or MAILERLITE_FROM_NAME" }, { status: 500 });
   }
@@ -150,6 +162,7 @@ export async function GET(req: Request) {
         dateLabel,
         articles: articleCards,
         product: featuredProduct,
+        preferencesUrl: preferencesTag || null,
       });
 
       const campaign = await createCampaign({
