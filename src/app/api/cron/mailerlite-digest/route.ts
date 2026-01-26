@@ -47,9 +47,9 @@ function buildEmailHtml(params: {
     .map(
       (a) => `
         <tr>
-          <td style="padding:20px 0;border-bottom:1px solid #eee;">
-            <div style="font-size:18px;font-weight:700;margin-bottom:10px;">${escapeHtml(a.title)}</div>
-            <div style="color:#444;line-height:1.6;margin-bottom:12px;">${escapeHtml(a.excerpt)}</div>
+          <td style="padding:22px 0;border-bottom:1px solid #eee;">
+            <div style="font-size:19px;font-weight:700;margin-bottom:10px;">${escapeHtml(a.title)}</div>
+            <div style="color:#333;line-height:1.7;margin-bottom:12px;">${escapeHtml(a.excerpt)}</div>
             <div style="margin-top:10px;">
               <a href="${a.url}" style="color:#c2410c;text-decoration:none;font-weight:600;">Elolvasom →</a>
               <span style="color:#9ca3af;margin:0 8px;">•</span>
@@ -63,9 +63,9 @@ function buildEmailHtml(params: {
 
   const productBlock = params.product
     ? `
-      <div style="margin-top:34px;padding:20px;border:1px solid #f0e0d8;border-radius:14px;background:#fff7f3;">
-        <div style="font-weight:800;letter-spacing:0.2px;margin-bottom:10px;">Ajánlott étrend-kiegészítő</div>
-        <div style="font-size:17px;font-weight:700;margin-bottom:12px;">${escapeHtml(params.product.name)}</div>
+      <div style="margin-top:30px;padding:16px;border:1px solid #f2e7e1;border-radius:12px;background:#fffaf7;">
+        <div style="font-weight:700;letter-spacing:0.1px;margin-bottom:8px;">Ajánlott étrend-kiegészítő</div>
+        <div style="font-size:16px;font-weight:700;margin-bottom:10px;">${escapeHtml(params.product.name)}</div>
         <a href="${params.product.url}" style="color:#c2410c;text-decoration:none;font-weight:600;">Megnézem →</a>
       </div>
     `
