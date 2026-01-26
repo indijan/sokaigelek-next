@@ -83,7 +83,7 @@ export default function ArticleAudioSummary({ slug, title, shareUrl, relatedProd
   };
 
   return (
-    <div className="article-audio-summary">
+    <div className="article-audio-summary" id="audio-summary">
       <div className="audio-summary-heading">Hallgasd meg a cikk összefoglalóját</div>
       <p className="audio-summary-sub">
         Ha nincs időd, épp más dolgod van vagy egyszerűen jobban szeretsz hallgatni, akkor
