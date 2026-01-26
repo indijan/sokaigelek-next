@@ -167,7 +167,7 @@ export async function GET(req: Request) {
 
       const campaign = await createCampaign({
         name: `digest-${category}-${dateLabel}`,
-        subject: `${label} – napi összegzés (${dateLabel})`,
+        subject: `Sokáig élek értesítés: új cikk a ${label} kategóriában`,
         fromName,
         fromEmail,
         replyTo: replyTo || undefined,
