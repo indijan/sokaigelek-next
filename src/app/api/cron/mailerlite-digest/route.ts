@@ -96,7 +96,7 @@ export async function GET(req: Request) {
 
   const { data: articles, error } = await supabaseServer
     .from("articles")
-    .select("id, title, slug, excerpt, category_slug, published_at, related_product_slugs, related_product_slug, status")
+    .select("id, title, slug, excerpt, category_slug, published_at, related_product_slugs, status")
     .eq("status", "published")
     .gte("published_at", start.toISOString())
     .lt("published_at", end.toISOString())
@@ -128,14 +128,10 @@ export async function GET(req: Request) {
 
       let featuredProduct: { name: string; short?: string | null; url: string } | undefined;
       const firstWithProduct = items.find(
-        (a: any) =>
-          (Array.isArray(a.related_product_slugs) && a.related_product_slugs.length > 0) ||
-          String(a.related_product_slug || "").trim()
+        (a: any) => Array.isArray(a.related_product_slugs) && a.related_product_slugs.length > 0
       );
       if (firstWithProduct) {
-        const slug =
-          String((firstWithProduct.related_product_slugs || [])[0] || "").trim() ||
-          String(firstWithProduct.related_product_slug || "").trim();
+        const slug = String((firstWithProduct.related_product_slugs || [])[0] || "").trim();
         if (slug) {
           const { data: product } = await supabaseServer
             .from("products")
