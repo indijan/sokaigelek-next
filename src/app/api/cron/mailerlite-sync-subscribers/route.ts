@@ -51,6 +51,12 @@ export async function GET(req: Request) {
         })
         .eq("id", sub.id);
 
+      await supabaseServer.from("mailerlite_groups").upsert({
+        group_id: groupId,
+        category_slug: category,
+        name: category,
+      });
+
       results.push({ id: sub.id, email: sub.email, ok: true });
     } catch (err: any) {
       results.push({ id: sub.id, email: sub.email, ok: false, error: err?.message || "error" });

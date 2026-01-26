@@ -25,6 +25,13 @@ create table if not exists email_logs (
   sent_at timestamptz not null default now()
 );
 
+create table if not exists mailerlite_groups (
+  group_id text primary key,
+  category_slug text not null,
+  name text,
+  created_at timestamptz not null default now()
+);
+
 create or replace function set_updated_at()
 returns trigger language plpgsql as $$
 begin
