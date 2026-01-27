@@ -42,7 +42,12 @@ function buildEmailHtml(params: {
   articles: Array<{ title: string; excerpt: string; url: string }>;
   product?: { name: string; url: string };
   preferencesUrl?: string | null;
+  greetingTag?: string | null;
 }) {
+  const greetingLine = params.greetingTag
+    ? `Kedves ${params.greetingTag},`
+    : "Kedves Olvasó,";
+
   const items = params.articles
     .map(
       (a) => `
@@ -73,10 +78,14 @@ function buildEmailHtml(params: {
 
   return `
     <div style="font-family:Arial,Helvetica,sans-serif;color:#1f2937;">
+      <div style="font-size:16px;font-weight:700;margin-bottom:14px;">${greetingLine}</div>
       <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin-bottom:8px;">
         ${items}
       </table>
       ${productBlock}
+      <div style="margin-top:24px;color:#1f2937;font-weight:600;">
+        Hosszú és egészséges életet kíván a Sokáig élek csapata.
+      </div>
       ${
         params.preferencesUrl
           ? `
@@ -111,6 +120,7 @@ export async function GET(req: Request) {
   const fromName = process.env.MAILERLITE_FROM_NAME || "";
   const replyTo = process.env.MAILERLITE_REPLY_TO || "";
   const preferencesTag = process.env.MAILERLITE_PREFERENCES_TAG || "{$preferences}";
+  const firstNameTag = process.env.MAILERLITE_FIRST_NAME_TAG || "{$name}";
   if (!fromEmail || !fromName) {
     return NextResponse.json({ error: "Missing MAILERLITE_FROM_EMAIL or MAILERLITE_FROM_NAME" }, { status: 500 });
   }
@@ -172,6 +182,7 @@ export async function GET(req: Request) {
         articles: articleCards,
         product: featuredProduct,
         preferencesUrl: preferencesTag || null,
+        greetingTag: firstNameTag || null,
       });
 
       const campaign = await createCampaign({
