@@ -149,6 +149,21 @@ export async function GET(req: Request) {
   const results: Array<{ category: string; campaignId?: string; count: number; ok: boolean; error?: string }> = [];
   for (const [category, items] of byCategory.entries()) {
     try {
+      const dateLabel = end.toISOString().slice(0, 10);
+      const dayStart = new Date(`${dateLabel}T00:00:00.000Z`);
+      const dayEnd = new Date(`${dateLabel}T23:59:59.999Z`);
+      const { data: alreadySent } = await supabaseServer
+        .from("email_logs")
+        .select("id")
+        .eq("category_slug", category)
+        .gte("sent_at", dayStart.toISOString())
+        .lte("sent_at", dayEnd.toISOString())
+        .limit(1);
+      if (alreadySent && alreadySent.length > 0) {
+        results.push({ category, count: items.length, ok: true });
+        continue;
+      }
+
       const groupId = await getOrCreateGroupId(category);
       const label = slugToLabel(category);
       const articleCards = items.map((a) => ({
@@ -185,7 +200,7 @@ export async function GET(req: Request) {
       });
 
       const campaign = await createCampaign({
-        name: `digest-${category}-${end.toISOString().slice(0, 10)}`,
+        name: `digest-${category}-${dateLabel}`,
         subject: `Sokáig élek értesítés: új cikk ${withAz(label)} kategóriában`,
         fromName,
         fromEmail,
