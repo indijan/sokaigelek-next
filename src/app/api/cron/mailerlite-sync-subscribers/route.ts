@@ -15,13 +15,18 @@ export async function GET(req: Request) {
   }
 
   const limit = Math.max(1, Math.min(500, Number(searchParams.get("limit") || "200")));
+  const force = searchParams.get("force") === "1";
 
-  const { data: subs, error } = await supabaseServer
+  let query = supabaseServer
     .from("subscriptions")
     .select("id, email, category_slug, first_name")
-    .eq("status", "active")
-    .is("mailerlite_synced_at", null)
-    .limit(limit);
+    .eq("status", "active");
+
+  if (!force) {
+    query = query.is("mailerlite_synced_at", null);
+  }
+
+  const { data: subs, error } = await query.limit(limit);
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -66,6 +71,7 @@ export async function GET(req: Request) {
   return NextResponse.json({
     ok: true,
     processed: results.length,
+    force,
     results,
   });
 }

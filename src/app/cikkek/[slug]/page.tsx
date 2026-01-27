@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import { supabaseServer } from "@/lib/supabaseServer";
 import ShareButtons from "@/components/Article/ShareButtons";
 import ArticleAudioSummary from "@/components/Article/ArticleAudioSummary";
+import SubscribeSlideInClient from "@/components/Article/SubscribeSlideInClient";
 import { cdnImageUrl } from "@/lib/cdn";
 import "../article.css";
 
@@ -328,6 +329,7 @@ export default async function ArticlePageRoute({ params }: Props) {
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://sokaigelek.hu";
   const shareUrl = `${siteUrl.replace(/\/$/, "")}/cikkek/${article.slug}`;
   const dateLabel = formatDate((article as any).published_at || (article as any).created_at || null);
+  const categoryLabel = String((article as any).category_label || "").trim();
   const relatedProductsUrl = relatedProductSlugs.length
     ? `/termek?slugs=${encodeURIComponent(relatedProductSlugs.join(","))}`
     : null;
@@ -600,6 +602,11 @@ export default async function ArticlePageRoute({ params }: Props) {
           ) : null}
         </section>
       ) : null}
+
+      <SubscribeSlideInClient
+        categorySlug={String((article as any).category_slug || "").trim()}
+        categoryLabel={categoryLabel || null}
+      />
 
     </main>
   );
