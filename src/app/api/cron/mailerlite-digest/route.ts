@@ -50,13 +50,13 @@ function buildEmailHtml(params: {
     .map(
       (a) => `
         <tr>
-          <td style="padding:22px 0;border-bottom:1px solid #eee;">
-            <div style="font-size:22px;font-weight:700;margin-bottom:10px;">${escapeHtml(a.title)}</div>
-            <div style="color:#222;line-height:1.7;margin-bottom:12px;font-size:16px;">${escapeHtml(a.excerpt)}</div>
-            <div style="margin-top:10px;">
-              <a href="${a.url}" style="color:#c2410c;text-decoration:none;font-weight:600;">Elolvasom →</a>
+          <td style="padding:24px 0;border-bottom:1px solid #eee;">
+            <div style="font-size:24px;font-weight:800;margin-bottom:12px;">${escapeHtml(a.title)}</div>
+            <div style="color:#111827;line-height:1.75;margin-bottom:14px;font-size:17px;">${escapeHtml(a.excerpt)}</div>
+            <div style="margin-top:10px;font-size:16px;">
+              <a href="${a.url}" style="color:#c2410c;text-decoration:none;font-weight:700;">Elolvasom →</a>
               <span style="color:#9ca3af;margin:0 8px;">•</span>
-              <a href="${a.url}#audio-summary" style="color:#c2410c;text-decoration:none;font-weight:600;">Meghallgatom →</a>
+              <a href="${a.url}#audio-summary" style="color:#c2410c;text-decoration:none;font-weight:700;">Meghallgatom →</a>
             </div>
           </td>
         </tr>
