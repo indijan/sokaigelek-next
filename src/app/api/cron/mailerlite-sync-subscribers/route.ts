@@ -18,7 +18,7 @@ export async function GET(req: Request) {
 
   const { data: subs, error } = await supabaseServer
     .from("subscriptions")
-    .select("id, email, category_slug")
+    .select("id, email, category_slug, first_name")
     .eq("status", "active")
     .is("mailerlite_synced_at", null)
     .limit(limit);
@@ -39,7 +39,7 @@ export async function GET(req: Request) {
         throw new Error("Missing email");
       }
       const groupId = await getOrCreateGroupId(category);
-      const ml = await upsertSubscriber(email, groupId);
+      const ml = await upsertSubscriber(email, groupId, sub.first_name);
       const subscriberId = ml.data?.id || null;
 
       await supabaseServer

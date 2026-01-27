@@ -57,8 +57,9 @@ export async function getOrCreateGroupId(name: string): Promise<string> {
   return created.data.id;
 }
 
-export async function upsertSubscriber(email: string, groupId: string) {
-  const body = { email, groups: [groupId] };
+export async function upsertSubscriber(email: string, groupId: string, name?: string | null) {
+  const trimmedName = String(name || "").trim();
+  const body = trimmedName ? { email, name: trimmedName, groups: [groupId] } : { email, groups: [groupId] };
   return mailerliteRequest<MailerLiteResponse<{ id: string; email: string; status: string }>>(
     "/subscribers",
     { method: "POST", body }
