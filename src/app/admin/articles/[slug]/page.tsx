@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import { supabaseServer } from "@/lib/supabaseServer";
 import ArticleImageUploader from "@/components/admin/ArticleImageUploader";
 import { slugifyHu } from "@/lib/slugifyHu";
@@ -316,27 +317,36 @@ export default async function AdminArticleEditPage({ params, searchParams }: Pro
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
+
+    const { data: lastFactCheck } = await supabaseServer
+        .from("article_automation_queue")
+        .select("last_error, status, used_at, created_at, prompt")
+        .eq("article_id", article.id)
+        .in("prompt", ["manual fact-check", "manual fact-fix"])
+        .order("used_at", { ascending: false, nullsFirst: false })
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
     const factCheckFlag =
-        String(lastAutomation?.last_error || "").toLowerCase().includes("fact_check_failed") ||
-        String(lastAutomation?.last_error || "").toLowerCase().includes("fact check");
-    const factCheckIssues = parseIssuesFromLastError(lastAutomation?.last_error || "");
-    const lastAutomationAt = lastAutomation?.used_at || lastAutomation?.created_at || null;
-    const lastAutomationStatus = String(lastAutomation?.status || "").trim();
+        String(lastFactCheck?.last_error || "").toLowerCase().includes("fact_check_failed") ||
+        String(lastFactCheck?.last_error || "").toLowerCase().includes("fact check");
+    const factCheckIssues = parseIssuesFromLastError(lastFactCheck?.last_error || "");
+    const lastAutomationAt = lastFactCheck?.used_at || lastFactCheck?.created_at || null;
+    const lastAutomationStatus = String(lastFactCheck?.status || "").trim();
 
     async function runFactCheckAction(formData: FormData) {
         "use server";
         const articleId = String(formData.get("article_id") || "");
         const articleSlug = String(formData.get("article_slug") || "");
-        if (!articleId) redirect(`/admin/articles/${articleSlug || slug}?err=${encodeURIComponent("Missing article id")}`);
+        if (!articleId) return;
 
         const { data: articleForCheck, error: fetchErr } = await supabaseServer
             .from("articles")
             .select("id, slug, title, excerpt, content_html, status, published_at, category_slug")
             .eq("id", articleId)
             .maybeSingle();
-        if (fetchErr || !articleForCheck) {
-            redirect(`/admin/articles/${articleSlug || slug}?err=${encodeURIComponent("Article not found")}`);
-        }
+        if (fetchErr || !articleForCheck) return;
 
         try {
             const check = await factCheckArticle(articleForCheck);
@@ -359,20 +369,33 @@ export default async function AdminArticleEditPage({ params, searchParams }: Pro
                     .from("articles")
                     .update({ status: "draft", published_at: null })
                     .eq("id", articleForCheck.id);
-                redirect(`/admin/articles/${articleForCheck.slug}?ok=${encodeURIComponent("Fact-check hibákat talált, a cikk draft lett.")}`);
+                revalidatePath(`/admin/articles/${articleForCheck.slug}`);
+                return;
             }
 
             await supabaseServer
                 .from("articles")
                 .update({
                     status: "published",
-                    published_at: articleForCheck.published_at || new Date().toISOString(),
                 })
                 .eq("id", articleForCheck.id);
 
-            redirect(`/admin/articles/${articleForCheck.slug}?ok=${encodeURIComponent("Fact-check rendben, nem talált hibát. A cikk publikálva.")}`);
+            revalidatePath(`/admin/articles/${articleForCheck.slug}`);
+            return;
         } catch (err: any) {
-            redirect(`/admin/articles/${articleSlug || slug}?err=${encodeURIComponent(err?.message || "Fact-check error")}`);
+            const nowIso = new Date().toISOString();
+            await supabaseServer.from("article_automation_queue").insert({
+                article_id: articleId,
+                prompt: "manual fact-check",
+                status: "error",
+                used_at: nowIso,
+                last_error: `fact_check_error: ${String(err?.message || "Fact-check error")}`,
+                post_to_facebook: false,
+                post_to_pinterest: false,
+                post_to_x: false,
+            });
+            revalidatePath(`/admin/articles/${articleSlug || slug}`);
+            return;
         }
     }
 
@@ -380,16 +403,14 @@ export default async function AdminArticleEditPage({ params, searchParams }: Pro
         "use server";
         const articleId = String(formData.get("article_id") || "");
         const articleSlug = String(formData.get("article_slug") || "");
-        if (!articleId) redirect(`/admin/articles/${articleSlug || slug}?err=${encodeURIComponent("Missing article id")}`);
+        if (!articleId) return;
 
         const { data: articleForCheck, error: fetchErr } = await supabaseServer
             .from("articles")
             .select("id, slug, title, excerpt, content_html, status, published_at, category_slug")
             .eq("id", articleId)
             .maybeSingle();
-        if (fetchErr || !articleForCheck) {
-            redirect(`/admin/articles/${articleSlug || slug}?err=${encodeURIComponent("Article not found")}`);
-        }
+        if (fetchErr || !articleForCheck) return;
 
         const issuesFromLast = parseIssuesFromLastError(lastAutomation?.last_error || "");
         let issues = issuesFromLast;
@@ -399,13 +420,12 @@ export default async function AdminArticleEditPage({ params, searchParams }: Pro
         }
 
         if (!issues.length) {
-            redirect(`/admin/articles/${articleForCheck.slug}?ok=${encodeURIComponent("Nem találtam javítandó hibát.")}`);
+            revalidatePath(`/admin/articles/${articleForCheck.slug}`);
+            return;
         }
 
         const revised = await reviseArticleWithIssues(articleForCheck, issues);
-        if (!revised?.content_html) {
-            redirect(`/admin/articles/${articleForCheck.slug}?err=${encodeURIComponent("Javítás sikertelen (üres tartalom).")}`);
-        }
+        if (!revised?.content_html) return;
 
         const resolvedTitle = revised.title || articleForCheck.title;
         const resolvedExcerpt = revised.excerpt || articleForCheck.excerpt;
@@ -442,18 +462,19 @@ export default async function AdminArticleEditPage({ params, searchParams }: Pro
         });
 
         if (recheck.hasIssues) {
-            redirect(`/admin/articles/${articleForCheck.slug}?ok=${encodeURIComponent("Javítás lefutott, de maradt gyanús állítás.")}`);
+            revalidatePath(`/admin/articles/${articleForCheck.slug}`);
+            return;
         }
 
         await supabaseServer
             .from("articles")
             .update({
                 status: "published",
-                published_at: articleForCheck.published_at || new Date().toISOString(),
             })
             .eq("id", articleForCheck.id);
 
-        redirect(`/admin/articles/${articleForCheck.slug}?ok=${encodeURIComponent("Javítás kész, a fact-check tiszta. A cikk publikálva.")}`);
+        revalidatePath(`/admin/articles/${articleForCheck.slug}`);
+        return;
     }
 
     return (
@@ -513,14 +534,15 @@ export default async function AdminArticleEditPage({ params, searchParams }: Pro
             <div className="border border-slate-200 bg-slate-50 text-slate-700 text-sm rounded-xl px-4 py-3">
                 <div className="font-semibold mb-1">Legutóbbi fact-check</div>
                 <div>
-                    <strong>Státusz:</strong> {lastAutomationStatus || "n/a"}
+                    <strong>Eredmény:</strong>{" "}
+                    {factCheckFlag ? "Hibát talált" : lastAutomationStatus ? "Rendben" : "Nincs adat"}
                 </div>
                 <div>
                     <strong>Időpont:</strong> {lastAutomationAt ? new Date(lastAutomationAt).toLocaleString("hu-HU") : "n/a"}
                 </div>
-                {lastAutomation?.last_error ? (
+                {lastFactCheck?.last_error ? (
                     <div className="mt-2 whitespace-pre-wrap">
-                        <strong>Részletek:</strong> {String(lastAutomation.last_error)}
+                        <strong>Részletek:</strong> {String(lastFactCheck.last_error)}
                     </div>
                 ) : null}
             </div>
