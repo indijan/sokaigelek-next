@@ -121,26 +121,32 @@ function extractJsonObject(text: string): any | null {
 }
 
 async function openaiJson(prompt: string) {
-    const apiKey = process.env.OPENAI_API_KEY;
-    if (!apiKey) throw new Error("Missing OPENAI_API_KEY");
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) throw new Error("Missing OPENAI_API_KEY");
 
-    const callOnce = async (input: string) => {
-        const r = await fetch("https://api.openai.com/v1/responses", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${apiKey}`,
-            },
-            body: JSON.stringify({
-                model: "gpt-5-mini",
-                input,
-            }),
-        });
+  const callOnce = async (input: string) => {
+      const controller = new AbortController();
+      const timeoutMs = Number(process.env.FACT_CHECK_TIMEOUT_MS || "120000");
+      const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
-        if (!r.ok) {
-            const t = await r.text();
-            throw new Error(`OpenAI error: ${t}`);
-        }
+      const r = await fetch("https://api.openai.com/v1/responses", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model: "gpt-5-mini",
+          input,
+        }),
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
+
+      if (!r.ok) {
+        const t = await r.text();
+        throw new Error(`OpenAI error: ${t}`);
+      }
 
         const data = await r.json();
         const text =
