@@ -968,7 +968,7 @@ Adj vissza egyetlen JSON objektumot:
     if (factCheckHadIssues) {
       await supabaseServer
         .from("articles")
-        .update({ status: "draft", published_at: null })
+        .update({ status: "draft" })
         .eq("id", article.id);
 
       const editorEmail = process.env.FACT_CHECK_ALERT_EMAIL || "indijanmac@gmail.com";

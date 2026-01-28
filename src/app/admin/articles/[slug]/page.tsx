@@ -6,7 +6,7 @@ import ArticleImageUploader from "@/components/admin/ArticleImageUploader";
 import { slugifyHu } from "@/lib/slugifyHu";
 import GenerateArticleCoverButton from "@/components/admin/GenerateArticleCoverButton";
 import HtmlEditor from "@/components/admin/HtmlEditor";
-import AdminActionButton from "@/components/admin/AdminActionButton";
+import FactCheckActions from "@/components/admin/FactCheckActions";
 
 type Props = {
     params: Promise<{ slug: string }>;
@@ -338,24 +338,27 @@ export default async function AdminArticleEditPage({ params, searchParams }: Pro
     const lastAutomationAt = lastFactCheck?.used_at || lastFactCheck?.created_at || null;
     const lastAutomationStatus = String(lastFactCheck?.status || "").trim();
 
-    async function runFactCheckAction(formData: FormData) {
+    async function runFactCheckAction(
+        _prevState: { ok: boolean; message: string },
+        formData: FormData
+    ): Promise<{ ok: boolean; message: string }> {
         "use server";
         const articleId = String(formData.get("article_id") || "");
         const articleSlug = String(formData.get("article_slug") || "");
-        if (!articleId) return;
+        if (!articleId) return { ok: false, message: "Missing article id" };
 
         const { data: articleForCheck, error: fetchErr } = await supabaseServer
             .from("articles")
             .select("id, slug, title, excerpt, content_html, status, published_at, category_slug")
             .eq("id", articleId)
             .maybeSingle();
-        if (fetchErr || !articleForCheck) return;
+        if (fetchErr || !articleForCheck) return { ok: false, message: "Article not found" };
 
         try {
             const check = await factCheckArticle(articleForCheck);
             const issuesText = formatIssuesListText(check.issues);
             const nowIso = new Date().toISOString();
-            await supabaseServer.from("article_automation_queue").insert({
+            const { error: insertErr } = await supabaseServer.from("article_automation_queue").insert({
                 article_id: articleForCheck.id,
                 prompt: "manual fact-check",
                 status: check.hasIssues ? "error" : "done",
@@ -368,6 +371,9 @@ export default async function AdminArticleEditPage({ params, searchParams }: Pro
                 post_to_pinterest: false,
                 post_to_x: false,
             });
+            if (insertErr) {
+                return { ok: false, message: `DB insert error: ${insertErr.message}` };
+            }
 
             if (check.hasIssues) {
                 await supabaseServer
@@ -375,7 +381,7 @@ export default async function AdminArticleEditPage({ params, searchParams }: Pro
                     .update({ status: "draft" })
                     .eq("id", articleForCheck.id);
                 revalidatePath(`/admin/articles/${articleForCheck.slug}`);
-                return;
+                return { ok: true, message: "Fact-check hibákat talált, a cikk draft lett." };
             }
 
             await supabaseServer
@@ -386,7 +392,7 @@ export default async function AdminArticleEditPage({ params, searchParams }: Pro
                 .eq("id", articleForCheck.id);
 
             revalidatePath(`/admin/articles/${articleForCheck.slug}`);
-            return;
+            return { ok: true, message: "Fact-check rendben, nem talált hibát. A cikk publikálva." };
         } catch (err: any) {
             const nowIso = new Date().toISOString();
             await supabaseServer.from("article_automation_queue").insert({
@@ -400,22 +406,25 @@ export default async function AdminArticleEditPage({ params, searchParams }: Pro
                 post_to_x: false,
             });
             revalidatePath(`/admin/articles/${articleSlug || slug}`);
-            return;
+            return { ok: false, message: String(err?.message || "Fact-check error") };
         }
     }
 
-    async function runFactFixAction(formData: FormData) {
+    async function runFactFixAction(
+        _prevState: { ok: boolean; message: string },
+        formData: FormData
+    ): Promise<{ ok: boolean; message: string }> {
         "use server";
         const articleId = String(formData.get("article_id") || "");
         const articleSlug = String(formData.get("article_slug") || "");
-        if (!articleId) return;
+        if (!articleId) return { ok: false, message: "Missing article id" };
 
         const { data: articleForCheck, error: fetchErr } = await supabaseServer
             .from("articles")
             .select("id, slug, title, excerpt, content_html, status, published_at, category_slug")
             .eq("id", articleId)
             .maybeSingle();
-        if (fetchErr || !articleForCheck) return;
+        if (fetchErr || !articleForCheck) return { ok: false, message: "Article not found" };
 
         const issuesFromLast = parseIssuesFromLastError(lastAutomation?.last_error || "");
         let issues = issuesFromLast;
@@ -426,11 +435,11 @@ export default async function AdminArticleEditPage({ params, searchParams }: Pro
 
         if (!issues.length) {
             revalidatePath(`/admin/articles/${articleForCheck.slug}`);
-            return;
+            return { ok: true, message: "Nem találtam javítandó hibát." };
         }
 
         const revised = await reviseArticleWithIssues(articleForCheck, issues);
-        if (!revised?.content_html) return;
+        if (!revised?.content_html) return { ok: false, message: "Javítás sikertelen (üres tartalom)." };
 
         const resolvedTitle = revised.title || articleForCheck.title;
         const resolvedExcerpt = revised.excerpt || articleForCheck.excerpt;
@@ -453,7 +462,7 @@ export default async function AdminArticleEditPage({ params, searchParams }: Pro
         });
         const issuesText = formatIssuesListText(recheck.issues);
         const nowIso = new Date().toISOString();
-        await supabaseServer.from("article_automation_queue").insert({
+        const { error: insertErr } = await supabaseServer.from("article_automation_queue").insert({
             article_id: articleForCheck.id,
             prompt: "manual fact-fix",
             status: recheck.hasIssues ? "error" : "done",
@@ -466,10 +475,13 @@ export default async function AdminArticleEditPage({ params, searchParams }: Pro
             post_to_pinterest: false,
             post_to_x: false,
         });
+        if (insertErr) {
+            return { ok: false, message: `DB insert error: ${insertErr.message}` };
+        }
 
         if (recheck.hasIssues) {
             revalidatePath(`/admin/articles/${articleForCheck.slug}`);
-            return;
+            return { ok: true, message: "Javítás lefutott, de maradt gyanús állítás." };
         }
 
         await supabaseServer
@@ -480,7 +492,7 @@ export default async function AdminArticleEditPage({ params, searchParams }: Pro
             .eq("id", articleForCheck.id);
 
         revalidatePath(`/admin/articles/${articleForCheck.slug}`);
-        return;
+        return { ok: true, message: "Javítás kész, a fact-check tiszta. A cikk publikálva." };
     }
 
     return (
@@ -515,28 +527,12 @@ export default async function AdminArticleEditPage({ params, searchParams }: Pro
                     Megnézem
                 </a>
             </div>
-            <div className="flex items-center gap-3 flex-wrap">
-                <form action={runFactCheckAction}>
-                    <input type="hidden" name="article_id" value={article.id} />
-                    <input type="hidden" name="article_slug" value={article.slug} />
-                    <AdminActionButton
-                        className="text-sm font-semibold rounded-lg px-3 py-2 border border-amber-200 bg-amber-50 text-amber-900 hover:bg-amber-100 transition"
-                        pendingText="Fact-check fut..."
-                    >
-                        AI fact-check futtatása
-                    </AdminActionButton>
-                </form>
-                <form action={runFactFixAction}>
-                    <input type="hidden" name="article_id" value={article.id} />
-                    <input type="hidden" name="article_slug" value={article.slug} />
-                    <AdminActionButton
-                        className="text-sm font-semibold rounded-lg px-3 py-2 border border-emerald-200 bg-emerald-50 text-emerald-900 hover:bg-emerald-100 transition"
-                        pendingText="Javítás fut..."
-                    >
-                        Fix with AI
-                    </AdminActionButton>
-                </form>
-            </div>
+            <FactCheckActions
+                articleId={article.id}
+                articleSlug={article.slug}
+                onFactCheck={runFactCheckAction}
+                onFactFix={runFactFixAction}
+            />
             <div className="border border-slate-200 bg-slate-50 text-slate-700 text-sm rounded-xl px-4 py-3">
                 <div className="font-semibold mb-1">Legutóbbi fact-check</div>
                 <div>
