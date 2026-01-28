@@ -3,6 +3,7 @@ import crypto from "crypto";
 import { supabaseServer } from "@/lib/supabaseServer";
 import { uploadVercelBlob } from "@/lib/blobStorage";
 import { slugifyHu } from "@/lib/slugifyHu";
+import { createCampaign, getOrCreateGroupId, scheduleCampaignNow, upsertSubscriber } from "@/lib/mailerlite";
 
 export const runtime = "nodejs";
 
@@ -69,6 +70,116 @@ async function openaiJson(prompt: string) {
   const parsed = extractJsonObject(text);
   if (!parsed) throw new Error("OpenAI did not return JSON");
   return parsed;
+}
+
+function formatIssuesMarkdown(issues: Array<{ claim: string; correction: string; reason?: string; severity?: string }>) {
+  if (!issues.length) return "";
+  return issues
+    .map((i, idx) => {
+      const parts = [
+        `#${idx + 1}`,
+        i.severity ? `(${i.severity})` : "",
+        `Állítás: ${i.claim}`,
+        `Javítás: ${i.correction}`,
+        i.reason ? `Indoklás: ${i.reason}` : "",
+      ]
+        .filter(Boolean)
+        .join(" ");
+      return `- ${parts}`;
+    })
+    .join("\n");
+}
+
+async function sendEditorAlert(input: {
+  subject: string;
+  html: string;
+  editorEmail: string;
+}) {
+  const fromEmail = process.env.MAILERLITE_FROM_EMAIL || "";
+  const fromName = process.env.MAILERLITE_FROM_NAME || "";
+  if (!fromEmail || !fromName) {
+    return { skipped: true, reason: "missing_mailerlite_from" };
+  }
+
+  const groupId = await getOrCreateGroupId("editor-alerts");
+  await upsertSubscriber(input.editorEmail, groupId);
+  const campaign = await createCampaign({
+    name: `editor-alert-${Date.now()}`,
+    subject: input.subject,
+    fromName,
+    fromEmail,
+    html: input.html,
+    groupId,
+  });
+  await scheduleCampaignNow(campaign.data.id);
+  return { ok: true, campaignId: campaign.data.id };
+}
+
+async function factCheckArticle(article: { title?: string; excerpt?: string; content_html?: string }) {
+  const prompt = `
+Ellenőrizd a cikkben szereplő TÁRGYI állításokat. Csak akkor jelölj, ha nagy valószínűséggel hibás, félrevezető vagy pontatlan.
+
+Add vissza EGYETLEN JSON objektumban:
+{
+  "hasIssues": boolean,
+  "issues": [
+    {
+      "claim": "rövid idézet vagy összefoglalás az állításról",
+      "correction": "helyes állítás",
+      "reason": "rövid indoklás miért hibás",
+      "severity": "low|medium|high"
+    }
+  ]
+}
+Ha nincs hiba: {"hasIssues": false, "issues": []}
+
+Cikk:
+Cím: ${article.title || ""}
+Kivonat: ${article.excerpt || ""}
+Tartalom (HTML): ${article.content_html || ""}
+`.trim();
+
+  const parsed = await openaiJson(prompt);
+  const issues = Array.isArray(parsed?.issues) ? parsed.issues : [];
+  const cleaned = issues
+    .map((i: any) => ({
+      claim: String(i?.claim || "").trim(),
+      correction: String(i?.correction || "").trim(),
+      reason: String(i?.reason || "").trim(),
+      severity: String(i?.severity || "").trim(),
+    }))
+    .filter((i: any) => i.claim && i.correction);
+
+  const hasIssues = Boolean(parsed?.hasIssues) && cleaned.length > 0;
+  return { hasIssues, issues: cleaned };
+}
+
+async function reviseArticleWithIssues(article: { title?: string; excerpt?: string; content_html?: string }, issues: Array<{ claim: string; correction: string; reason?: string }>) {
+  const issueList = formatIssuesMarkdown(issues);
+  const prompt = `
+Javítsd a cikket a felsorolt tárgyi hibák alapján. Csak a hibákat javítsd, a stílust, hangnemet, szerkezetet tartsd meg.
+Adj vissza EGYETLEN JSON objektumot:
+{
+  "title": "...",
+  "excerpt": "...",
+  "content_html": "<p>...</p>..."
+}
+
+HIBÁK:
+${issueList || "(nincs megadva)"}
+
+EREDTI CIKK:
+Cím: ${article.title || ""}
+Kivonat: ${article.excerpt || ""}
+Tartalom (HTML): ${article.content_html || ""}
+`.trim();
+
+  const parsed = await openaiJson(prompt);
+  return {
+    title: String(parsed?.title || "").trim(),
+    excerpt: String(parsed?.excerpt || "").trim(),
+    content_html: String(parsed?.content_html || "").trim(),
+  };
 }
 
 function stripHtml(input: string): string {
@@ -687,6 +798,7 @@ export async function GET(req: Request) {
   }
 
   let article: any = null;
+  let isNewArticle = false;
   let runStatus = "ok";
   let details = "";
 
@@ -698,7 +810,7 @@ export async function GET(req: Request) {
       const { data: existingArticle, error: existingErr } = await supabaseServer
         .from("articles")
         .select(
-          "id, slug, title, excerpt, content_html, category_slug, cover_image_url, related_product_slugs"
+          "id, slug, title, excerpt, content_html, category_slug, cover_image_url, related_product_slugs, status, published_at"
         )
         .eq("id", nextItem.article_id)
         .maybeSingle();
@@ -779,12 +891,12 @@ Adj vissza egyetlen JSON objektumot:
           title,
           excerpt,
           content_html,
-          status: "published",
+          status: "draft",
           category_slug: nextItem.category_slug || null,
-          published_at: new Date().toISOString(),
+          published_at: null,
         })
         .select(
-          "id, slug, title, excerpt, content_html, category_slug, cover_image_url, related_product_slugs"
+          "id, slug, title, excerpt, content_html, category_slug, cover_image_url, related_product_slugs, status, published_at"
         )
         .single();
 
@@ -793,10 +905,126 @@ Adj vissza egyetlen JSON objektumot:
       }
 
       article = inserted;
+      isNewArticle = true;
       await supabaseServer
         .from("article_automation_queue")
         .update({ article_id: article.id })
         .eq("id", nextItem.id);
+    }
+
+    let factCheckIssues: Array<{ claim: string; correction: string; reason?: string; severity?: string }> = [];
+    let factCheckHadIssues = false;
+    try {
+      const check = await factCheckArticle(article);
+      factCheckHadIssues = check.hasIssues;
+      factCheckIssues = check.issues;
+    } catch (err) {
+      factCheckHadIssues = true;
+      factCheckIssues = [
+        {
+          claim: "fact_check_failed",
+          correction: "A fact-check futtatása sikertelen, manuális ellenőrzés szükséges.",
+          reason: String((err as Error)?.message || err),
+          severity: "high",
+        },
+      ];
+    }
+
+    if (factCheckHadIssues) {
+      try {
+        const revised = await reviseArticleWithIssues(article, factCheckIssues);
+        if (revised?.content_html) {
+          article = {
+            ...article,
+            title: revised.title || article.title,
+            excerpt: revised.excerpt || article.excerpt,
+            content_html: revised.content_html || article.content_html,
+          };
+          await supabaseServer
+            .from("articles")
+            .update({
+              title: article.title,
+              excerpt: article.excerpt,
+              content_html: article.content_html,
+            })
+            .eq("id", article.id);
+          const recheck = await factCheckArticle(article);
+          factCheckHadIssues = recheck.hasIssues;
+          factCheckIssues = recheck.issues;
+        }
+      } catch (err) {
+        factCheckHadIssues = true;
+        factCheckIssues = [
+          {
+            claim: "fact_check_revision_failed",
+            correction: "A javító kör futtatása sikertelen, manuális ellenőrzés szükséges.",
+            reason: String((err as Error)?.message || err),
+            severity: "high",
+          },
+        ];
+      }
+    }
+
+    if (factCheckHadIssues) {
+      await supabaseServer
+        .from("articles")
+        .update({ status: "draft", published_at: null })
+        .eq("id", article.id);
+
+      const editorEmail = process.env.FACT_CHECK_ALERT_EMAIL || "indijanmac@gmail.com";
+      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://sokaigelek.hu";
+      const articleUrl = `${siteUrl.replace(/\/$/, "")}/admin/articles/${article.slug}`;
+      const issuesText = formatIssuesMarkdown(factCheckIssues) || "- (nincs részletezett hiba)";
+      const html = `
+        <div style="font-family:Arial,Helvetica,sans-serif;color:#111827;">
+          <div style="font-size:16px;font-weight:600;margin-bottom:10px;">Fact-check figyelmeztetés</div>
+          <div style="margin-bottom:12px;">A cikk draft állapotba került, mert a fact-check hibát jelzett.</div>
+          <div style="margin-bottom:10px;"><strong>Cím:</strong> ${article.title || "(nincs cím)"}</div>
+          <div style="margin-bottom:12px;"><a href="${articleUrl}">Szerkesztés megnyitása</a></div>
+          <pre style="white-space:pre-wrap;font-size:13px;background:#f9fafb;border:1px solid #e5e7eb;padding:12px;border-radius:8px;">${issuesText}</pre>
+        </div>
+      `;
+      try {
+        await sendEditorAlert({
+          subject: `Fact-check hiba: ${article.title || article.slug || "cikk"}`,
+          html,
+          editorEmail,
+        });
+      } catch (err) {
+        console.warn("fact_check_email_failed", String((err as Error)?.message || err));
+      }
+
+      runStatus = "error";
+      details = `fact_check_failed: ${issuesText}`;
+      await supabaseServer
+        .from("article_automation_queue")
+        .update({
+          status: "error",
+          last_error: details.slice(0, 1000),
+          article_id: article.id,
+        })
+        .eq("id", nextItem.id);
+
+      await supabaseServer.from("article_automation_runs").insert({
+        run_date: runDate,
+        status: runStatus,
+        details,
+        queue_id: nextItem.id,
+        article_id: article?.id || null,
+      });
+
+      return NextResponse.json({ ok: true, status: runStatus, reason: "fact_check_failed" });
+    }
+
+    const shouldPublish = isNewArticle || article.status === "published";
+    if (shouldPublish) {
+      await supabaseServer
+        .from("articles")
+        .update({
+          status: "published",
+          published_at: article.published_at || new Date().toISOString(),
+        })
+        .eq("id", article.id);
     }
 
     let coverImageUrl = article?.cover_image_url || "";
@@ -809,9 +1037,9 @@ Adj vissza egyetlen JSON objektumot:
     }
     const relatedSlugs = await suggestRelatedProducts(article);
     await placeInlineProductEmbeds(article, relatedSlugs);
-    const shouldPostToFacebook = nextItem?.post_to_facebook ?? true;
-    const shouldPostToPinterest = Boolean(nextItem?.post_to_pinterest);
-    const shouldPostToX = Boolean(nextItem?.post_to_x);
+    const shouldPostToFacebook = shouldPublish && (nextItem?.post_to_facebook ?? true);
+    const shouldPostToPinterest = shouldPublish && Boolean(nextItem?.post_to_pinterest);
+    const shouldPostToX = shouldPublish && Boolean(nextItem?.post_to_x);
     const imageUrl = coverImageUrl || article.cover_image_url || "";
 
     const socialResults: Record<

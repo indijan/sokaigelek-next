@@ -12,18 +12,6 @@ type Props = {
     searchParams?: Promise<{ delete?: string | string[]; err?: string | string[]; ok?: string | string[] }>;
 };
 
-function extractJsonObject(text: string): any | null {
-    const start = text.indexOf("{");
-    const end = text.lastIndexOf("}");
-    if (start === -1 || end === -1 || end <= start) return null;
-    const slice = text.slice(start, end + 1);
-    try {
-        return JSON.parse(slice);
-    } catch {
-        return null;
-    }
-}
-
 function safeJsonParseSlugs(text: string): string[] | null {
     try {
         const obj = extractJsonObject(text);
@@ -118,6 +106,162 @@ function insertMarkerAfterParagraph(html: string, afterParagraphIndex: number, m
     return s.slice(0, idx) + "\n" + marker + "\n" + s.slice(idx);
 }
 
+function extractJsonObject(text: string): any | null {
+    const start = text.indexOf("{");
+    const end = text.lastIndexOf("}");
+    if (start === -1 || end === -1 || end <= start) return null;
+    const slice = text.slice(start, end + 1);
+    try {
+        return JSON.parse(slice);
+    } catch {
+        return null;
+    }
+}
+
+async function openaiJson(prompt: string) {
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) throw new Error("Missing OPENAI_API_KEY");
+
+    const r = await fetch("https://api.openai.com/v1/responses", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+            model: "gpt-5-mini",
+            input: prompt,
+        }),
+    });
+
+    if (!r.ok) {
+        const t = await r.text();
+        throw new Error(`OpenAI error: ${t}`);
+    }
+
+    const data = await r.json();
+    const text =
+        data?.output_text ||
+        data?.output?.map((o: any) => o?.content?.map((c: any) => c?.text).join("")).join("") ||
+        "";
+
+    const parsed = extractJsonObject(text);
+    if (!parsed) throw new Error("OpenAI did not return JSON");
+    return parsed;
+}
+
+function formatIssuesListText(issues: Array<{ claim: string; correction: string; reason?: string; severity?: string }>) {
+    if (!issues.length) return "";
+    return issues
+        .map((i, idx) => {
+            const parts = [
+                `#${idx + 1}`,
+                i.severity ? `(${i.severity})` : "",
+                `Állítás: ${i.claim}`,
+                `Javítás: ${i.correction}`,
+                i.reason ? `Indoklás: ${i.reason}` : "",
+            ]
+                .filter(Boolean)
+                .join(" ");
+            return `- ${parts}`;
+        })
+        .join("\n");
+}
+
+function parseIssuesFromLastError(text: string) {
+    const raw = String(text || "");
+    const idx = raw.toLowerCase().indexOf("fact_check_failed:");
+    if (idx === -1) return [];
+    const payload = raw.slice(idx + "fact_check_failed:".length).trim();
+    const lines = payload.split("\n").map((l) => l.trim()).filter(Boolean);
+    const issues: Array<{ claim: string; correction: string; reason?: string; severity?: string }> = [];
+    for (const line of lines) {
+        if (!line.startsWith("-")) continue;
+        const chunk = line.replace(/^-+\s*/, "");
+        const claimMatch = chunk.match(/Állítás:\s*([^]+?)\s+Javítás:/i);
+        const correctionMatch = chunk.match(/Javítás:\s*([^]+?)(\s+Indoklás:|$)/i);
+        const reasonMatch = chunk.match(/Indoklás:\s*([^]+)$/i);
+        const severityMatch = chunk.match(/\((low|medium|high)\)/i);
+        issues.push({
+            claim: claimMatch?.[1]?.trim() || chunk,
+            correction: correctionMatch?.[1]?.trim() || "",
+            reason: reasonMatch?.[1]?.trim() || "",
+            severity: severityMatch?.[1]?.toLowerCase() || "",
+        });
+    }
+    return issues;
+}
+
+async function factCheckArticle(article: { title?: string; excerpt?: string; content_html?: string }) {
+    const prompt = `
+Ellenőrizd a cikkben szereplő TÁRGYI állításokat. Csak akkor jelölj, ha nagy valószínűséggel hibás, félrevezető vagy pontatlan.
+
+Add vissza EGYETLEN JSON objektumban:
+{
+  "hasIssues": boolean,
+  "issues": [
+    {
+      "claim": "rövid idézet vagy összefoglalás az állításról",
+      "correction": "helyes állítás",
+      "reason": "rövid indoklás miért hibás",
+      "severity": "low|medium|high"
+    }
+  ]
+}
+Ha nincs hiba: {"hasIssues": false, "issues": []}
+
+Cikk:
+Cím: ${article.title || ""}
+Kivonat: ${article.excerpt || ""}
+Tartalom (HTML): ${article.content_html || ""}
+`.trim();
+
+    const parsed = await openaiJson(prompt);
+    const issues = Array.isArray(parsed?.issues) ? parsed.issues : [];
+    const cleaned = issues
+        .map((i: any) => ({
+            claim: String(i?.claim || "").trim(),
+            correction: String(i?.correction || "").trim(),
+            reason: String(i?.reason || "").trim(),
+            severity: String(i?.severity || "").trim(),
+        }))
+        .filter((i: any) => i.claim && i.correction);
+
+    const hasIssues = Boolean(parsed?.hasIssues) && cleaned.length > 0;
+    return { hasIssues, issues: cleaned };
+}
+
+async function reviseArticleWithIssues(
+    article: { title?: string; excerpt?: string; content_html?: string },
+    issues: Array<{ claim: string; correction: string; reason?: string }>
+) {
+    const issueList = formatIssuesListText(issues);
+    const prompt = `
+Javítsd a cikket a felsorolt tárgyi hibák alapján. Csak a hibákat javítsd, a stílust, hangnemet, szerkezetet tartsd meg.
+Adj vissza EGYETLEN JSON objektumot:
+{
+  "title": "...",
+  "excerpt": "...",
+  "content_html": "<p>...</p>..."
+}
+
+HIBÁK:
+${issueList || "(nincs megadva)"}
+
+EREDTI CIKK:
+Cím: ${article.title || ""}
+Kivonat: ${article.excerpt || ""}
+Tartalom (HTML): ${article.content_html || ""}
+`.trim();
+
+    const parsed = await openaiJson(prompt);
+    return {
+        title: String(parsed?.title || "").trim(),
+        excerpt: String(parsed?.excerpt || "").trim(),
+        content_html: String(parsed?.content_html || "").trim(),
+    };
+}
+
 export default async function AdminArticleEditPage({ params, searchParams }: Props) {
     const cookieStore = await cookies();
     const ok = cookieStore.get("admin_ok")?.value === "1";
@@ -164,10 +308,172 @@ export default async function AdminArticleEditPage({ params, searchParams }: Pro
         .select("slug")
         .limit(1);
 
+    const { data: lastAutomation } = await supabaseServer
+        .from("article_automation_queue")
+        .select("last_error, status, used_at, created_at")
+        .eq("article_id", article.id)
+        .order("used_at", { ascending: false, nullsFirst: false })
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+    const factCheckFlag =
+        String(lastAutomation?.last_error || "").toLowerCase().includes("fact_check_failed") ||
+        String(lastAutomation?.last_error || "").toLowerCase().includes("fact check");
+    const factCheckIssues = parseIssuesFromLastError(lastAutomation?.last_error || "");
+
+    async function runFactCheckAction(formData: FormData) {
+        "use server";
+        const articleId = String(formData.get("article_id") || "");
+        const articleSlug = String(formData.get("article_slug") || "");
+        if (!articleId) redirect(`/admin/articles/${articleSlug || slug}?err=${encodeURIComponent("Missing article id")}`);
+
+        const { data: articleForCheck, error: fetchErr } = await supabaseServer
+            .from("articles")
+            .select("id, slug, title, excerpt, content_html, status, published_at, category_slug")
+            .eq("id", articleId)
+            .maybeSingle();
+        if (fetchErr || !articleForCheck) {
+            redirect(`/admin/articles/${articleSlug || slug}?err=${encodeURIComponent("Article not found")}`);
+        }
+
+        try {
+            const check = await factCheckArticle(articleForCheck);
+            const issuesText = formatIssuesListText(check.issues);
+            const nowIso = new Date().toISOString();
+            await supabaseServer.from("article_automation_queue").insert({
+                article_id: articleForCheck.id,
+                prompt: "manual fact-check",
+                status: check.hasIssues ? "error" : "done",
+                used_at: nowIso,
+                last_error: check.hasIssues ? `fact_check_failed: ${issuesText || "- (nincs részletezett hiba)"}` : null,
+                category_slug: (articleForCheck as any).category_slug || null,
+                post_to_facebook: false,
+                post_to_pinterest: false,
+                post_to_x: false,
+            });
+
+            if (check.hasIssues) {
+                await supabaseServer
+                    .from("articles")
+                    .update({ status: "draft", published_at: null })
+                    .eq("id", articleForCheck.id);
+                redirect(`/admin/articles/${articleForCheck.slug}?ok=${encodeURIComponent("Fact-check hibákat talált, a cikk draft lett.")}`);
+            }
+
+            await supabaseServer
+                .from("articles")
+                .update({
+                    status: "published",
+                    published_at: articleForCheck.published_at || new Date().toISOString(),
+                })
+                .eq("id", articleForCheck.id);
+
+            redirect(`/admin/articles/${articleForCheck.slug}?ok=${encodeURIComponent("Fact-check rendben, nem talált hibát. A cikk publikálva.")}`);
+        } catch (err: any) {
+            redirect(`/admin/articles/${articleSlug || slug}?err=${encodeURIComponent(err?.message || "Fact-check error")}`);
+        }
+    }
+
+    async function runFactFixAction(formData: FormData) {
+        "use server";
+        const articleId = String(formData.get("article_id") || "");
+        const articleSlug = String(formData.get("article_slug") || "");
+        if (!articleId) redirect(`/admin/articles/${articleSlug || slug}?err=${encodeURIComponent("Missing article id")}`);
+
+        const { data: articleForCheck, error: fetchErr } = await supabaseServer
+            .from("articles")
+            .select("id, slug, title, excerpt, content_html, status, published_at, category_slug")
+            .eq("id", articleId)
+            .maybeSingle();
+        if (fetchErr || !articleForCheck) {
+            redirect(`/admin/articles/${articleSlug || slug}?err=${encodeURIComponent("Article not found")}`);
+        }
+
+        const issuesFromLast = parseIssuesFromLastError(lastAutomation?.last_error || "");
+        let issues = issuesFromLast;
+        if (!issues.length) {
+            const check = await factCheckArticle(articleForCheck);
+            issues = check.issues;
+        }
+
+        if (!issues.length) {
+            redirect(`/admin/articles/${articleForCheck.slug}?ok=${encodeURIComponent("Nem találtam javítandó hibát.")}`);
+        }
+
+        const revised = await reviseArticleWithIssues(articleForCheck, issues);
+        if (!revised?.content_html) {
+            redirect(`/admin/articles/${articleForCheck.slug}?err=${encodeURIComponent("Javítás sikertelen (üres tartalom).")}`);
+        }
+
+        const resolvedTitle = revised.title || articleForCheck.title;
+        const resolvedExcerpt = revised.excerpt || articleForCheck.excerpt;
+        const resolvedHtml = revised.content_html || articleForCheck.content_html;
+
+        await supabaseServer
+            .from("articles")
+            .update({
+                title: resolvedTitle,
+                excerpt: resolvedExcerpt,
+                content_html: resolvedHtml,
+                status: "draft",
+                published_at: null,
+            })
+            .eq("id", articleForCheck.id);
+
+        const recheck = await factCheckArticle({
+            title: resolvedTitle,
+            excerpt: resolvedExcerpt,
+            content_html: resolvedHtml,
+        });
+        const issuesText = formatIssuesListText(recheck.issues);
+        const nowIso = new Date().toISOString();
+        await supabaseServer.from("article_automation_queue").insert({
+            article_id: articleForCheck.id,
+            prompt: "manual fact-fix",
+            status: recheck.hasIssues ? "error" : "done",
+            used_at: nowIso,
+            last_error: recheck.hasIssues ? `fact_check_failed: ${issuesText || "- (nincs részletezett hiba)"}` : null,
+            category_slug: (articleForCheck as any).category_slug || null,
+            post_to_facebook: false,
+            post_to_pinterest: false,
+            post_to_x: false,
+        });
+
+        if (recheck.hasIssues) {
+            redirect(`/admin/articles/${articleForCheck.slug}?ok=${encodeURIComponent("Javítás lefutott, de maradt gyanús állítás.")}`);
+        }
+
+        await supabaseServer
+            .from("articles")
+            .update({
+                status: "published",
+                published_at: articleForCheck.published_at || new Date().toISOString(),
+            })
+            .eq("id", articleForCheck.id);
+
+        redirect(`/admin/articles/${articleForCheck.slug}?ok=${encodeURIComponent("Javítás kész, a fact-check tiszta. A cikk publikálva.")}`);
+    }
+
     return (
         <main className="max-w-3xl mx-auto px-4 py-10 space-y-6">
             <div className="flex items-center justify-between gap-3 flex-wrap">
-                <h1 className="text-2xl font-bold">Cikk szerkesztése</h1>
+                <div className="flex items-center gap-3 flex-wrap">
+                    <h1 className="text-2xl font-bold">Cikk szerkesztése</h1>
+                    {factCheckFlag ? (
+                        <span
+                            className="text-xs font-semibold rounded-full px-3 py-1 bg-amber-100 text-amber-800 border border-amber-200"
+                            title={
+                                factCheckIssues.length
+                                    ? factCheckIssues
+                                          .map((i, idx) => `#${idx + 1} Állítás: ${i.claim} | Javítás: ${i.correction}`)
+                                          .join("\n")
+                                    : "Fact-check figyelmeztetés"
+                            }
+                        >
+                            Fact-check figyelmeztetés
+                        </span>
+                    ) : null}
+                </div>
                 <a
                     className="underline text-sm"
                     href={`/cikkek/${article.slug}`}
@@ -177,6 +483,42 @@ export default async function AdminArticleEditPage({ params, searchParams }: Pro
                     Megnézem
                 </a>
             </div>
+            <div className="flex items-center gap-3 flex-wrap">
+                <form action={runFactCheckAction}>
+                    <input type="hidden" name="article_id" value={article.id} />
+                    <input type="hidden" name="article_slug" value={article.slug} />
+                    <button
+                        type="submit"
+                        className="text-sm font-semibold rounded-lg px-3 py-2 border border-amber-200 bg-amber-50 text-amber-900 hover:bg-amber-100 transition"
+                    >
+                        AI fact-check futtatása
+                    </button>
+                </form>
+                <form action={runFactFixAction}>
+                    <input type="hidden" name="article_id" value={article.id} />
+                    <input type="hidden" name="article_slug" value={article.slug} />
+                    <button
+                        type="submit"
+                        className="text-sm font-semibold rounded-lg px-3 py-2 border border-emerald-200 bg-emerald-50 text-emerald-900 hover:bg-emerald-100 transition"
+                    >
+                        Fix with AI
+                    </button>
+                </form>
+            </div>
+            {factCheckFlag && factCheckIssues.length ? (
+                <div className="border border-amber-200 bg-amber-50 text-amber-900 text-sm rounded-xl px-4 py-3">
+                    <div className="font-semibold mb-2">Gyanús/hibás állítások</div>
+                    <ul className="list-disc ml-5 space-y-1">
+                        {factCheckIssues.map((issue, idx) => (
+                            <li key={`${issue.claim}-${idx}`}>
+                                <div><strong>Állítás:</strong> {issue.claim}</div>
+                                <div><strong>Javítás:</strong> {issue.correction}</div>
+                                {issue.reason ? <div><strong>Indoklás:</strong> {issue.reason}</div> : null}
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            ) : null}
             {errMessage ? (
                 <div className="border border-red-200 bg-red-50 text-red-700 text-sm rounded-xl px-4 py-3">
                     {errMessage}
