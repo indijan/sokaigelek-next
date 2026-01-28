@@ -320,6 +320,8 @@ export default async function AdminArticleEditPage({ params, searchParams }: Pro
         String(lastAutomation?.last_error || "").toLowerCase().includes("fact_check_failed") ||
         String(lastAutomation?.last_error || "").toLowerCase().includes("fact check");
     const factCheckIssues = parseIssuesFromLastError(lastAutomation?.last_error || "");
+    const lastAutomationAt = lastAutomation?.used_at || lastAutomation?.created_at || null;
+    const lastAutomationStatus = String(lastAutomation?.status || "").trim();
 
     async function runFactCheckAction(formData: FormData) {
         "use server";
@@ -459,6 +461,9 @@ export default async function AdminArticleEditPage({ params, searchParams }: Pro
             <div className="flex items-center justify-between gap-3 flex-wrap">
                 <div className="flex items-center gap-3 flex-wrap">
                     <h1 className="text-2xl font-bold">Cikk szerkesztése</h1>
+                    <span className="text-xs font-semibold rounded-full px-3 py-1 bg-slate-100 text-slate-700 border border-slate-200">
+                        {String(article.status || "draft")}
+                    </span>
                     {factCheckFlag ? (
                         <span
                             className="text-xs font-semibold rounded-full px-3 py-1 bg-amber-100 text-amber-800 border border-amber-200"
@@ -487,23 +492,37 @@ export default async function AdminArticleEditPage({ params, searchParams }: Pro
                 <form action={runFactCheckAction}>
                     <input type="hidden" name="article_id" value={article.id} />
                     <input type="hidden" name="article_slug" value={article.slug} />
-                    <button
-                        type="submit"
+                    <AdminActionButton
                         className="text-sm font-semibold rounded-lg px-3 py-2 border border-amber-200 bg-amber-50 text-amber-900 hover:bg-amber-100 transition"
+                        pendingText="Fact-check fut..."
                     >
                         AI fact-check futtatása
-                    </button>
+                    </AdminActionButton>
                 </form>
                 <form action={runFactFixAction}>
                     <input type="hidden" name="article_id" value={article.id} />
                     <input type="hidden" name="article_slug" value={article.slug} />
-                    <button
-                        type="submit"
+                    <AdminActionButton
                         className="text-sm font-semibold rounded-lg px-3 py-2 border border-emerald-200 bg-emerald-50 text-emerald-900 hover:bg-emerald-100 transition"
+                        pendingText="Javítás fut..."
                     >
                         Fix with AI
-                    </button>
+                    </AdminActionButton>
                 </form>
+            </div>
+            <div className="border border-slate-200 bg-slate-50 text-slate-700 text-sm rounded-xl px-4 py-3">
+                <div className="font-semibold mb-1">Legutóbbi fact-check</div>
+                <div>
+                    <strong>Státusz:</strong> {lastAutomationStatus || "n/a"}
+                </div>
+                <div>
+                    <strong>Időpont:</strong> {lastAutomationAt ? new Date(lastAutomationAt).toLocaleString("hu-HU") : "n/a"}
+                </div>
+                {lastAutomation?.last_error ? (
+                    <div className="mt-2 whitespace-pre-wrap">
+                        <strong>Részletek:</strong> {String(lastAutomation.last_error)}
+                    </div>
+                ) : null}
             </div>
             {factCheckFlag && factCheckIssues.length ? (
                 <div className="border border-amber-200 bg-amber-50 text-amber-900 text-sm rounded-xl px-4 py-3">
