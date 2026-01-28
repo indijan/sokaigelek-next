@@ -1,6 +1,6 @@
 "use client";
 
-import { useFormState } from "react-dom";
+import { useActionState } from "react";
 import AdminActionButton from "@/components/admin/AdminActionButton";
 
 type ActionState = { ok: boolean; message: string };
@@ -20,8 +20,8 @@ export default function FactCheckActions({
   onFactCheck,
   onFactFix,
 }: Props) {
-  const [checkState, checkAction] = useFormState(onFactCheck, initialState);
-  const [fixState, fixAction] = useFormState(onFactFix, initialState);
+  const [checkState, checkAction] = useActionState(onFactCheck, initialState);
+  const [fixState, fixAction] = useActionState(onFactFix, initialState);
 
   const message = fixState.message || checkState.message;
   const isOk = fixState.message ? fixState.ok : checkState.ok;

@@ -363,6 +363,7 @@ export default async function AdminArticleEditPage({ params, searchParams }: Pro
                 article_id: articleForCheck.id,
                 prompt: "manual fact-check",
                 status: check.hasIssues ? "error" : "done",
+                position: 0,
                 used_at: nowIso,
                 last_error: check.hasIssues
                     ? `fact_check_failed: ${issuesText || "- (nincs részletezett hiba)"}`
@@ -467,6 +468,7 @@ export default async function AdminArticleEditPage({ params, searchParams }: Pro
             article_id: articleForCheck.id,
             prompt: "manual fact-fix",
             status: recheck.hasIssues ? "error" : "done",
+            position: 0,
             used_at: nowIso,
             last_error: recheck.hasIssues
                 ? `fact_check_failed: ${issuesText || "- (nincs részletezett hiba)"}`
