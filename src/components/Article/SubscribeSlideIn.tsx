@@ -49,9 +49,12 @@ export default function SubscribeSlideIn({ categorySlug, categoryLabel }: Props)
     if (!categorySlug) return;
     const seenKey = "subscribeSlideInSeen";
     const subscribedKey = `subscribeSlideInSubscribed:${categorySlug}`;
+    const dismissedKey = `subscribeSlideInDismissed:${categorySlug}`;
     const subscribedAt = Number(localStorage.getItem(subscribedKey) || "0");
     const withinDays = subscribedAt && Date.now() - subscribedAt < 1000 * 60 * 60 * 24 * 30;
-    if (sessionStorage.getItem(seenKey) === "1" || withinDays) return;
+    const dismissedAt = Number(localStorage.getItem(dismissedKey) || "0");
+    const dismissedRecently = dismissedAt && Date.now() - dismissedAt < 1000 * 60 * 60 * 24 * 7;
+    if (sessionStorage.getItem(seenKey) === "1" || withinDays || dismissedRecently) return;
     const ref = document.referrer || "";
     const qs = window.location.search || "";
     const qsLower = qs.toLowerCase();
@@ -187,7 +190,17 @@ export default function SubscribeSlideIn({ categorySlug, categoryLabel }: Props)
           <div style={{ fontWeight: 800, fontSize: 16 }}>Értesítést kérsz új cikkekről?</div>
           <button
             type="button"
-            onClick={() => setDismissed(true)}
+            onClick={() => {
+              setDismissed(true);
+              setVisible(false);
+              try {
+                sessionStorage.setItem("subscribeSlideInSeen", "1");
+                localStorage.setItem(
+                  `subscribeSlideInDismissed:${categorySlug}`,
+                  String(Date.now())
+                );
+              } catch {}
+            }}
             aria-label="Bezárás"
             style={{
               background: "transparent",
