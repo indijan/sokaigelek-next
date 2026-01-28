@@ -6,6 +6,7 @@ import ArticleImageUploader from "@/components/admin/ArticleImageUploader";
 import { slugifyHu } from "@/lib/slugifyHu";
 import GenerateArticleCoverButton from "@/components/admin/GenerateArticleCoverButton";
 import HtmlEditor from "@/components/admin/HtmlEditor";
+import AdminActionButton from "@/components/admin/AdminActionButton";
 import FactCheckActions from "@/components/admin/FactCheckActions";
 
 type Props = {
