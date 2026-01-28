@@ -399,7 +399,7 @@ export default async function AdminArticleEditPage({ params, searchParams }: Pro
             if (check.hasIssues) {
                 await supabaseServer
                     .from("articles")
-                    .update({ status: "draft" })
+                    .update({ status: "draft", published_at: articleForCheck.published_at })
                     .eq("id", articleForCheck.id);
                 revalidatePath(`/admin/articles/${articleForCheck.slug}`);
                 return { ok: true, message: "Fact-check hibákat talált, a cikk draft lett." };
@@ -409,6 +409,7 @@ export default async function AdminArticleEditPage({ params, searchParams }: Pro
                 .from("articles")
                 .update({
                     status: "published",
+                    published_at: articleForCheck.published_at,
                 })
                 .eq("id", articleForCheck.id);
 
@@ -473,6 +474,7 @@ export default async function AdminArticleEditPage({ params, searchParams }: Pro
                 excerpt: resolvedExcerpt,
                 content_html: resolvedHtml,
                 status: "draft",
+                published_at: articleForCheck.published_at,
             })
             .eq("id", articleForCheck.id);
 
@@ -510,6 +512,7 @@ export default async function AdminArticleEditPage({ params, searchParams }: Pro
             .from("articles")
             .update({
                 status: "published",
+                published_at: articleForCheck.published_at,
             })
             .eq("id", articleForCheck.id);
 
