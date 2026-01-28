@@ -44,32 +44,50 @@ async function openaiJson(prompt: string) {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) throw new Error("Missing OPENAI_API_KEY");
 
-  const r = await fetch("https://api.openai.com/v1/responses", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model: "gpt-5-mini",
-      input: prompt,
-    }),
-  });
+  const callOnce = async (input: string) => {
+    const controller = new AbortController();
+    const timeoutMs = Number(process.env.FACT_CHECK_TIMEOUT_MS || "120000");
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
-  if (!r.ok) {
-    const t = await r.text();
-    throw new Error(`OpenAI error: ${t}`);
+    const r = await fetch("https://api.openai.com/v1/responses", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: "gpt-5-mini",
+        input,
+      }),
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+
+    if (!r.ok) {
+      const t = await r.text();
+      throw new Error(`OpenAI error: ${t}`);
+    }
+
+    const data = await r.json();
+    const text =
+      data?.output_text ||
+      data?.output?.map((o: any) => o?.content?.map((c: any) => c?.text).join("")).join("") ||
+      "";
+    return text;
+  };
+
+  const text1 = await callOnce(prompt);
+  const parsed1 = extractJsonObject(text1);
+  if (parsed1) return parsed1;
+
+  const retryPrompt = `FONTOS: CSAK érvényes JSON-t adj vissza, semmi mást.\n\n${prompt}`;
+  const text2 = await callOnce(retryPrompt);
+  const parsed2 = extractJsonObject(text2);
+  if (!parsed2) {
+    const snippet = text2.slice(0, 200).replace(/\s+/g, " ").trim();
+    throw new Error(`OpenAI did not return JSON. Snippet: ${snippet}`);
   }
-
-  const data = await r.json();
-  const text =
-    data?.output_text ||
-    data?.output?.map((o: any) => o?.content?.map((c: any) => c?.text).join("")).join("") ||
-    "";
-
-  const parsed = extractJsonObject(text);
-  if (!parsed) throw new Error("OpenAI did not return JSON");
-  return parsed;
+  return parsed2;
 }
 
 function formatIssuesMarkdown(issues: Array<{ claim: string; correction: string; reason?: string; severity?: string }>) {
