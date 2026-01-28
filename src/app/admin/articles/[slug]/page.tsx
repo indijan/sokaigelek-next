@@ -328,9 +328,12 @@ export default async function AdminArticleEditPage({ params, searchParams }: Pro
         .limit(1)
         .maybeSingle();
 
+    const lastFactCheckErrorText = String(lastFactCheck?.last_error || "");
     const factCheckFlag =
-        String(lastFactCheck?.last_error || "").toLowerCase().includes("fact_check_failed") ||
-        String(lastFactCheck?.last_error || "").toLowerCase().includes("fact check");
+        lastFactCheckErrorText.toLowerCase().includes("fact_check_failed") ||
+        lastFactCheckErrorText.toLowerCase().includes("fact check");
+    const factCheckOk =
+        lastFactCheckErrorText.toLowerCase().includes("fact_check_ok") || (!factCheckFlag && Boolean(lastFactCheck));
     const factCheckIssues = parseIssuesFromLastError(lastFactCheck?.last_error || "");
     const lastAutomationAt = lastFactCheck?.used_at || lastFactCheck?.created_at || null;
     const lastAutomationStatus = String(lastFactCheck?.status || "").trim();
@@ -357,7 +360,9 @@ export default async function AdminArticleEditPage({ params, searchParams }: Pro
                 prompt: "manual fact-check",
                 status: check.hasIssues ? "error" : "done",
                 used_at: nowIso,
-                last_error: check.hasIssues ? `fact_check_failed: ${issuesText || "- (nincs részletezett hiba)"}` : null,
+                last_error: check.hasIssues
+                    ? `fact_check_failed: ${issuesText || "- (nincs részletezett hiba)"}`
+                    : "fact_check_ok",
                 category_slug: (articleForCheck as any).category_slug || null,
                 post_to_facebook: false,
                 post_to_pinterest: false,
@@ -367,7 +372,7 @@ export default async function AdminArticleEditPage({ params, searchParams }: Pro
             if (check.hasIssues) {
                 await supabaseServer
                     .from("articles")
-                    .update({ status: "draft", published_at: null })
+                    .update({ status: "draft" })
                     .eq("id", articleForCheck.id);
                 revalidatePath(`/admin/articles/${articleForCheck.slug}`);
                 return;
@@ -438,7 +443,6 @@ export default async function AdminArticleEditPage({ params, searchParams }: Pro
                 excerpt: resolvedExcerpt,
                 content_html: resolvedHtml,
                 status: "draft",
-                published_at: null,
             })
             .eq("id", articleForCheck.id);
 
@@ -454,7 +458,9 @@ export default async function AdminArticleEditPage({ params, searchParams }: Pro
             prompt: "manual fact-fix",
             status: recheck.hasIssues ? "error" : "done",
             used_at: nowIso,
-            last_error: recheck.hasIssues ? `fact_check_failed: ${issuesText || "- (nincs részletezett hiba)"}` : null,
+            last_error: recheck.hasIssues
+                ? `fact_check_failed: ${issuesText || "- (nincs részletezett hiba)"}`
+                : "fact_check_ok",
             category_slug: (articleForCheck as any).category_slug || null,
             post_to_facebook: false,
             post_to_pinterest: false,
@@ -535,7 +541,7 @@ export default async function AdminArticleEditPage({ params, searchParams }: Pro
                 <div className="font-semibold mb-1">Legutóbbi fact-check</div>
                 <div>
                     <strong>Eredmény:</strong>{" "}
-                    {factCheckFlag ? "Hibát talált" : lastAutomationStatus ? "Rendben" : "Nincs adat"}
+                    {factCheckFlag ? "Hibát talált" : factCheckOk ? "Rendben" : "Nincs adat"}
                 </div>
                 <div>
                     <strong>Időpont:</strong> {lastAutomationAt ? new Date(lastAutomationAt).toLocaleString("hu-HU") : "n/a"}
@@ -543,6 +549,11 @@ export default async function AdminArticleEditPage({ params, searchParams }: Pro
                 {lastFactCheck?.last_error ? (
                     <div className="mt-2 whitespace-pre-wrap">
                         <strong>Részletek:</strong> {String(lastFactCheck.last_error)}
+                    </div>
+                ) : null}
+                {!lastFactCheck ? (
+                    <div className="mt-2 text-slate-600">
+                        Még nincs manuális fact-check futás rögzítve ehhez a cikkhez.
                     </div>
                 ) : null}
             </div>
