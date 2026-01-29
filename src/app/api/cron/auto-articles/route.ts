@@ -177,6 +177,7 @@ async function reviseArticleWithIssues(article: { title?: string; excerpt?: stri
   const prompt = `
 Javítsd a cikket a felsorolt tárgyi hibák alapján. Csak a hibákat javítsd, a stílust, hangnemet, szerkezetet tartsd meg.
 FONTOS: A "Javítás" mező iránymutatás, nem feltétlenül beillesztendő szöveg. Úgy írd át a releváns részt, hogy természetesen illeszkedjen a szövegkörnyezetbe, közérthetően, szakzsargon nélkül. Ha az állítás javíthatatlan vagy félrevezető, töröld a hibás részt (ne hagyj benne magyarázó/oktató mondatot).
+Ne adj hozzá új, ismétlődő orvosi figyelmeztetéseket (pl. "beszéld meg orvosoddal"). Ha szükséges, legfeljebb egyszer szerepelhet a cikk teljes szövegében. Ha a cikk végén már van figyelmeztetés, ne tegyél közbe újat. Kerüld a pontosvessző használatát.
 Adj vissza EGYETLEN JSON objektumot:
 {
   "title": "...",
