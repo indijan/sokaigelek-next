@@ -143,7 +143,7 @@ Add vissza EGYETLEN JSON objektumban:
   "issues": [
     {
       "claim": "rövid idézet vagy összefoglalás az állításról",
-      "correction": "helyes állítás",
+      "correction": "a cikkbe illeszthető, természetes hangú, közérthető javított megfogalmazás (kerüld a szakzsargont)",
       "reason": "rövid indoklás miért hibás",
       "severity": "low|medium|high"
     }
@@ -176,6 +176,7 @@ async function reviseArticleWithIssues(article: { title?: string; excerpt?: stri
   const issueList = formatIssuesMarkdown(issues);
   const prompt = `
 Javítsd a cikket a felsorolt tárgyi hibák alapján. Csak a hibákat javítsd, a stílust, hangnemet, szerkezetet tartsd meg.
+FONTOS: A "Javítás" mező iránymutatás, nem feltétlenül beillesztendő szöveg. Úgy írd át a releváns részt, hogy természetesen illeszkedjen a szövegkörnyezetbe, közérthetően, szakzsargon nélkül. Ha az állítás javíthatatlan vagy félrevezető, töröld a hibás részt (ne hagyj benne magyarázó/oktató mondatot).
 Adj vissza EGYETLEN JSON objektumot:
 {
   "title": "...",
