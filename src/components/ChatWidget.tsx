@@ -237,10 +237,11 @@ export default function ChatWidget() {
   useEffect(() => {
     if (typeof window === "undefined") return;
     const ua = window.navigator.userAgent || "";
+    const isIOS = /iPhone|iPad|iPod/i.test(ua);
     const isSafari = /Safari/i.test(ua) && !/Chrome|Chromium|Edg|OPR/i.test(ua);
     const SpeechRecognition =
       (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SpeechRecognition || isSafari) {
+    if (!SpeechRecognition || isIOS || isSafari) {
       setHasSpeechSupport(false);
       return;
     }
@@ -416,7 +417,7 @@ export default function ChatWidget() {
               className={`sg-chat-mic ${listening ? "is-active" : ""}`}
               onClick={toggleDictation}
               aria-label="Diktálás"
-              title={hasSpeechSupport ? "Diktálás" : "A diktálás Safari alatt nem érhető el. Chrome/Edge-ben működik."}
+              title={hasSpeechSupport ? "Diktálás" : "A diktálás Safari alatt nem érhető el (macOS/iOS). Androidon Chrome/Edge-ben működik."}
               disabled={!hasSpeechSupport}
             >
               🎙️
@@ -431,7 +432,7 @@ export default function ChatWidget() {
           </form>
           <div className="sg-chat-mic-hint" aria-live="polite">
             {!hasSpeechSupport
-              ? "A diktálás Safari alatt nem érhető el. Chrome/Edge-ben működik."
+              ? "A diktálás Safari alatt nem érhető el (macOS/iOS). Androidon Chrome/Edge-ben működik."
               : listening
                 ? "Hallgatlak — mondd el a kérdésed."
                 : "Kattints a mikrofonra, ha diktálnál."}
