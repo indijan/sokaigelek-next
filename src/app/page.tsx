@@ -168,7 +168,7 @@ export default async function Home() {
           .trim();
 
   return (
-      <div className="container page">
+      <div className="container page" suppressHydrationWarning>
         {/* HERO */}
         <section className="hero">
           <h1>Élj sokáig. Egészségesen.</h1>

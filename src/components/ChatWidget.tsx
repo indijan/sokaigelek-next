@@ -41,14 +41,21 @@ function getOrCreateUserId() {
 
 export default function ChatWidget() {
   const [open, setOpen] = useState(false);
+  const [closing, setClosing] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [conversationId, setConversationId] = useState<string | null>(null);
+  const [listening, setListening] = useState(false);
+  const [hasSpeechSupport, setHasSpeechSupport] = useState(false);
+  const [speakingId, setSpeakingId] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const typingRef = useRef<{ id: string | null; timer: number | null }>({ id: null, timer: null });
+  const recognitionRef = useRef<any>(null);
+  const recognitionActiveRef = useRef(false);
+  const synthRef = useRef<SpeechSynthesis | null>(null);
   const canSend = input.trim().length > 0 && !loading;
 
   useEffect(() => {
@@ -96,6 +103,7 @@ export default function ChatWidget() {
   useEffect(() => {
     const handler = (evt?: Event) => {
       const detail = (evt as CustomEvent<ChatOpenDetail> | undefined)?.detail;
+      setClosing(false);
       setOpen(true);
       const seed = String(detail?.seedMessage || "").trim();
       if (seed) {
@@ -221,15 +229,86 @@ export default function ChatWidget() {
   };
 
   const closeChat = () => {
-    setOpen(false);
+    if (closing) return;
+    setClosing(true);
     window.dispatchEvent(new CustomEvent("sg:chat:close"));
+  };
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const ua = window.navigator.userAgent || "";
+    const isSafari = /Safari/i.test(ua) && !/Chrome|Chromium|Edg|OPR/i.test(ua);
+    const SpeechRecognition =
+      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition || isSafari) {
+      setHasSpeechSupport(false);
+      return;
+    }
+    setHasSpeechSupport(true);
+    const rec = new SpeechRecognition();
+    rec.lang = "hu-HU";
+    rec.interimResults = false;
+    rec.continuous = false;
+    rec.onresult = (evt: any) => {
+      const text = evt?.results?.[0]?.[0]?.transcript || "";
+      if (text) setInput((prev) => (prev ? `${prev} ${text}` : text));
+    };
+    rec.onend = () => {
+      recognitionActiveRef.current = false;
+      setListening(false);
+    };
+    rec.onerror = () => {
+      recognitionActiveRef.current = false;
+      setListening(false);
+    };
+    recognitionRef.current = rec;
+    synthRef.current = window.speechSynthesis;
+  }, []);
+
+  const toggleDictation = () => {
+    const rec = recognitionRef.current;
+    if (!rec) return;
+    if (listening) {
+      if (recognitionActiveRef.current) {
+        rec.stop();
+      }
+      setListening(false);
+      return;
+    }
+    if (recognitionActiveRef.current) return;
+    try {
+      recognitionActiveRef.current = true;
+      setListening(true);
+      rec.start();
+    } catch {
+      recognitionActiveRef.current = false;
+      setListening(false);
+    }
+  };
+
+  const speak = (text: string, id: string) => {
+    if (typeof window === "undefined") return;
+    const synth = synthRef.current || window.speechSynthesis;
+    if (!synth) return;
+    if (speakingId === id) {
+      synth.cancel();
+      setSpeakingId(null);
+      return;
+    }
+    synth.cancel();
+    const utter = new SpeechSynthesisUtterance(text);
+    utter.lang = "hu-HU";
+    utter.onend = () => setSpeakingId((current) => (current === id ? null : current));
+    utter.onerror = () => setSpeakingId((current) => (current === id ? null : current));
+    setSpeakingId(id);
+    synth.speak(utter);
   };
 
   const ui = useMemo(() => {
     // NOTE: we intentionally render into document.body (portal)
     // so that parent layout CSS (e.g. transform/overflow) can’t push it off-screen.
 
-    if (!open) {
+    if (!open && !closing) {
       return (
         <button
           type="button"
@@ -251,7 +330,15 @@ export default function ChatWidget() {
           className="sg-chat-backdrop"
         />
 
-        <div className="sg-chat-panel">
+        <div
+          className={`sg-chat-panel ${closing ? "is-closing" : "is-open"}`}
+          onAnimationEnd={() => {
+            if (closing) {
+              setOpen(false);
+              setClosing(false);
+            }
+          }}
+        >
           <div className="sg-chat-hero">
             <div className="sg-chat-hero-icon" aria-hidden>
               <img src="/chat-logo.png" alt="" />
@@ -292,6 +379,17 @@ export default function ChatWidget() {
                     </div>
                   ) : null}
                 </div>
+                {m.role === "assistant" && !m.isTyping ? (
+                  <button
+                    type="button"
+                    className="sg-chat-tts"
+                    onClick={() => speak(m.content, m.id)}
+                    aria-label="Válasz felolvasása"
+                    title="Felolvasás"
+                  >
+                    {speakingId === m.id ? "⏹️" : "🔊"}
+                  </button>
+                ) : null}
               </div>
             ))}
             {loading ? (
@@ -314,6 +412,16 @@ export default function ChatWidget() {
               className="sg-chat-input"
             />
             <button
+              type="button"
+              className={`sg-chat-mic ${listening ? "is-active" : ""}`}
+              onClick={toggleDictation}
+              aria-label="Diktálás"
+              title={hasSpeechSupport ? "Diktálás" : "A diktálás Safari alatt nem érhető el. Chrome/Edge-ben működik."}
+              disabled={!hasSpeechSupport}
+            >
+              🎙️
+            </button>
+            <button
               type="submit"
               disabled={!canSend}
               className={`sg-chat-send ${canSend ? "is-active" : ""}`}
@@ -321,6 +429,13 @@ export default function ChatWidget() {
               ELKÜLD
             </button>
           </form>
+          <div className="sg-chat-mic-hint" aria-live="polite">
+            {!hasSpeechSupport
+              ? "A diktálás Safari alatt nem érhető el. Chrome/Edge-ben működik."
+              : listening
+                ? "Hallgatlak — mondd el a kérdésed."
+                : "Kattints a mikrofonra, ha diktálnál."}
+          </div>
 
           <div className="sg-chat-footer">
             <button type="button" className="sg-chat-reset" onClick={resetChat} aria-label="Új beszélgetés">
@@ -330,7 +445,7 @@ export default function ChatWidget() {
         </div>
       </div>
     );
-  }, [open, messages, loading, input, error, conversationId]);
+  }, [open, messages, loading, input, error, conversationId, closing, listening, speakingId, hasSpeechSupport]);
 
   if (!mounted) return null;
   return createPortal(ui, document.body);

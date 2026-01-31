@@ -165,8 +165,8 @@ export default function SiteFooter() {
             <div>
               <div className="footer-brand">Sokáig élek</div>
               <p className="footer-muted">
-                Célzott tanácsok és válogatott ajánlások a jobb
-                közérzetért.
+                Célzott tanácsok és válogatott ajánlások a hosszú,
+                egészséges életért.
               </p>
             </div>
 

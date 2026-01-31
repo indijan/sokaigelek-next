@@ -92,14 +92,14 @@
 }
 
 .sg-chat-panel {
-  position: absolute;
+  position: fixed;
   right: 24px;
   bottom: 24px;
   z-index: 1;
   width: 420px;
   max-width: calc(100vw - 40px);
   height: 560px;
-  max-height: calc(100vh - 40px);
+  max-height: calc(100dvh - 40px);
   border-radius: 24px;
   border: 2px solid #e7d7c2;
   background: linear-gradient(180deg, #fcf7ee 0%, #fffaf3 100%);
@@ -109,7 +109,16 @@
   flex-direction: column;
   padding: 18px;
   gap: 14px;
-  animation: sgChatPanelIn 220ms ease-out;
+  transform-origin: bottom right;
+  will-change: transform, opacity;
+}
+
+.sg-chat-panel.is-open {
+  animation: sgChatPanelIn 320ms cubic-bezier(0.16, 0.84, 0.44, 1);
+}
+
+.sg-chat-panel.is-closing {
+  animation: sgChatPanelOut 240ms ease-in;
 }
 
 .sg-chat-hero {
@@ -141,9 +150,9 @@
 .sg-chat-hero-bubble {
   background: #ffffff;
   color: #334155;
-  font-weight: 700;
-  font-size: 18px;
-  padding: 12px 18px;
+  font-weight: 600;
+  font-size: 15px;
+  padding: 8px 14px;
   border-radius: 9999px;
   border: 1px solid rgba(148, 163, 184, 0.35);
   box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
@@ -154,12 +163,19 @@
   width: 34px;
   height: 34px;
   border-radius: 12px;
-  border: 1px solid rgba(148, 163, 184, 0.45);
-  background: rgba(255, 255, 255, 0.9);
-  color: #1f2937;
+  border: 1px solid rgba(249, 115, 22, 0.45);
+  background: #f97316;
+  color: #ffffff;
   font-size: 20px;
   line-height: 1;
   cursor: pointer;
+  box-shadow: 0 8px 16px rgba(249, 115, 22, 0.25);
+  transition: transform 160ms ease, box-shadow 160ms ease;
+}
+
+.sg-chat-close:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 20px rgba(249, 115, 22, 0.35);
 }
 
 .sg-chat-body {
@@ -171,6 +187,8 @@
   overflow: auto;
   color: #334155;
   font-size: 13px;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 .sg-chat-empty {
@@ -181,6 +199,7 @@
   display: flex;
   margin-bottom: 10px;
   animation: sgChatMsgIn 200ms ease-out;
+  gap: 8px;
 }
 
 .sg-chat-message.is-user {
@@ -189,6 +208,26 @@
 
 .sg-chat-message.is-assistant {
   justify-content: flex-start;
+}
+
+.sg-chat-tts {
+  align-self: flex-end;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  background: rgba(255, 255, 255, 0.9);
+  font-size: 13px;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  transition: transform 140ms ease, box-shadow 140ms ease, border-color 140ms ease;
+}
+
+.sg-chat-tts:hover {
+  transform: translateY(-1px);
+  border-color: rgba(249, 115, 22, 0.5);
+  box-shadow: 0 8px 16px rgba(249, 115, 22, 0.2);
 }
 
 .sg-chat-bubble {
@@ -299,6 +338,32 @@
   transition: transform 160ms ease, box-shadow 160ms ease, background 160ms ease;
 }
 
+.sg-chat-mic {
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 10px;
+  padding: 6px 8px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.sg-chat-mic.is-active {
+  border-color: rgba(249, 115, 22, 0.6);
+  box-shadow: 0 6px 14px rgba(249, 115, 22, 0.2);
+}
+
+.sg-chat-mic:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.sg-chat-mic-hint {
+  margin-top: 6px;
+  padding: 0 6px;
+  font-size: 12px;
+  color: #64748b;
+}
+
 .sg-chat-send:disabled {
   opacity: 0.7;
   cursor: default;
@@ -345,11 +410,26 @@
 @keyframes sgChatPanelIn {
   from {
     opacity: 0;
-    transform: translateY(10px) scale(0.985);
+    transform: translate(36px, 36px) scale(0.18);
+    filter: blur(6px);
   }
   to {
     opacity: 1;
-    transform: translateY(0) scale(1);
+    transform: translate(0, 0) scale(1);
+    filter: blur(0);
+  }
+}
+
+@keyframes sgChatPanelOut {
+  from {
+    opacity: 1;
+    transform: translate(0, 0) scale(1);
+    filter: blur(0);
+  }
+  to {
+    opacity: 0;
+    transform: translate(32px, 32px) scale(0.16);
+    filter: blur(6px);
   }
 }
 
@@ -382,9 +462,10 @@
     top: 12px;
     bottom: 12px;
     width: auto;
-    height: auto;
+    height: calc(100dvh - 24px);
     border-radius: 20px;
     padding: 12px;
+    transform-origin: bottom center;
   }
 
   .sg-chat-body {
