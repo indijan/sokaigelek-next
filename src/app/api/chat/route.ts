@@ -19,6 +19,40 @@ type SearchResult = {
     snippet: string;
 };
 
+type ChatHistoryItem = {
+    role: "user" | "assistant";
+    content: string | null;
+};
+
+function formatHistory(items: ChatHistoryItem[]): string {
+    const lines = items
+        .map((m) => {
+            const role = m.role === "user" ? "Felhasználó" : "Asszisztens";
+            const text = String(m.content || "").trim();
+            if (!text) return "";
+            return `${role}: ${text}`;
+        })
+        .filter(Boolean);
+    return lines.join("\n");
+}
+
+function looksLikeFollowUp(message: string): boolean {
+    const trimmed = message.trim().toLowerCase();
+    if (trimmed.length <= 50) return true;
+    return (
+        trimmed.startsWith("és ") ||
+        trimmed.startsWith("es ") ||
+        trimmed.startsWith("mi a véleményed") ||
+        trimmed.startsWith("mit gondolsz") ||
+        trimmed.startsWith("és a") ||
+        trimmed.startsWith("és az") ||
+        trimmed.startsWith("mi van") ||
+        trimmed.includes("erről") ||
+        trimmed.includes("arról") ||
+        trimmed.includes("ezekről")
+    );
+}
+
 async function fetchSearchResults(query: string, reqUrl: string, limit = 5): Promise<SearchResult[]> {
     const url = new URL("/api/ai-search", reqUrl);
     url.searchParams.set("q", query);
@@ -75,7 +109,37 @@ export async function POST(req: Request) {
         if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    const sources = await fetchSearchResults(body.message, req.url, 5);
+    let historyText = "";
+    let lastUserMessage = "";
+    if (conversationId) {
+        const { data: historyRows } = await supabaseServer
+            .from("messages")
+            .select("role, content, created_at")
+            .eq("conversation_id", conversationId)
+            .order("created_at", { ascending: false })
+            .limit(8);
+
+        if (Array.isArray(historyRows) && historyRows.length > 0) {
+            const chronological = [...historyRows].reverse();
+            const cleaned = chronological.filter((m) => (m.role === "user" || m.role === "assistant"));
+            if (cleaned.length > 0) {
+                const last = cleaned[cleaned.length - 1];
+                if (last?.role === "user" && String(last?.content || "").trim() === body.message.trim()) {
+                    cleaned.pop();
+                }
+            }
+            const lastUser = [...cleaned].reverse().find((m) => m.role === "user");
+            lastUserMessage = String(lastUser?.content || "").trim();
+            historyText = formatHistory(cleaned.slice(-6));
+        }
+    }
+
+    const searchQuery =
+        lastUserMessage && looksLikeFollowUp(body.message)
+            ? `${lastUserMessage}\n${body.message}`
+            : body.message;
+
+    const sources = await fetchSearchResults(searchQuery, req.url, 5);
     const sourcesText = sources
         .map((s, i) => {
             const url = s.url ? ` (${s.url})` : "";
@@ -87,15 +151,17 @@ export async function POST(req: Request) {
     const sys =
         "Te a sokaigelek.hu kedves, segítőkész asszisztense vagy. Magyarul, tegeződve válaszolsz. " +
         "Adj rövid, hasznos, gyakorlati tanácsot (2-4 mondat), barátságos hangnemben. " +
-        "Mindig legyen a válasz végén egy finom, természetes termékajánlás: lehetőleg 1 konkrét termék a forrásokból, " +
+        "Ha a kérdés rövid vagy utaló, vizsgáld meg az előzményeket, és válaszolj ugyanabban a témában, ha van kapcsolat. " +
+        "Mindig legyen a válasz végén egy finom, természetes termékajánlás, legfeljebb 1 rövid mondatban: lehetőleg 1 konkrét termék a forrásokból, " +
         "vagy ha nincs releváns termék a forrásokban, akkor egy általános, nem tolakodó javaslat a termékek böngészésére/keresésére az oldalon. " +
         "Kizárólag a megadott forrásokra támaszkodj, és ne találj ki információt vagy terméket. " +
         "Ha nincs releváns találat, kérj pontosítást egy barátságos kérdéssel. " +
         "Ha orvosi kérdés, javasolj szakembert.";
 
+    const historyBlock = historyText ? `Előzmények:\n${historyText}\n\n` : "";
     const userContent = sources.length
-        ? `Kérdés: ${body.message}\n\nForrások:\n${sourcesText}`
-        : `Kérdés: ${body.message}\n\nForrások: nincs releváns találat. Kérj pontosítást röviden.`;
+        ? `${historyBlock}Kérdés: ${body.message}\n\nForrások:\n${sourcesText}`
+        : `${historyBlock}Kérdés: ${body.message}\n\nForrások: nincs releváns találat. Kérj pontosítást röviden.`;
 
     const openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
         method: "POST",
@@ -121,6 +187,11 @@ export async function POST(req: Request) {
     const json = await openaiRes.json();
     const answer = json.choices?.[0]?.message?.content?.trim() ?? "Sajnálom, most nem sikerült válaszolnom.";
 
+    const answerLower = answer.toLowerCase();
+    const citedSources = sources
+        .filter((s) => answerLower.includes(String(s.title || "").toLowerCase()))
+        .slice(0, 3);
+
     // 4) log assistant msg
     {
         const { error } = await supabaseServer.from("messages").insert({
@@ -136,6 +207,6 @@ export async function POST(req: Request) {
     return NextResponse.json({
         conversationId,
         answer,
-        sources,
+        sources: citedSources,
     });
 }

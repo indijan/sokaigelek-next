@@ -21,6 +21,11 @@ type ChatMessage = {
   isTyping?: boolean;
 };
 
+type ChatOpenDetail = {
+  seedMessage?: string;
+  source?: string;
+};
+
 function getOrCreateUserId() {
   try {
     const key = "sg_chat_user_id";
@@ -89,7 +94,25 @@ export default function ChatWidget() {
   }, [mounted, messages, conversationId]);
 
   useEffect(() => {
-    const handler = () => setOpen(true);
+    const handler = (evt?: Event) => {
+      const detail = (evt as CustomEvent<ChatOpenDetail> | undefined)?.detail;
+      setOpen(true);
+      const seed = String(detail?.seedMessage || "").trim();
+      if (seed) {
+        setMessages((prev) => {
+          if (prev.length > 0) return prev;
+          if (prev.some((m) => m.id === "sg_seed")) return prev;
+          return [
+            ...prev,
+            {
+              id: "sg_seed",
+              role: "assistant",
+              content: seed,
+            },
+          ];
+        });
+      }
+    };
     window.addEventListener("sg:chat:open", handler);
     return () => window.removeEventListener("sg:chat:open", handler);
   }, []);
@@ -197,6 +220,11 @@ export default function ChatWidget() {
     setInput("");
   };
 
+  const closeChat = () => {
+    setOpen(false);
+    window.dispatchEvent(new CustomEvent("sg:chat:close"));
+  };
+
   const ui = useMemo(() => {
     // NOTE: we intentionally render into document.body (portal)
     // so that parent layout CSS (e.g. transform/overflow) can’t push it off-screen.
@@ -219,7 +247,7 @@ export default function ChatWidget() {
         <button
           type="button"
           aria-label="Chat bezárása"
-          onClick={() => setOpen(false)}
+          onClick={closeChat}
           className="sg-chat-backdrop"
         />
 
@@ -232,7 +260,7 @@ export default function ChatWidget() {
             <button
               type="button"
               className="sg-chat-close"
-              onClick={() => setOpen(false)}
+              onClick={closeChat}
               aria-label="Chat bezárása"
             >
               ×

@@ -1,10 +1,11 @@
 import Link from "next/link";
+import ArticleChatTrigger from "@/components/Article/ArticleChatTrigger";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { supabaseServer } from "@/lib/supabaseServer";
 import ShareButtons from "@/components/Article/ShareButtons";
 import ArticleAudioSummary from "@/components/Article/ArticleAudioSummary";
-import SubscribeSlideInClient from "@/components/Article/SubscribeSlideInClient";
+import SubscribeInline from "@/components/Article/SubscribeInline";
 import { cdnImageUrl } from "@/lib/cdn";
 import "../article.css";
 
@@ -336,6 +337,7 @@ export default async function ArticlePageRoute({ params }: Props) {
 
   return (
     <main className="container page">
+      <ArticleChatTrigger title={article.title} excerpt={(article as any).excerpt ?? null} />
       <style
         dangerouslySetInnerHTML={{
           __html: `
@@ -542,6 +544,10 @@ export default async function ArticlePageRoute({ params }: Props) {
             </div>
           ) : null}
           <ShareButtons url={shareUrl} title={article.title || ""} />
+          <SubscribeInline
+            categorySlug={String((article as any).category_slug || "").trim()}
+            categoryLabel={categoryLabel || null}
+          />
         </article>
       </section>
 
@@ -602,11 +608,6 @@ export default async function ArticlePageRoute({ params }: Props) {
           ) : null}
         </section>
       ) : null}
-
-      <SubscribeSlideInClient
-        categorySlug={String((article as any).category_slug || "").trim()}
-        categoryLabel={categoryLabel || null}
-      />
 
     </main>
   );
