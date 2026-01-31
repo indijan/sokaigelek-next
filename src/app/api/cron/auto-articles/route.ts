@@ -586,7 +586,7 @@ async function postToFacebook(article: any) {
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://sokaigelek.hu";
   const link = `${siteUrl.replace(/\/$/, "")}/cikkek/${article.slug}`;
   const messageParts = [article.title, article.excerpt].filter(Boolean);
-  const message = messageParts.join("\n\n");
+  const message = `${messageParts.join("\n\n")} @követő`;
 
   const url = `https://graph.facebook.com/v19.0/${pageId}/feed`;
   const body = new URLSearchParams({
