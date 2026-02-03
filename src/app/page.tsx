@@ -75,12 +75,14 @@ function CardMedia({
     "1 / 1";
   const sizes =
     variant === "topic"
-      ? "(max-width: 768px) 100vw, 480px"
+      ? "(max-width: 600px) 50vw, (max-width: 900px) 33vw, 480px"
       : variant === "topic-tall"
-        ? "(max-width: 768px) 100vw, 360px"
+        ? "(max-width: 600px) 50vw, (max-width: 900px) 33vw, 360px"
         : variant === "icon"
           ? "160px"
           : "(max-width: 640px) 100vw, 33vw";
+  const quality =
+    variant === "topic" || variant === "topic-tall" ? 60 : 70;
   const dimensions =
     variant === "topic"
       ? { width: 480, height: 320 }
@@ -128,7 +130,7 @@ function CardMedia({
           style={{ width: "100%", height: "100%", objectFit: "cover" }}
           priority={priority}
           fetchPriority={fetchPriority}
-          quality={70}
+          quality={quality}
         />
       )}
     </div>
