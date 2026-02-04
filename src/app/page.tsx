@@ -8,6 +8,8 @@ import { formatHuf } from "@/lib/formatHuf";
 import YouTubeEmbed from "@/components/YouTubeEmbed";
 import "./home.css";
 
+export const revalidate = 900;
+
 type Topic =
   | {
       label: string;

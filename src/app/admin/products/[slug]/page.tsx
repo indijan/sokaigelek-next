@@ -9,7 +9,7 @@ import UnsavedFormGuard from "@/components/admin/UnsavedFormGuard";
 
 type Props = {
     params: Promise<{ slug: string }>;
-    searchParams?: Promise<{ err?: string | string[] }>;
+    searchParams?: Promise<{ err?: string | string[]; ok?: string | string[] }>;
 };
 
 function parseOptionalNumber(value: FormDataEntryValue | null) {
@@ -36,6 +36,8 @@ export default async function AdminProductEditPage({ params, searchParams }: Pro
     const sp = (await searchParams) ?? {};
     const errParam = (sp as any).err;
     const errMessage = Array.isArray(errParam) ? errParam[0] : errParam;
+    const okParam = (sp as any).ok;
+    const okMessage = Array.isArray(okParam) ? okParam[0] : okParam;
 
     const { data: product, error } = await supabaseServer
         .from("products")
@@ -78,6 +80,11 @@ export default async function AdminProductEditPage({ params, searchParams }: Pro
             {errMessage ? (
                 <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl p-3 text-sm">
                     {errMessage}
+                </div>
+            ) : null}
+            {!errMessage && okMessage ? (
+                <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl p-3 text-sm">
+                    Sikeres mentés.
                 </div>
             ) : null}
             <h1 className="text-2xl font-bold">{isNew ? "Új termék" : "Termék szerkesztése"}</h1>
@@ -258,7 +265,7 @@ export default async function AdminProductEditPage({ params, searchParams }: Pro
                     revalidatePath("/termek");
                     revalidatePath(`/termek/${nextSlug}`);
 
-                    redirect(`/admin/products/${nextSlug}`);
+                    redirect(`/admin/products/${nextSlug}?ok=1`);
                 }}
                 className="space-y-4"
             >
