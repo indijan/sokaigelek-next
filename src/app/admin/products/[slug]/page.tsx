@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import { supabaseServer } from "@/lib/supabaseServer";
 import ProductImageUploader from "@/components/admin/ProductImageUploader";
 import { slugifyHu } from "@/lib/slugifyHu";
@@ -252,6 +253,10 @@ export default async function AdminProductEditPage({ params, searchParams }: Pro
                             }
                         }
                     }
+
+                    revalidatePath("/");
+                    revalidatePath("/termek");
+                    revalidatePath(`/termek/${nextSlug}`);
 
                     redirect(`/admin/products/${nextSlug}`);
                 }}
