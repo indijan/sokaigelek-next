@@ -151,6 +151,12 @@
   cursor: pointer;
 }
 
+.nav-toggle-input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
 @media (max-width: 900px) {
   .site-header .inner {
     height: auto;
@@ -171,7 +177,7 @@
     padding: 0.5rem 0.4rem 0.75rem;
   }
 
-  .site-nav.is-open {
+  .nav-toggle-input:checked ~ .site-nav {
     display: flex;
   }
 

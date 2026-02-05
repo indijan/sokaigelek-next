@@ -184,6 +184,56 @@ export default async function Home() {
 
   return (
       <div className="container page" suppressHydrationWarning>
+        <style>{`
+          .actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+            margin-top: 1rem;
+          }
+
+          .hero {
+            padding: 1.75rem;
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--border);
+            background: linear-gradient(180deg, #ffffff 0%, var(--bg) 100%);
+            box-shadow: var(--shadow-sm);
+          }
+
+          .hero h1 { margin-top: 0.5rem; }
+
+          .card-title {
+            font-weight: 800;
+            letter-spacing: -0.01em;
+            margin-bottom: 0.35rem;
+          }
+
+          .card-actions {
+            margin-top: 1rem;
+          }
+
+          .callout {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            padding: 1.25rem;
+            border-radius: var(--radius-lg);
+            border: 1px solid rgba(101, 163, 13, 0.30);
+            background: rgba(101, 163, 13, 0.12);
+          }
+
+          .callout-title {
+            font-weight: 800;
+            letter-spacing: -0.01em;
+            margin-bottom: 0.15rem;
+          }
+
+          .defer-section {
+            content-visibility: auto;
+            contain-intrinsic-size: 1000px;
+          }
+        `}</style>
         {/* HERO */}
         <section className="hero">
           <h1>Élj sokáig. Egészségesen.</h1>

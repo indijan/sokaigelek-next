@@ -5,7 +5,7 @@ import type React from "react";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import ChatWidgetClient from "@/components/ChatWidgetClient";
-import CookieNotice from "@/components/CookieNotice";
+import CookieNoticeClient from "@/components/CookieNoticeClient";
 import GtmConsentLoader from "@/components/GtmConsentLoader";
 
 export const metadata: Metadata = {
@@ -43,7 +43,7 @@ export default function RootLayout({
         <main className="min-h-screen container mx-auto px-4 py-6">{children}</main>
 
         <SiteFooter />
-        <CookieNotice />
+        <CookieNoticeClient />
 
         {/* Globális chat widget – pontosan egyszer */}
         <ChatWidgetClient />
