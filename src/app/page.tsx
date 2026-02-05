@@ -6,9 +6,25 @@ import { supabaseServer } from "@/lib/supabaseServer";
 import { cdnImageUrl } from "@/lib/cdn";
 import { formatHuf } from "@/lib/formatHuf";
 import YouTubeEmbed from "@/components/YouTubeEmbed";
-import "./home.css";
+import { unstable_cache } from "next/cache";
 
 export const revalidate = 900;
+export const dynamic = "force-static";
+
+const getFeaturedProducts = unstable_cache(
+  async () => {
+    const { data: featuredProducts } = await supabaseServer
+      .from("products")
+      .select("id, slug, name, short, image_url, price, regular_price, status")
+      .eq("is_featured", true)
+      .order("updated_at", { ascending: false })
+      .limit(4);
+
+    return featuredProducts ?? [];
+  },
+  ["home-featured-products"],
+  { revalidate }
+);
 
 type Topic =
   | {
@@ -140,14 +156,9 @@ function CardMedia({
 }
 
 export default async function Home() {
-  const { data: featuredProducts } = await supabaseServer
-    .from("products")
-    .select("id, slug, name, short, image_url, price, regular_price, status")
-    .eq("is_featured", true)
-    .order("updated_at", { ascending: false })
-    .limit(4);
+  const featuredProducts = await getFeaturedProducts();
 
-  const visibleFeatured = (featuredProducts ?? []).filter((p: any) => {
+  const visibleFeatured = featuredProducts.filter((p: any) => {
     const status = String(p?.status || "").trim();
     return !status || status === "published";
   });

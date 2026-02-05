@@ -1,5 +1,4 @@
 import Link from "next/link";
-import "./SiteFooter.css";
 
 function Icon({
                 name,
