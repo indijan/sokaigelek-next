@@ -1,10 +1,20 @@
+"use client";
+
+import React, { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { usePathname } from "next/navigation";
 import ChatOpenButton from "@/components/ChatOpenButton";
 import "./SiteHeader.css";
 
 export default function SiteHeader() {
-  const navToggleId = "site-nav-toggle";
+  const pathname = usePathname() || "/";
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  const isActive = (href: string) => {
+    if (href === "/") return pathname === "/";
+    return pathname === href || pathname.startsWith(href + "/");
+  };
 
   return (
     <header
@@ -33,37 +43,57 @@ export default function SiteHeader() {
           />
         </Link>
 
-        <input id={navToggleId} className="nav-toggle-input" type="checkbox" aria-hidden="true" />
-        <label htmlFor={navToggleId} className="nav-toggle" aria-label="Menü megnyitása">
-          ☰
-        </label>
+        <button
+          type="button"
+          className="nav-toggle"
+          aria-label="Menü megnyitása"
+          aria-expanded={menuOpen}
+          onClick={() => setMenuOpen((v) => !v)}
+        >
+          {menuOpen ? "✕" : "☰"}
+        </button>
 
-        <nav className="site-nav" aria-label="Fő navigáció">
+        <nav className={`site-nav ${menuOpen ? "is-open" : ""}`} aria-label="Fő navigáció">
           <Link
             href="/"
+            className={isActive("/") ? "is-active" : undefined}
+            aria-current={isActive("/") ? "page" : undefined}
+            onClick={() => setMenuOpen(false)}
           >
             Főoldal
           </Link>
 
           <Link
             href="/cikkek"
+            className={isActive("/cikkek") ? "is-active" : undefined}
+            aria-current={isActive("/cikkek") ? "page" : undefined}
+            onClick={() => setMenuOpen(false)}
           >
             Jóllét Kalauz
           </Link>
 
           <Link
             href="/termek"
+            className={isActive("/termek") ? "is-active" : undefined}
+            aria-current={isActive("/termek") ? "page" : undefined}
+            onClick={() => setMenuOpen(false)}
           >
             Étrend-kiegészítők
           </Link>
 
           <Link
             href="/kereses"
+            className={isActive("/kereses") ? "is-active" : undefined}
+            aria-current={isActive("/kereses") ? "page" : undefined}
+            onClick={() => setMenuOpen(false)}
           >
             Keresés
           </Link>
 
-          <ChatOpenButton className="header-cta" style={{ whiteSpace: "nowrap" }}>
+          <ChatOpenButton
+            className="header-cta"
+            style={{ whiteSpace: "nowrap" }}
+          >
             <span aria-hidden>💬</span>
             <span>Tanácsot kérek</span>
           </ChatOpenButton>
