@@ -855,6 +855,7 @@ Követelmények:
 - A bekezdések legyenek rövidek és könnyen olvashatók.
 - Rövid, tömör cím: max 60 karakter, lehetőleg 6-9 szó.
 - Ne írj meta-szöveget a stílusról (pl. "a cikk barátságos hangvételben...").
+- Ne írj önreflexív vagy kommentáló mondatot a cikkről (pl. "Ez a cikk ... elmagyarázza", "ebben a cikkben bemutatjuk", "az alábbiakban áttekintjük").
 - Ne kezdeményezz párbeszédet, ne tegyél "ha szeretnéd..." típusú záró felhívást.
 - Írj természetes, szakértői hangon, mintha egy tapasztalt egészségügyi szakíró fogalmazna.
 - Kerüld a sablonos, AI-szerű fordulatokat és az ismétlődő mondatszerkezeteket.

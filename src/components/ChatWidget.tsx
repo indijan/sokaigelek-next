@@ -25,6 +25,19 @@ type ChatOpenDetail = {
   source?: string;
 };
 
+function derivePageContext() {
+  if (typeof window === "undefined") return {};
+  const path = window.location.pathname || "";
+  const articleMatch = path.match(/^\/cikkek\/([^/]+)/);
+  if (articleMatch) {
+    return {
+      pageType: "article",
+      pageSlug: decodeURIComponent(articleMatch[1]),
+    };
+  }
+  return {};
+}
+
 function getOrCreateUserId() {
   try {
     const key = "sg_chat_user_id";
@@ -189,10 +202,16 @@ export default function ChatWidget() {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        // Pass article seed/context so the backend can continue the exact thread.
         body: JSON.stringify({
           message: text,
           conversationId,
           pageUrl: typeof window !== "undefined" ? window.location.href : undefined,
+          ...derivePageContext(),
+          seedContext:
+            !conversationId && messages.length > 0 && messages[0]?.id === "sg_seed"
+              ? messages[0].content
+              : undefined,
           visitorHash: typeof window !== "undefined" ? getOrCreateUserId() : undefined,
         }),
       });

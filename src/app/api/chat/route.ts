@@ -7,6 +7,7 @@ type ChatReq = {
     pageUrl?: string;
     pageType?: string;
     pageSlug?: string;
+    seedContext?: string;
     visitorHash?: string;
     consent?: boolean;
 };
@@ -134,9 +135,11 @@ export async function POST(req: Request) {
         }
     }
 
-    const searchQuery =
-        lastUserMessage && looksLikeFollowUp(body.message)
-            ? `${lastUserMessage}\n${body.message}`
+    const seedContext = String(body.seedContext || "").trim();
+    const searchQuery = lastUserMessage && looksLikeFollowUp(body.message)
+        ? `${lastUserMessage}\n${body.message}`
+        : seedContext && looksLikeFollowUp(body.message)
+            ? `${seedContext}\n${body.message}`
             : body.message;
 
     const sources = await fetchSearchResults(searchQuery, req.url, 5);
@@ -149,19 +152,22 @@ export async function POST(req: Request) {
 
     // 3) call OpenAI (egyszerű, első kör)
     const sys =
-        "Te a sokaigelek.hu kedves, segítőkész asszisztense vagy. Magyarul, tegeződve válaszolsz. " +
-        "Adj rövid, hasznos, gyakorlati tanácsot (2-4 mondat), barátságos hangnemben. " +
-        "Ha a kérdés rövid vagy utaló, vizsgáld meg az előzményeket, és válaszolj ugyanabban a témában, ha van kapcsolat. " +
-        "Mindig legyen a válasz végén egy finom, természetes termékajánlás, legfeljebb 1 rövid mondatban: lehetőleg 1 konkrét termék a forrásokból, " +
-        "vagy ha nincs releváns termék a forrásokban, akkor egy általános, nem tolakodó javaslat a termékek böngészésére/keresésére az oldalon. " +
+        "Te a sokaigelek.hu segítőkész asszisztense vagy. Magyarul, tegeződve válaszolsz. " +
+        "Adj rövid, hasznos, gyakorlati választ (2-5 mondat), természetes hangnemben. " +
+        "Ha a kérdés rövid, utaló vagy folytató jellegű, elsőként az előzmény és a seed kontextus alapján azonosítsd a témát, és azon belül válaszolj. " +
+        "Ne válts át más témára és ne találj ki új témát. " +
+        "Termékajánlást csak akkor adj, ha a felhasználó kifejezetten terméket kér, vagy egyértelműen gyakorlati megoldást keres erre. " +
+        "Ha nem kér terméket, ne adj termékajánlást. " +
         "Kizárólag a megadott forrásokra támaszkodj, és ne találj ki információt vagy terméket. " +
-        "Ha nincs releváns találat, kérj pontosítást egy barátságos kérdéssel. " +
-        "Ha orvosi kérdés, javasolj szakembert.";
+        "Ha a kérdés személyes egészségállapot-becslésre vonatkozik (pl. 'az enyém hány éves lehet?'), ne adj konkrét diagnózist; röviden magyarázd el, mitől függ és milyen vizsgálattal mérhető, majd tegyél fel 1 pontosító kérdést. " +
+        "Ha nincs releváns találat, kérj pontosítást egy rövid kérdéssel. " +
+        "Ha orvosi kockázat merül fel, javasolj szakembert.";
 
     const historyBlock = historyText ? `Előzmények:\n${historyText}\n\n` : "";
+    const seedBlock = seedContext ? `Cikkindító kontextus:\n${seedContext}\n\n` : "";
     const userContent = sources.length
-        ? `${historyBlock}Kérdés: ${body.message}\n\nForrások:\n${sourcesText}`
-        : `${historyBlock}Kérdés: ${body.message}\n\nForrások: nincs releváns találat. Kérj pontosítást röviden.`;
+        ? `${seedBlock}${historyBlock}Kérdés: ${body.message}\n\nForrások:\n${sourcesText}`
+        : `${seedBlock}${historyBlock}Kérdés: ${body.message}\n\nForrások: nincs releváns találat. Kérj pontosítást röviden.`;
 
     const openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
         method: "POST",

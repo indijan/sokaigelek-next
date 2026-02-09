@@ -26,8 +26,10 @@ export default function ArticleChatTrigger({ title, excerpt }: Props) {
       const baseSentence = firstSentence || teaser;
       const trimmedSentence =
         baseSentence.length > 160 ? `${baseSentence.slice(0, 157)}...` : baseSentence;
-      const seedMessage = trimmedSentence
-        ? `${trimmedSentence} Van ezzel kapcsolatban kérdésed?`
+      const normalizedSentence =
+        trimmedSentence && !/[.!?…]$/.test(trimmedSentence) ? `${trimmedSentence}.` : trimmedSentence;
+      const seedMessage = normalizedSentence
+        ? `${normalizedSentence} Van ezzel kapcsolatban kérdésed?`
         : topic
           ? `Miben segíthetek a(z) "${topic}" témában?`
           : "Miben segíthetek a cikk témájában?";
