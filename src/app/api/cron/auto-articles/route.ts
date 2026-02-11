@@ -3,7 +3,7 @@ import crypto from "crypto";
 import { supabaseServer } from "@/lib/supabaseServer";
 import { uploadVercelBlob } from "@/lib/blobStorage";
 import { slugifyHu } from "@/lib/slugifyHu";
-import { createCampaign, getOrCreateGroupId, scheduleCampaignNow, upsertSubscriber } from "@/lib/mailerlite";
+import { createCampaign, getOrCreateGroupId, scheduleCampaignNow, upsertSubscriber } from "@/lib/brevo";
 
 export const runtime = "nodejs";
 
@@ -113,10 +113,10 @@ async function sendEditorAlert(input: {
   html: string;
   editorEmail: string;
 }) {
-  const fromEmail = process.env.MAILERLITE_FROM_EMAIL || "";
-  const fromName = process.env.MAILERLITE_FROM_NAME || "";
+  const fromEmail = process.env.BREVO_FROM_EMAIL || process.env.MAILERLITE_FROM_EMAIL || "";
+  const fromName = process.env.BREVO_FROM_NAME || process.env.MAILERLITE_FROM_NAME || "";
   if (!fromEmail || !fromName) {
-    return { skipped: true, reason: "missing_mailerlite_from" };
+    return { skipped: true, reason: "missing_brevo_from" };
   }
 
   const groupId = await getOrCreateGroupId("editor-alerts");
@@ -935,44 +935,49 @@ Adj vissza egyetlen JSON objektumot:
 
     let factCheckIssues: Array<{ claim: string; correction: string; reason?: string; severity?: string }> = [];
     let factCheckHadIssues = false;
-    try {
-      const check = await factCheckArticle(article);
-      factCheckHadIssues = check.hasIssues;
-      factCheckIssues = check.issues;
-    } catch (err) {
-      factCheckHadIssues = true;
-      factCheckIssues = [
-        {
-          claim: "fact_check_failed",
-          correction: "A fact-check futtatása sikertelen, manuális ellenőrzés szükséges.",
-          reason: String((err as Error)?.message || err),
-          severity: "high",
-        },
-      ];
-    }
+    const maxFactFixLoops = Math.max(1, Math.min(5, Number(process.env.FACT_CHECK_MAX_FIX_LOOPS || "3")));
+    let factFixAttempts = 0;
 
-    if (factCheckHadIssues) {
+    for (let attempt = 1; attempt <= maxFactFixLoops; attempt += 1) {
+      factFixAttempts = attempt;
+      try {
+        const check = await factCheckArticle(article);
+        factCheckHadIssues = check.hasIssues;
+        factCheckIssues = check.issues;
+      } catch (err) {
+        factCheckHadIssues = true;
+        factCheckIssues = [
+          {
+            claim: "fact_check_failed",
+            correction: "A fact-check futtatása sikertelen, manuális ellenőrzés szükséges.",
+            reason: String((err as Error)?.message || err),
+            severity: "high",
+          },
+        ];
+      }
+
+      if (!factCheckHadIssues) break;
+      if (attempt >= maxFactFixLoops) break;
+
       try {
         const revised = await reviseArticleWithIssues(article, factCheckIssues);
-        if (revised?.content_html) {
-          article = {
-            ...article,
-            title: revised.title || article.title,
-            excerpt: revised.excerpt || article.excerpt,
-            content_html: revised.content_html || article.content_html,
-          };
-          await supabaseServer
-            .from("articles")
-            .update({
-              title: article.title,
-              excerpt: article.excerpt,
-              content_html: article.content_html,
-            })
-            .eq("id", article.id);
-          const recheck = await factCheckArticle(article);
-          factCheckHadIssues = recheck.hasIssues;
-          factCheckIssues = recheck.issues;
+        if (!revised?.content_html) {
+          throw new Error("fact_check_revision_empty");
         }
+        article = {
+          ...article,
+          title: revised.title || article.title,
+          excerpt: revised.excerpt || article.excerpt,
+          content_html: revised.content_html || article.content_html,
+        };
+        await supabaseServer
+          .from("articles")
+          .update({
+            title: article.title,
+            excerpt: article.excerpt,
+            content_html: article.content_html,
+          })
+          .eq("id", article.id);
       } catch (err) {
         factCheckHadIssues = true;
         factCheckIssues = [
@@ -983,6 +988,7 @@ Adj vissza egyetlen JSON objektumot:
             severity: "high",
           },
         ];
+        break;
       }
     }
 
@@ -1016,7 +1022,7 @@ Adj vissza egyetlen JSON objektumot:
       }
 
       runStatus = "error";
-      details = `fact_check_failed: ${issuesText}`;
+      details = `fact_check_failed_after_${factFixAttempts}_attempts: ${issuesText}`;
       await supabaseServer
         .from("article_automation_queue")
         .update({

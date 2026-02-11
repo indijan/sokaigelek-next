@@ -61,12 +61,13 @@ export default function SubscribeSlideIn({ categorySlug, categoryLabel }: Props)
     const fromEmailUtm =
       qsLower.includes("utm_medium=email") ||
       qsLower.includes("utm_medium=newsletter") ||
+      qsLower.includes("utm_source=brevo") ||
       qsLower.includes("utm_source=mailerlite") ||
       qsLower.includes("utm_source=mailer") ||
       qsLower.includes("utm_source=email") ||
       qsLower.includes("utm_campaign=digest") ||
       qsLower.includes("utm_campaign=newsletter");
-    if (ref.includes("mailerlite.com") || fromEmailUtm) {
+    if (ref.includes("brevo.com") || ref.includes("mailerlite.com") || fromEmailUtm) {
       return;
     }
     let timer: ReturnType<typeof setTimeout> | null = null;
