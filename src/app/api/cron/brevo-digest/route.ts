@@ -111,6 +111,8 @@ export async function GET(req: Request) {
   }
 
   const hours = Math.max(1, Math.min(72, Number(searchParams.get("hours") || "24")));
+  const force = searchParams.get("force") === "1" || searchParams.get("force") === "true";
+  const onlyCategory = String(searchParams.get("category") || "").trim();
   const end = new Date();
   const start = new Date(Date.now() - hours * 60 * 60 * 1000);
 
@@ -144,6 +146,7 @@ export async function GET(req: Request) {
   for (const a of articles || []) {
     const cat = String(a.category_slug || "").trim();
     if (!cat) continue;
+    if (onlyCategory && cat !== onlyCategory) continue;
     if (!byCategory.has(cat)) byCategory.set(cat, []);
     byCategory.get(cat)!.push(a);
   }
@@ -170,7 +173,9 @@ export async function GET(req: Request) {
         }
       }
 
-      const pendingItems = items.filter((a: any) => !alreadySentArticleIds.has(String(a?.id || "").trim()));
+      const pendingItems = force
+        ? items
+        : items.filter((a: any) => !alreadySentArticleIds.has(String(a?.id || "").trim()));
       if (!pendingItems.length) {
         results.push({ category, count: items.length, ok: true });
         continue;
