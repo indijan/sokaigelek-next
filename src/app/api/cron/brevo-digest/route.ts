@@ -44,7 +44,8 @@ function buildEmailHtml(params: {
   preferencesUrl?: string | null;
   greetingTag?: string | null;
 }) {
-  const greetingLine = params.greetingTag ? `Kedves ${params.greetingTag},` : "Kedves Olvasó,";
+  const greetingTag = String(params.greetingTag || "").trim();
+  const greetingLine = greetingTag ? `Kedves ${greetingTag},` : "Kedves Olvasó,";
 
   const items = params.articles
     .map(
@@ -120,10 +121,10 @@ export async function GET(req: Request) {
   const fromName = process.env.BREVO_FROM_NAME || process.env.MAILERLITE_FROM_NAME || "";
   const replyTo = process.env.BREVO_REPLY_TO || process.env.MAILERLITE_REPLY_TO || "";
   const preferencesTag =
-    process.env.BREVO_PREFERENCES_TAG || process.env.MAILERLITE_PREFERENCES_TAG || "{$preferences}";
+    process.env.BREVO_PREFERENCES_TAG || process.env.MAILERLITE_PREFERENCES_TAG || "{{ update_profile }}";
   const rawNameTag =
-    process.env.BREVO_FIRST_NAME_TAG || process.env.MAILERLITE_FIRST_NAME_TAG || "{$name}";
-  const firstNameTag = rawNameTag.replace(/\s+/g, "");
+    process.env.BREVO_FIRST_NAME_TAG || process.env.MAILERLITE_FIRST_NAME_TAG || "{{ contact.FIRSTNAME }}";
+  const firstNameTag = rawNameTag.trim();
   if (!fromEmail || !fromName) {
     return NextResponse.json({ error: "Missing BREVO_FROM_EMAIL or BREVO_FROM_NAME" }, { status: 500 });
   }
