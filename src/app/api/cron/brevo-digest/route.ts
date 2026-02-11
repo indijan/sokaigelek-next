@@ -108,7 +108,7 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  const hours = Math.max(1, Math.min(24 * 365, Number(searchParams.get("hours") || "24")));
+  const hours = Math.max(1, Math.min(24, Number(searchParams.get("hours") || "24")));
   const force = searchParams.get("force") === "1" || searchParams.get("force") === "true";
   const onlyCategory = String(searchParams.get("category") || "").trim();
   const end = new Date();
