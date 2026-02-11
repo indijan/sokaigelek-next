@@ -85,16 +85,13 @@ function buildEmailHtml(params: {
       <div style="margin-top:22px;color:#6b7280;font-weight:500;font-size:13px;">
         Hosszú és egészséges életet kíván a Sokáig élek csapata.
       </div>
-      ${
-        params.preferencesUrl
-          ? `
-        <div style="margin-top:30px;padding-top:16px;border-top:1px solid #eee;color:#6b7280;font-size:13px;line-height:1.5;">
-          Szeretnél más kategóriákról is értesülni vagy változtatni az adataidon?
-          <a href="${params.preferencesUrl}" style="color:#c2410c;text-decoration:none;font-weight:600;">Itt tudod beállítani</a>.
-        </div>
-      `
-          : ""
-      }
+      <div style="margin-top:30px;padding-top:16px;border-top:1px solid #eee;color:#6b7280;font-size:13px;line-height:1.6;">
+        Ha nem szeretnél több ilyen értesítést kapni,
+        <a href="{{ unsubscribe }}" style="color:#c2410c;text-decoration:none;font-weight:600;">itt tudsz leiratkozni</a>.
+        <br />
+        Ha módosítanád az adataidat vagy preferenciáidat, írj nekünk:
+        <a href="mailto:csakazertis@sokaigelek.hu" style="color:#c2410c;text-decoration:none;font-weight:600;">csakazertis@sokaigelek.hu</a>.
+      </div>
     </div>
   `;
 }

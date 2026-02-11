@@ -124,6 +124,7 @@ export async function createCampaign(input: {
   html: string;
   groupId: string;
 }) {
+  const updateFormIdRaw = process.env.BREVO_UPDATE_FORM_ID || "";
   const payload = {
     name: input.name,
     subject: input.subject,
@@ -136,6 +137,7 @@ export async function createCampaign(input: {
     recipients: {
       listIds: [Number(input.groupId)],
     },
+    updateFormId: updateFormIdRaw || undefined,
   };
   const created = await brevoRequest<{ id: number }>("/emailCampaigns", {
     method: "POST",
