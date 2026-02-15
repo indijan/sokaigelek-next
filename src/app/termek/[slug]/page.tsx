@@ -174,6 +174,13 @@ function BuyBox({
                 <span className="font-semibold text-gray-900">{discountPct}%</span>
               </div>
             ) : null}
+            <div className="mt-1 text-sm text-gray-600">
+              Klubtag kedvezmény az alap árból:{" "}
+              <span className="font-semibold text-gray-900">30%</span>
+            </div>
+            <div className="mt-1 text-sm text-gray-600">
+              + <span className="font-semibold text-gray-900">Promóciós kedvezmények</span>
+            </div>
           </div>
         </div>
       </div>

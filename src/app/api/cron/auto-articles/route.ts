@@ -4,6 +4,7 @@ import { supabaseServer } from "@/lib/supabaseServer";
 import { uploadVercelBlob } from "@/lib/blobStorage";
 import { slugifyHu } from "@/lib/slugifyHu";
 import { createCampaign, getOrCreateGroupId, scheduleCampaignNow, upsertSubscriber } from "@/lib/brevo";
+import { bestSimilarityHit, normalizeContentText } from "@/lib/contentSimilarity";
 
 export const runtime = "nodejs";
 
@@ -746,6 +747,57 @@ function encodeOauth(input: string) {
   return encodeURIComponent(input).replace(/[!'()*]/g, (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`);
 }
 
+type DuplicateCheckContext = {
+  recentTexts: string[];
+  pendingPrompts: string[];
+};
+
+async function buildDuplicateCheckContext(categorySlug?: string | null): Promise<DuplicateCheckContext> {
+  let articlesQuery = supabaseServer
+    .from("articles")
+    .select("title, excerpt, category_slug, created_at")
+    .order("created_at", { ascending: false })
+    .limit(120);
+  if (categorySlug) {
+    articlesQuery = articlesQuery.eq("category_slug", categorySlug);
+  }
+  const { data: recentArticles } = await articlesQuery;
+
+  let queueQuery = supabaseServer
+    .from("article_automation_queue")
+    .select("prompt, category_slug, status, created_at")
+    .in("status", ["pending", "processing"])
+    .order("created_at", { ascending: false })
+    .limit(120);
+  if (categorySlug) {
+    queueQuery = queueQuery.eq("category_slug", categorySlug);
+  }
+  const { data: queueRows } = await queueQuery;
+
+  const recentTexts = (recentArticles || [])
+    .map((a: any) => [String(a?.title || "").trim(), String(a?.excerpt || "").trim()].filter(Boolean).join(" — "))
+    .filter(Boolean);
+  const pendingPrompts = (queueRows || [])
+    .map((q: any) => String(q?.prompt || "").trim())
+    .filter(Boolean);
+
+  return { recentTexts, pendingPrompts };
+}
+
+function assertNotDuplicateText(candidate: string, context: DuplicateCheckContext, threshold = 0.74) {
+  const cleaned = normalizeContentText(candidate);
+  if (!cleaned) return;
+
+  const fromArticles = bestSimilarityHit(cleaned, context.recentTexts);
+  if (fromArticles && fromArticles.score >= threshold) {
+    throw new Error(`duplicate_content_detected(score=${fromArticles.score.toFixed(2)})`);
+  }
+  const fromQueue = bestSimilarityHit(cleaned, context.pendingPrompts);
+  if (fromQueue && fromQueue.score >= threshold) {
+    throw new Error(`duplicate_queue_topic_detected(score=${fromQueue.score.toFixed(2)})`);
+  }
+}
+
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const secret = searchParams.get("secret") || "";
@@ -839,6 +891,9 @@ export async function GET(req: Request) {
       }
       article = existingArticle;
     } else {
+      const duplicateContext = await buildDuplicateCheckContext(nextItem.category_slug || null);
+      assertNotDuplicateText(String(nextItem.prompt || ""), duplicateContext, 0.8);
+
       const prompt = `
 Te egy magyar egészség/életmód magazin szerzője vagy.
 Készíts egy cikket a következő témára/prompt alapján.
@@ -883,6 +938,8 @@ Adj vissza egyetlen JSON objektumot:
       if (!title || !content_html) {
         throw new Error("empty_article");
       }
+
+      assertNotDuplicateText(`${title}\n${excerpt}`, duplicateContext, 0.74);
 
       const baseSlug = slugifyHu(title);
       let nextSlug = baseSlug || `cikk-${Date.now()}`;

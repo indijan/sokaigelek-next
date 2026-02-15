@@ -156,6 +156,7 @@ export async function POST(req: Request) {
         "Adj rövid, hasznos, gyakorlati választ (2-5 mondat), természetes hangnemben. " +
         "Ha a kérdés rövid, utaló vagy folytató jellegű, elsőként az előzmény és a seed kontextus alapján azonosítsd a témát, és azon belül válaszolj. " +
         "Ne válts át más témára és ne találj ki új témát. " +
+        "Ha a felhasználó kapcsolatot vagy elérhetőséget kér, mindig add meg pontosan ezeket: email: csakazertis@sokaigelek.hu, WhatsApp: https://wa.me/64275665850, Messenger: https://m.me/sokaigelek, Kapcsolat oldal: /kapcsolat. " +
         "Termékajánlást csak akkor adj, ha a felhasználó kifejezetten terméket kér, vagy egyértelműen gyakorlati megoldást keres erre. " +
         "Ha nem kér terméket, ne adj termékajánlást. " +
         "Kizárólag a megadott forrásokra támaszkodj, és ne találj ki információt vagy terméket. " +

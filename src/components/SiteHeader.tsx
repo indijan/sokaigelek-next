@@ -90,6 +90,15 @@ export default function SiteHeader() {
             Keresés
           </Link>
 
+          <Link
+            href="/kapcsolat"
+            className={isActive("/kapcsolat") ? "is-active" : undefined}
+            aria-current={isActive("/kapcsolat") ? "page" : undefined}
+            onClick={() => setMenuOpen(false)}
+          >
+            Kapcsolat
+          </Link>
+
           <ChatOpenButton
             className="header-cta"
             style={{ whiteSpace: "nowrap" }}

@@ -19,6 +19,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${siteUrl}/cikkek`, changeFrequency: "daily", priority: 0.8 },
     { url: `${siteUrl}/termek`, changeFrequency: "weekly", priority: 0.8 },
     { url: `${siteUrl}/kategorak`, changeFrequency: "weekly", priority: 0.5 },
+    { url: `${siteUrl}/kapcsolat`, changeFrequency: "monthly", priority: 0.5 },
     { url: `${siteUrl}/adatvedelem`, changeFrequency: "yearly", priority: 0.3 },
     { url: `${siteUrl}/aszf`, changeFrequency: "yearly", priority: 0.3 },
   ];

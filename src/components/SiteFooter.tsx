@@ -217,6 +217,14 @@ export default function SiteFooter() {
                 </IconLink>
 
                 <IconLink
+                    href="https://m.me/sokaigelek"
+                    icon="facebook"
+                    external
+                >
+                  Messenger üzenet
+                </IconLink>
+
+                <IconLink
                     href="https://www.facebook.com/sokaigelek"
                     icon="facebook"
                     external
