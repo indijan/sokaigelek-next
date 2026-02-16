@@ -187,7 +187,7 @@ export async function GET(req: Request) {
       publish_at: new Date().toISOString(),
       post_to_facebook: true,
       post_to_pinterest: false,
-      post_to_x: false,
+      post_to_x: true,
     })
     .select("id, category_slug, created_at")
     .single();
