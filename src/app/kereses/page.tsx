@@ -342,8 +342,9 @@ export default async function KeresesPage(props: {
                 const { data, error } = await supabase
                     .from("products")
                     .select(
-                        "id, slug, name, short, description, image_url, price, regular_price"
+                        "id, slug, name, short, description, image_url, price, regular_price, status"
                     )
+                    .eq("status", "published")
                     // legyen stabil a találatok köre (ne essen ki releváns elem csak azért, mert túl alacsony a limit)
                     .order("id", { ascending: false })
                     .limit(2000);
@@ -395,8 +396,9 @@ export default async function KeresesPage(props: {
                 const { data, error } = await supabase
                     .from("articles")
                     .select(
-                        "id, slug, title, excerpt, content_html, cover_image_url"
+                        "id, slug, title, excerpt, content_html, cover_image_url, status"
                     )
+                    .eq("status", "published")
                     // legyen stabil a találatok köre (ne essen ki releváns elem csak azért, mert túl alacsony a limit)
                     .order("id", { ascending: false })
                     .limit(2000);

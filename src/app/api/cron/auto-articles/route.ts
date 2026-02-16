@@ -137,6 +137,9 @@ async function sendEditorAlert(input: {
 async function factCheckArticle(article: { title?: string; excerpt?: string; content_html?: string }) {
   const prompt = `
 Ellenőrizd a cikkben szereplő TÁRGYI állításokat. Csak akkor jelölj, ha nagy valószínűséggel hibás, félrevezető vagy pontatlan.
+Ne jelölj stílusbeli, óvatossági vagy hangsúlybeli kérdést hibának.
+Ne követelj ismételt "kisebb vizsgálat", "nem bizonyított", "további kutatás kell" típusú fordulatokat, ha ez már egyszer szerepel vagy a szöveg eleve óvatos.
+Csak olyan pontot jelölj, ami ténylegesen félrevezetheti az olvasót egészségügyi döntésben.
 
 Add vissza EGYETLEN JSON objektumban:
 {
@@ -179,6 +182,7 @@ async function reviseArticleWithIssues(article: { title?: string; excerpt?: stri
 Javítsd a cikket a felsorolt tárgyi hibák alapján. Csak a hibákat javítsd, a stílust, hangnemet, szerkezetet tartsd meg.
 FONTOS: A "Javítás" mező iránymutatás, nem feltétlenül beillesztendő szöveg. Úgy írd át a releváns részt, hogy természetesen illeszkedjen a szövegkörnyezetbe, közérthetően, szakzsargon nélkül. Ha az állítás javíthatatlan vagy félrevezető, töröld a hibás részt (ne hagyj benne magyarázó/oktató mondatot).
 Ne adj hozzá új, ismétlődő orvosi figyelmeztetéseket (pl. "beszéld meg orvosoddal"). Ha szükséges, legfeljebb egyszer szerepelhet a cikk teljes szövegében. Ha a cikk végén már van figyelmeztetés, ne tegyél közbe újat. Kerüld a pontosvessző használatát.
+Ne tedd túlzottan védekezővé vagy ijesztővé a szöveget. Kerüld a mantraszerű bizonytalansági fordulatok ismétlését.
 Adj vissza EGYETLEN JSON objektumot:
 {
   "title": "...",
@@ -747,6 +751,12 @@ function encodeOauth(input: string) {
   return encodeURIComponent(input).replace(/[!'()*]/g, (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`);
 }
 
+function normalizeSeverity(value?: string): "low" | "medium" | "high" {
+  const v = String(value || "").toLowerCase().trim();
+  if (v === "low" || v === "medium" || v === "high") return v;
+  return "medium";
+}
+
 type DuplicateCheckContext = {
   recentTexts: string[];
   pendingPrompts: string[];
@@ -996,7 +1006,7 @@ Adj vissza egyetlen JSON objektumot:
 
     let factCheckIssues: Array<{ claim: string; correction: string; reason?: string; severity?: string }> = [];
     let factCheckHadIssues = false;
-    const maxFactFixLoops = Math.max(1, Math.min(5, Number(process.env.FACT_CHECK_MAX_FIX_LOOPS || "3")));
+    const maxFactFixLoops = Math.max(1, Math.min(3, Number(process.env.FACT_CHECK_MAX_FIX_LOOPS || "2")));
     let factFixAttempts = 0;
 
     for (let attempt = 1; attempt <= maxFactFixLoops; attempt += 1) {
@@ -1050,6 +1060,16 @@ Adj vissza egyetlen JSON objektumot:
           },
         ];
         break;
+      }
+    }
+
+    if (factCheckHadIssues) {
+      const allLowSeverity =
+        factCheckIssues.length > 0 && factCheckIssues.every((i) => normalizeSeverity(i.severity) === "low");
+      if (allLowSeverity) {
+        const issuesText = formatIssuesMarkdown(factCheckIssues) || "- (nincs részletezett hiba)";
+        details = `fact_check_soft_warning_after_${factFixAttempts}_attempts: ${issuesText}`;
+        factCheckHadIssues = false;
       }
     }
 

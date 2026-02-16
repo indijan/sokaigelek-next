@@ -666,7 +666,7 @@ export default async function AdminArticleEditPage({ params, searchParams }: Pro
                         published_at = null;
                     }
 
-                    await supabaseServer
+                    const { error: saveErr } = await supabaseServer
                         .from("articles")
                         .update({
                             slug: nextSlug,
@@ -678,6 +678,9 @@ export default async function AdminArticleEditPage({ params, searchParams }: Pro
                             published_at,
                         })
                         .eq("id", id);
+                    if (saveErr) {
+                        redirect(`/admin/articles/${slug}?err=${encodeURIComponent(saveErr.message)}`);
+                    }
 
                     redirect(`/admin/articles/${nextSlug}`);
                 }}

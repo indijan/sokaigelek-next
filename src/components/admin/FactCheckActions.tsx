@@ -1,6 +1,8 @@
 "use client";
 
+import { useEffect } from "react";
 import { useActionState } from "react";
+import { useRouter } from "next/navigation";
 import AdminActionButton from "@/components/admin/AdminActionButton";
 
 type ActionState = { ok: boolean; message: string };
@@ -20,11 +22,20 @@ export default function FactCheckActions({
   onFactCheck,
   onFactFix,
 }: Props) {
+  const router = useRouter();
   const [checkState, checkAction] = useActionState(onFactCheck, initialState);
   const [fixState, fixAction] = useActionState(onFactFix, initialState);
 
   const message = fixState.message || checkState.message;
   const isOk = fixState.message ? fixState.ok : checkState.ok;
+
+  useEffect(() => {
+    // Fact-check/fix can change article content on the server.
+    // Refresh to ensure editor shows the latest persisted text.
+    if (fixState.ok || checkState.ok) {
+      router.refresh();
+    }
+  }, [fixState.ok, checkState.ok, router]);
 
   return (
     <div className="flex items-center gap-3 flex-wrap">
