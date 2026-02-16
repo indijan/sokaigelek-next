@@ -9,6 +9,13 @@ type FeedItem = {
   publishedAt?: string;
 };
 
+function stripHtml(input: string): string {
+  return String(input || "")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function decodeXmlText(input: string): string {
   return input
     .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1")
@@ -17,6 +24,29 @@ function decodeXmlText(input: string): string {
     .replace(/&gt;/g, ">")
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'");
+}
+
+function cleanSnippet(input: string, maxLen = 700): string {
+  const text = stripHtml(decodeXmlText(String(input || ""))).replace(/\s+/g, " ").trim();
+  if (!text) return "";
+  const clipped = text.length > maxLen ? `${text.slice(0, maxLen - 3).trim()}...` : text;
+  return clipped.replace(/\s+\.\.\.$/, "...");
+}
+
+function normalizeSourceLink(input: string): string {
+  const raw = String(input || "").trim();
+  if (!raw) return "";
+  try {
+    const url = new URL(raw);
+    const host = url.hostname.toLowerCase();
+    if (host.endsWith("google.com") && url.pathname === "/url") {
+      const target = url.searchParams.get("url");
+      if (target) return target.trim();
+    }
+    return raw;
+  } catch {
+    return raw;
+  }
 }
 
 function extractTag(block: string, tag: string): string {
@@ -198,10 +228,14 @@ export async function GET(req: Request) {
       continue;
     }
 
+    const cleanTitle = cleanSnippet(picked.title, 220);
+    const cleanSummary = cleanSnippet(picked.summary, 700);
+    const sourceLink = normalizeSourceLink(picked.link);
+
     const prompt = [
-      `Külső trend téma (forrás inspiráció): ${picked.title}`,
-      picked.summary ? `Rövid kivonat: ${picked.summary.slice(0, 700)}` : "",
-      `Forrás link: ${picked.link}`,
+      `Külső trend téma (forrás inspiráció): ${cleanTitle || picked.title}`,
+      cleanSummary ? `Rövid kivonat: ${cleanSummary}` : "",
+      `Forrás link: ${sourceLink || picked.link}`,
       "",
       "Írj új, eredeti cikket a témáról saját szerkesztésben. Ne másold a forrást, csak inspirációnak használd.",
     ]

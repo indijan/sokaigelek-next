@@ -752,7 +752,10 @@ type DuplicateCheckContext = {
   pendingPrompts: string[];
 };
 
-async function buildDuplicateCheckContext(categorySlug?: string | null): Promise<DuplicateCheckContext> {
+async function buildDuplicateCheckContext(
+  categorySlug?: string | null,
+  excludeQueueId?: string | null
+): Promise<DuplicateCheckContext> {
   let articlesQuery = supabaseServer
     .from("articles")
     .select("title, excerpt, category_slug, created_at")
@@ -765,7 +768,7 @@ async function buildDuplicateCheckContext(categorySlug?: string | null): Promise
 
   let queueQuery = supabaseServer
     .from("article_automation_queue")
-    .select("prompt, category_slug, status, created_at")
+    .select("id, prompt, category_slug, status, created_at")
     .in("status", ["pending", "processing"])
     .order("created_at", { ascending: false })
     .limit(120);
@@ -778,6 +781,7 @@ async function buildDuplicateCheckContext(categorySlug?: string | null): Promise
     .map((a: any) => [String(a?.title || "").trim(), String(a?.excerpt || "").trim()].filter(Boolean).join(" — "))
     .filter(Boolean);
   const pendingPrompts = (queueRows || [])
+    .filter((q: any) => !excludeQueueId || String(q?.id || "") !== String(excludeQueueId))
     .map((q: any) => String(q?.prompt || "").trim())
     .filter(Boolean);
 
@@ -891,7 +895,7 @@ export async function GET(req: Request) {
       }
       article = existingArticle;
     } else {
-      const duplicateContext = await buildDuplicateCheckContext(nextItem.category_slug || null);
+      const duplicateContext = await buildDuplicateCheckContext(nextItem.category_slug || null, nextItem.id);
       assertNotDuplicateText(String(nextItem.prompt || ""), duplicateContext, 0.8);
 
       const prompt = `
