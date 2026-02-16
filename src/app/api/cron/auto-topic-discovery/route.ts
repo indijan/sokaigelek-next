@@ -98,109 +98,134 @@ export async function GET(req: Request) {
     return NextResponse.json({ ok: true, skipped: "empty_feeds_config" });
   }
 
-  const forcedCategory = String(searchParams.get("category") || "").trim();
-  const category = forcedCategory || categories[dayIndexBudapest() % categories.length];
-  const feedUrls = feedsByCategory[category] || [];
-  if (!feedUrls.length) {
-    return NextResponse.json({ ok: true, skipped: "no_feed_for_category", category });
-  }
-
-  const { data: pendingForCategory } = await supabaseServer
-    .from("article_automation_queue")
-    .select("id", { count: "exact" })
-    .eq("category_slug", category)
-    .in("status", ["pending", "processing"]);
-  if ((pendingForCategory?.length || 0) > 0) {
-    return NextResponse.json({ ok: true, skipped: "pending_exists", category });
-  }
-
-  const [recentArticlesRes, recentQueueRes] = await Promise.all([
-    supabaseServer
-      .from("articles")
-      .select("title, excerpt, category_slug, created_at")
-      .eq("category_slug", category)
-      .order("created_at", { ascending: false })
-      .limit(120),
-    supabaseServer
-      .from("article_automation_queue")
-      .select("prompt, category_slug, created_at, status")
-      .eq("category_slug", category)
-      .in("status", ["pending", "processing", "done"])
-      .order("created_at", { ascending: false })
-      .limit(120),
-  ]);
-
-  const recentCorpus: string[] = [
-    ...(recentArticlesRes.data || []).map((a: any) => `${a.title || ""} ${a.excerpt || ""}`.trim()),
-    ...(recentQueueRes.data || []).map((q: any) => String(q.prompt || "").trim()),
-  ].filter(Boolean);
-
   const nowMs = Date.now();
   const recencyHours = Math.max(6, Math.min(240, Number(searchParams.get("recency_hours") || "72")));
   const recencyMs = recencyHours * 60 * 60 * 1000;
+  const forcedCategory = String(searchParams.get("category") || "").trim();
+  const maxCategoryAttempts = Math.max(
+    1,
+    Math.min(categories.length, Number(searchParams.get("max_category_attempts") || "3"))
+  );
 
-  const feedItemsNested = await Promise.all(feedUrls.map((u) => fetchFeedItems(u)));
-  const feedItems = feedItemsNested.flat().slice(0, 120);
+  const orderedCategories = forcedCategory
+    ? [forcedCategory]
+    : (() => {
+        const startIdx = dayIndexBudapest() % categories.length;
+        const rotated = [...categories.slice(startIdx), ...categories.slice(0, startIdx)];
+        return rotated.slice(0, maxCategoryAttempts);
+      })();
 
-  const sorted = [...feedItems].sort((a, b) => {
-    const ta = a.publishedAt ? new Date(a.publishedAt).getTime() : 0;
-    const tb = b.publishedAt ? new Date(b.publishedAt).getTime() : 0;
-    return tb - ta;
-  });
+  const attempts: Array<{ category: string; scanned: number; reason: string }> = [];
 
-  let picked: FeedItem | null = null;
-  let reason = "no_candidate";
-  for (const item of sorted) {
-    const ts = item.publishedAt ? new Date(item.publishedAt).getTime() : NaN;
-    if (!Number.isNaN(ts) && nowMs - ts > recencyMs) continue;
-    const candidateText = normalizeForDedup(item.title, item.summary);
-    if (!candidateText) continue;
-    const hit = bestSimilarityHit(candidateText, recentCorpus);
-    if (hit && hit.score >= 0.74) {
-      reason = `duplicate(score=${hit.score.toFixed(2)})`;
+  for (const category of orderedCategories) {
+    const feedUrls = feedsByCategory[category] || [];
+    if (!feedUrls.length) {
+      attempts.push({ category, scanned: 0, reason: "no_feed_for_category" });
       continue;
     }
-    picked = item;
-    break;
-  }
 
-  if (!picked) {
-    return NextResponse.json({ ok: true, skipped: reason, category, scanned: sorted.length });
-  }
+    const { data: pendingForCategory } = await supabaseServer
+      .from("article_automation_queue")
+      .select("id", { count: "exact" })
+      .eq("category_slug", category)
+      .in("status", ["pending", "processing"]);
+    if ((pendingForCategory?.length || 0) > 0) {
+      attempts.push({ category, scanned: 0, reason: "pending_exists" });
+      continue;
+    }
 
-  const prompt = [
-    `Külső trend téma (forrás inspiráció): ${picked.title}`,
-    picked.summary ? `Rövid kivonat: ${picked.summary.slice(0, 700)}` : "",
-    `Forrás link: ${picked.link}`,
-    "",
-    "Írj új, eredeti cikket a témáról saját szerkesztésben. Ne másold a forrást, csak inspirációnak használd.",
-  ]
-    .filter(Boolean)
-    .join("\n");
+    const [recentArticlesRes, recentQueueRes] = await Promise.all([
+      supabaseServer
+        .from("articles")
+        .select("title, excerpt, category_slug, created_at")
+        .eq("category_slug", category)
+        .order("created_at", { ascending: false })
+        .limit(120),
+      supabaseServer
+        .from("article_automation_queue")
+        .select("prompt, category_slug, created_at, status")
+        .eq("category_slug", category)
+        .in("status", ["pending", "processing", "done"])
+        .order("created_at", { ascending: false })
+        .limit(120),
+    ]);
 
-  const { error: insertErr, data: inserted } = await supabaseServer
-    .from("article_automation_queue")
-    .insert({
-      category_slug: category,
-      prompt,
-      status: "pending",
-      publish_at: new Date().toISOString(),
-      post_to_facebook: true,
-      post_to_pinterest: false,
-      post_to_x: true,
-    })
-    .select("id, category_slug, created_at")
-    .single();
+    const recentCorpus: string[] = [
+      ...(recentArticlesRes.data || []).map((a: any) => `${a.title || ""} ${a.excerpt || ""}`.trim()),
+      ...(recentQueueRes.data || []).map((q: any) => String(q.prompt || "").trim()),
+    ].filter(Boolean);
 
-  if (insertErr) {
-    return NextResponse.json({ ok: false, error: insertErr.message }, { status: 500 });
+    const feedItemsNested = await Promise.all(feedUrls.map((u) => fetchFeedItems(u)));
+    const feedItems = feedItemsNested.flat().slice(0, 120);
+
+    const sorted = [...feedItems].sort((a, b) => {
+      const ta = a.publishedAt ? new Date(a.publishedAt).getTime() : 0;
+      const tb = b.publishedAt ? new Date(b.publishedAt).getTime() : 0;
+      return tb - ta;
+    });
+
+    let picked: FeedItem | null = null;
+    let reason = "no_candidate";
+    for (const item of sorted) {
+      const ts = item.publishedAt ? new Date(item.publishedAt).getTime() : NaN;
+      if (!Number.isNaN(ts) && nowMs - ts > recencyMs) continue;
+      const candidateText = normalizeForDedup(item.title, item.summary);
+      if (!candidateText) continue;
+      const hit = bestSimilarityHit(candidateText, recentCorpus);
+      if (hit && hit.score >= 0.74) {
+        reason = `duplicate(score=${hit.score.toFixed(2)})`;
+        continue;
+      }
+      picked = item;
+      break;
+    }
+
+    if (!picked) {
+      attempts.push({ category, scanned: sorted.length, reason });
+      continue;
+    }
+
+    const prompt = [
+      `Külső trend téma (forrás inspiráció): ${picked.title}`,
+      picked.summary ? `Rövid kivonat: ${picked.summary.slice(0, 700)}` : "",
+      `Forrás link: ${picked.link}`,
+      "",
+      "Írj új, eredeti cikket a témáról saját szerkesztésben. Ne másold a forrást, csak inspirációnak használd.",
+    ]
+      .filter(Boolean)
+      .join("\n");
+
+    const { error: insertErr, data: inserted } = await supabaseServer
+      .from("article_automation_queue")
+      .insert({
+        category_slug: category,
+        prompt,
+        status: "pending",
+        publish_at: new Date().toISOString(),
+        post_to_facebook: true,
+        post_to_pinterest: false,
+        post_to_x: true,
+      })
+      .select("id, category_slug, created_at")
+      .single();
+
+    if (insertErr) {
+      return NextResponse.json({ ok: false, error: insertErr.message, attempts }, { status: 500 });
+    }
+
+    return NextResponse.json({
+      ok: true,
+      category,
+      queued: inserted?.id,
+      pickedTitle: picked.title,
+      pickedLink: picked.link,
+      attempts,
+    });
   }
 
   return NextResponse.json({
     ok: true,
-    category,
-    queued: inserted?.id,
-    pickedTitle: picked.title,
-    pickedLink: picked.link,
+    skipped: "no_candidate",
+    attempts,
   });
 }
