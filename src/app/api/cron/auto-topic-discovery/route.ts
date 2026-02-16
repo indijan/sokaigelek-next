@@ -102,15 +102,17 @@ export async function GET(req: Request) {
   const recencyHours = Math.max(6, Math.min(240, Number(searchParams.get("recency_hours") || "72")));
   const recencyMs = recencyHours * 60 * 60 * 1000;
   const forcedCategory = String(searchParams.get("category") || "").trim();
+  const rotationSeedRaw = searchParams.get("rotation_seed");
+  const rotationSeed = rotationSeedRaw === null ? 0 : Number(rotationSeedRaw) || 0;
   const maxCategoryAttempts = Math.max(
     1,
-    Math.min(categories.length, Number(searchParams.get("max_category_attempts") || "3"))
+    Math.min(categories.length, Number(searchParams.get("max_category_attempts") || String(categories.length)))
   );
 
   const orderedCategories = forcedCategory
     ? [forcedCategory]
     : (() => {
-        const startIdx = dayIndexBudapest() % categories.length;
+        const startIdx = (dayIndexBudapest() + rotationSeed) % categories.length;
         const rotated = [...categories.slice(startIdx), ...categories.slice(0, startIdx)];
         return rotated.slice(0, maxCategoryAttempts);
       })();
