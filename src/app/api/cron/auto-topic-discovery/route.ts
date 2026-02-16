@@ -66,6 +66,17 @@ function normalizeForDedup(title: string, summary: string): string {
   return normalizeContentText(`${title} ${summary}`.trim());
 }
 
+async function getNextQueuePosition(): Promise<number> {
+  const { data } = await supabaseServer
+    .from("article_automation_queue")
+    .select("position")
+    .order("position", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const currentMax = Number(data?.position || 0);
+  return Number.isFinite(currentMax) ? currentMax + 1 : 1;
+}
+
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const secret = searchParams.get("secret") || "";
@@ -197,9 +208,12 @@ export async function GET(req: Request) {
       .filter(Boolean)
       .join("\n");
 
+    const nextPosition = await getNextQueuePosition();
+
     const { error: insertErr, data: inserted } = await supabaseServer
       .from("article_automation_queue")
       .insert({
+        position: nextPosition,
         category_slug: category,
         prompt,
         status: "pending",
