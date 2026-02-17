@@ -49,6 +49,11 @@ function normalizeSourceLink(input: string): string {
   }
 }
 
+function extractSourceLinkFromPrompt(prompt: string): string {
+  const match = String(prompt || "").match(/Forrás link:\s*(\S+)/i);
+  return String(match?.[1] || "").trim();
+}
+
 function extractTag(block: string, tag: string): string {
   const match = block.match(new RegExp(`<${tag}[^>]*>([\\s\\S]*?)</${tag}>`, "i"));
   return decodeXmlText(String(match?.[1] || "")).replace(/\s+/g, " ").trim();
@@ -197,6 +202,11 @@ export async function GET(req: Request) {
       ...(recentArticlesRes.data || []).map((a: any) => `${a.title || ""} ${a.excerpt || ""}`.trim()),
       ...(recentQueueRes.data || []).map((q: any) => String(q.prompt || "").trim()),
     ].filter(Boolean);
+    const recentSourceLinks = new Set(
+      (recentQueueRes.data || [])
+        .map((q: any) => normalizeSourceLink(extractSourceLinkFromPrompt(String(q?.prompt || ""))))
+        .filter(Boolean)
+    );
 
     const feedItemsNested = await Promise.all(feedUrls.map((u) => fetchFeedItems(u)));
     const feedItems = feedItemsNested.flat().slice(0, 120);
@@ -214,6 +224,11 @@ export async function GET(req: Request) {
       if (!Number.isNaN(ts) && nowMs - ts > recencyMs) continue;
       const candidateText = normalizeForDedup(item.title, item.summary);
       if (!candidateText) continue;
+      const sourceLink = normalizeSourceLink(item.link);
+      if (sourceLink && recentSourceLinks.has(sourceLink)) {
+        reason = "duplicate_source_link";
+        continue;
+      }
       const hit = bestSimilarityHit(candidateText, recentCorpus);
       if (hit && hit.score >= 0.74) {
         reason = `duplicate(score=${hit.score.toFixed(2)})`;

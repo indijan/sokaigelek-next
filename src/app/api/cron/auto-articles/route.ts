@@ -768,7 +768,7 @@ async function buildDuplicateCheckContext(
 ): Promise<DuplicateCheckContext> {
   let articlesQuery = supabaseServer
     .from("articles")
-    .select("title, excerpt, category_slug, created_at")
+    .select("title, excerpt, content_html, category_slug, created_at")
     .order("created_at", { ascending: false })
     .limit(120);
   if (categorySlug) {
@@ -788,7 +788,15 @@ async function buildDuplicateCheckContext(
   const { data: queueRows } = await queueQuery;
 
   const recentTexts = (recentArticles || [])
-    .map((a: any) => [String(a?.title || "").trim(), String(a?.excerpt || "").trim()].filter(Boolean).join(" — "))
+    .map((a: any) =>
+      [
+        String(a?.title || "").trim(),
+        String(a?.excerpt || "").trim(),
+        stripHtml(String(a?.content_html || "")).slice(0, 4000).trim(),
+      ]
+        .filter(Boolean)
+        .join(" — ")
+    )
     .filter(Boolean);
   const pendingPrompts = (queueRows || [])
     .filter((q: any) => !excludeQueueId || String(q?.id || "") !== String(excludeQueueId))
@@ -953,7 +961,8 @@ Adj vissza egyetlen JSON objektumot:
         throw new Error("empty_article");
       }
 
-      assertNotDuplicateText(`${title}\n${excerpt}`, duplicateContext, 0.74);
+      const generatedForDedup = `${title}\n${excerpt}\n${stripHtml(content_html).slice(0, 4000)}`;
+      assertNotDuplicateText(generatedForDedup, duplicateContext, 0.72);
 
       const baseSlug = slugifyHu(title);
       let nextSlug = baseSlug || `cikk-${Date.now()}`;
