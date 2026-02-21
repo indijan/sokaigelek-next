@@ -113,6 +113,10 @@ async function getNextQueuePosition(): Promise<number> {
 }
 
 export async function GET(req: Request) {
+  if (process.env.AUTO_TOPIC_DISCOVERY_ENABLED !== "1") {
+    return NextResponse.json({ ok: true, skipped: "disabled" });
+  }
+
   const { searchParams } = new URL(req.url);
   const secret = searchParams.get("secret") || "";
   const expected = process.env.CRON_SECRET || "";

@@ -1015,7 +1015,7 @@ Adj vissza egyetlen JSON objektumot:
 
     let factCheckIssues: Array<{ claim: string; correction: string; reason?: string; severity?: string }> = [];
     let factCheckHadIssues = false;
-    const maxFactFixLoops = Math.max(1, Math.min(3, Number(process.env.FACT_CHECK_MAX_FIX_LOOPS || "2")));
+    const maxFactFixLoops = Math.max(1, Math.min(8, Number(process.env.FACT_CHECK_MAX_FIX_LOOPS || "5")));
     let factFixAttempts = 0;
 
     for (let attempt = 1; attempt <= maxFactFixLoops; attempt += 1) {
@@ -1073,29 +1073,20 @@ Adj vissza egyetlen JSON objektumot:
     }
 
     if (factCheckHadIssues) {
+      const issuesText = formatIssuesMarkdown(factCheckIssues) || "- (nincs részletezett hiba)";
       const allLowSeverity =
         factCheckIssues.length > 0 && factCheckIssues.every((i) => normalizeSeverity(i.severity) === "low");
-      if (allLowSeverity) {
-        const issuesText = formatIssuesMarkdown(factCheckIssues) || "- (nincs részletezett hiba)";
-        details = `fact_check_soft_warning_after_${factFixAttempts}_attempts: ${issuesText}`;
-        factCheckHadIssues = false;
-      }
-    }
-
-    if (factCheckHadIssues) {
-      await supabaseServer
-        .from("articles")
-        .update({ status: "draft" })
-        .eq("id", article.id);
+      const warningType = allLowSeverity ? "soft_warning" : "hard_warning_but_publish";
+      const warningMsg = `fact_check_${warningType}_after_${factFixAttempts}_attempts: ${issuesText}`;
+      details = details ? `${details} | ${warningMsg}` : warningMsg;
 
       const editorEmail = process.env.FACT_CHECK_ALERT_EMAIL || "indijanmac@gmail.com";
       const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://sokaigelek.hu";
       const articleUrl = `${siteUrl.replace(/\/$/, "")}/admin/articles/${article.slug}`;
-      const issuesText = formatIssuesMarkdown(factCheckIssues) || "- (nincs részletezett hiba)";
       const html = `
         <div style="font-family:Arial,Helvetica,sans-serif;color:#111827;">
-          <div style="font-size:16px;font-weight:600;margin-bottom:10px;">Fact-check figyelmeztetés</div>
-          <div style="margin-bottom:12px;">A cikk draft állapotba került, mert a fact-check hibát jelzett.</div>
+          <div style="font-size:16px;font-weight:600;margin-bottom:10px;">Fact-check figyelmeztetés (publikálva)</div>
+          <div style="margin-bottom:12px;">A cikk publikálva lett, de a fact-check után maradtak nyitott pontok.</div>
           <div style="margin-bottom:10px;"><strong>Cím:</strong> ${article.title || "(nincs cím)"}</div>
           <div style="margin-bottom:12px;"><a href="${articleUrl}">Szerkesztés megnyitása</a></div>
           <pre style="white-space:pre-wrap;font-size:13px;background:#f9fafb;border:1px solid #e5e7eb;padding:12px;border-radius:8px;">${issuesText}</pre>
@@ -1103,34 +1094,13 @@ Adj vissza egyetlen JSON objektumot:
       `;
       try {
         await sendEditorAlert({
-          subject: `Fact-check hiba: ${article.title || article.slug || "cikk"}`,
+          subject: `Fact-check warning: ${article.title || article.slug || "cikk"}`,
           html,
           editorEmail,
         });
       } catch (err) {
         console.warn("fact_check_email_failed", String((err as Error)?.message || err));
       }
-
-      runStatus = "error";
-      details = `fact_check_failed_after_${factFixAttempts}_attempts: ${issuesText}`;
-      await supabaseServer
-        .from("article_automation_queue")
-        .update({
-          status: "error",
-          last_error: details.slice(0, 1000),
-          article_id: article.id,
-        })
-        .eq("id", nextItem.id);
-
-      await supabaseServer.from("article_automation_runs").insert({
-        run_date: runDate,
-        status: runStatus,
-        details,
-        queue_id: nextItem.id,
-        article_id: article?.id || null,
-      });
-
-      return NextResponse.json({ ok: true, status: runStatus, reason: "fact_check_failed" });
     }
 
     const shouldPublish = isNewArticle || article.status === "published";
@@ -1205,7 +1175,7 @@ Adj vissza egyetlen JSON objektumot:
       .map(([key, value]) => `${key}:${value.status}${value.reason ? `(${value.reason})` : ""}`)
       .join(", ");
     if (socialSummary) {
-      details = `social=${socialSummary}`;
+      details = details ? `${details} | social=${socialSummary}` : `social=${socialSummary}`;
     }
 
     await supabaseServer
@@ -1214,9 +1184,7 @@ Adj vissza egyetlen JSON objektumot:
         status: "done",
         used_at: new Date().toISOString(),
         article_id: article?.id || nextItem.article_id,
-        last_error: socialSummary
-          ? `Social: ${socialSummary}`
-          : null,
+        last_error: details ? details.slice(0, 1000) : null,
       })
       .eq("id", nextItem.id);
   } catch (err: any) {
