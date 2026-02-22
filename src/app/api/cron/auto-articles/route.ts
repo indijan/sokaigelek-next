@@ -324,6 +324,31 @@ function stableHash(input: string): number {
   return Math.abs(h >>> 0);
 }
 
+function detectVisualTheme(input: {
+  title: string;
+  category: string;
+  headings: string[];
+  keySentences: string[];
+}): "nutrition" | "movement" | "sleep" | "heart" | "brain" | "hydration" | "generic" {
+  const hay = [
+    input.title,
+    input.category,
+    input.headings.join(" "),
+    input.keySentences.join(" "),
+  ]
+    .join(" ")
+    .toLowerCase();
+
+  const has = (arr: string[]) => arr.some((k) => hay.includes(k));
+  if (has(["hidrat", "elektrolit", "folyadek", "folyadék", "dehidr"])) return "hydration";
+  if (has(["taplalkoz", "táplálkoz", "etrend", "étrend", "zoldseg", "zöldség", "gyumolcs", "gyümölcs", "feherje", "fehérje"])) return "nutrition";
+  if (has(["seta", "séta", "mozgas", "mozgás", "edzes", "edzés", "sport", "lepesszam", "lépésszám"])) return "movement";
+  if (has(["alvas", "alvás", "inszomnia", "cirkadian"])) return "sleep";
+  if (has(["sziv", "szív", "er", "érrendszer", "vernyomas", "vérnyomás", "koleszterin"])) return "heart";
+  if (has(["agy", "memoria", "memória", "kognitiv", "kognitív", "koncentracio", "koncentráció"])) return "brain";
+  return "generic";
+}
+
 async function generateCoverImage(article: any) {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) throw new Error("Missing OPENAI_API_KEY");
@@ -338,16 +363,49 @@ async function generateCoverImage(article: any) {
 
   const imageSize = process.env.ARTICLE_COVER_IMAGE_SIZE || "1536x1024";
   const styleHint = process.env.ARTICLE_COVER_STYLE_HINT || "";
-  const creativeVariants = [
-    "Visual direction: optimistic natural still-life, fresh ingredients, glass water, bright morning light, no person.",
-    "Visual direction: active lifestyle scene with mixed-age people in motion, relaxed neutral expressions, no anxiety cues.",
-    "Visual direction: close-up hands interaction (preparing healthy food, pouring water, journaling), no face shown.",
-    "Visual direction: conceptual abstract health illustration with soft geometric forms, vibrant but elegant palette.",
-    "Visual direction: home wellness environment, calm tidy interior, warm daylight, subtle depth, no person.",
-    "Visual direction: outdoor wellbeing atmosphere (park/walk/sunlight), broad composition, hopeful mood.",
-  ] as const;
+  const theme = detectVisualTheme({ title, category, headings, keySentences });
+  const creativeVariantsByTheme: Record<string, readonly string[]> = {
+    nutrition: [
+      "Visual direction: premium nutrition still-life with relevant whole foods from the article context, no random props.",
+      "Visual direction: close-up hands preparing a healthy meal, natural kitchen light, no face.",
+    ],
+    movement: [
+      "Visual direction: dynamic walking/running scene outdoors, clear movement cues, optimistic energy.",
+      "Visual direction: athletic shoes and walking path composition, strong forward motion, no food objects.",
+    ],
+    sleep: [
+      "Visual direction: calm bedroom atmosphere, evening light, restful composition, no food/water props.",
+      "Visual direction: abstract moon/circadian concept with soft gradients, minimal scene.",
+    ],
+    heart: [
+      "Visual direction: heart-health concept with subtle cardio motifs and active lifestyle context.",
+      "Visual direction: abstract red/blue vascular-inspired forms, modern medical editorial style.",
+    ],
+    brain: [
+      "Visual direction: brain-health concept, walking + cognition visual metaphor, focus and clarity.",
+      "Visual direction: abstract neural/cognitive motif, clean high-contrast editorial composition.",
+    ],
+    hydration: [
+      "Visual direction: hydration-focused scene with clean water, electrolytes context, active lifestyle cues.",
+      "Visual direction: glass/water droplet macro with athletic context, crisp fresh palette.",
+    ],
+    generic: [
+      "Visual direction: conceptual health illustration with soft geometric forms, vibrant but elegant palette.",
+      "Visual direction: home wellness environment, calm tidy interior, warm daylight, no stress cues.",
+    ],
+  };
+  const creativeVariants = creativeVariantsByTheme[theme] || creativeVariantsByTheme.generic;
   const variantIdx = stableHash(`${title}|${category}`) % creativeVariants.length;
   const chosenVariant = creativeVariants[variantIdx];
+  const negativeByTheme: Record<string, string> = {
+    movement: "Hard negative: do not show vegetables, meal prep, fruit bowls, or glasses of water as main subject.",
+    brain: "Hard negative: avoid generic kitchen still-life, random vegetables, and unrelated hydration props.",
+    sleep: "Hard negative: avoid food imagery and fitness action shots.",
+    heart: "Hard negative: avoid unrelated kitchen still-life and random pantry objects.",
+    generic: "",
+    nutrition: "",
+    hydration: "",
+  };
 
   const prompt = [
     "Create a clean, modern blog cover image optimized for Facebook feed engagement.",
@@ -360,7 +418,9 @@ async function generateCoverImage(article: any) {
     "People are optional. Use objects, hands, silhouettes, or abstract/still-life scenes when fitting.",
     "If the topic is anatomy (heart, blood vessels, organs), use stylized or abstract visuals, not realistic organs.",
     "Do not include any text, letters, or typography on the image.",
+    `Primary theme: ${theme}. The image must match the title meaning directly.`,
     chosenVariant,
+    negativeByTheme[theme] || "",
     styleHint ? `Style hint: ${styleHint}` : "",
     `Title concept: ${title}`,
     category ? `Category: ${category}` : "",
