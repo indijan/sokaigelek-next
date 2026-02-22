@@ -315,6 +315,15 @@ function pickKeySentences(text: string, count: number): string[] {
   return picks.slice(0, count);
 }
 
+function stableHash(input: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < input.length; i += 1) {
+    h ^= input.charCodeAt(i);
+    h += (h << 1) + (h << 4) + (h << 7) + (h << 8) + (h << 24);
+  }
+  return Math.abs(h >>> 0);
+}
+
 async function generateCoverImage(article: any) {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) throw new Error("Missing OPENAI_API_KEY");
@@ -329,6 +338,16 @@ async function generateCoverImage(article: any) {
 
   const imageSize = process.env.ARTICLE_COVER_IMAGE_SIZE || "1536x1024";
   const styleHint = process.env.ARTICLE_COVER_STYLE_HINT || "";
+  const creativeVariants = [
+    "Visual direction: optimistic natural still-life, fresh ingredients, glass water, bright morning light, no person.",
+    "Visual direction: active lifestyle scene with mixed-age people in motion, relaxed neutral expressions, no anxiety cues.",
+    "Visual direction: close-up hands interaction (preparing healthy food, pouring water, journaling), no face shown.",
+    "Visual direction: conceptual abstract health illustration with soft geometric forms, vibrant but elegant palette.",
+    "Visual direction: home wellness environment, calm tidy interior, warm daylight, subtle depth, no person.",
+    "Visual direction: outdoor wellbeing atmosphere (park/walk/sunlight), broad composition, hopeful mood.",
+  ] as const;
+  const variantIdx = stableHash(`${title}|${category}`) % creativeVariants.length;
+  const chosenVariant = creativeVariants[variantIdx];
 
   const prompt = [
     "Create a clean, modern blog cover image optimized for Facebook feed engagement.",
@@ -336,10 +355,12 @@ async function generateCoverImage(article: any) {
     "Style: premium, soft lighting, subtle gradients, no clutter.",
     "Theme: health & wellbeing education (Hungarian audience).",
     "Avoid repetition: vary color palettes, subjects, and composition across images.",
-    "Do NOT always use female figures; mix genders and ages or omit people entirely.",
+    "Do NOT always use portraits. Prefer diverse compositions and often avoid faces.",
+    "If a person appears: varied ages and genders, friendly neutral expression, never worried/stressed look.",
     "People are optional. Use objects, hands, silhouettes, or abstract/still-life scenes when fitting.",
     "If the topic is anatomy (heart, blood vessels, organs), use stylized or abstract visuals, not realistic organs.",
     "Do not include any text, letters, or typography on the image.",
+    chosenVariant,
     styleHint ? `Style hint: ${styleHint}` : "",
     `Title concept: ${title}`,
     category ? `Category: ${category}` : "",

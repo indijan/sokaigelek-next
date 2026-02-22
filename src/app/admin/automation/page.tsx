@@ -553,9 +553,9 @@ export default async function AdminAutomationPage({
                                     position,
                                     status: "pending",
                                     publish_at: new Date().toISOString(),
-                                    post_to_facebook: false,
+                                    post_to_facebook: true,
                                     post_to_pinterest: false,
-                                    post_to_x: false,
+                                    post_to_x: true,
                                   });
                                   if (error) {
                                     redirect(`/admin/automation?err=${encodeURIComponent(error.message)}`);
