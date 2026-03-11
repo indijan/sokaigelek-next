@@ -208,6 +208,76 @@ Tartalom (HTML): ${article.content_html || ""}
   };
 }
 
+async function polishTitleAndExcerpt(article: { title?: string; excerpt?: string; content_html?: string }) {
+  const prompt = `
+Javítsd ki a cikk címét és kivonatát úgy, hogy természetes, idiomatikus magyar nyelven szóljanak laikus olvasóhoz.
+
+Szabályok:
+- A cím legyen rövid, tiszta, természetes magyar.
+- A kivonat legyen 1-2 mondat, konkrét és közérthető.
+- Kerüld a magyartalan, gépies, tükörfordított vagy zavaros kifejezéseket.
+- Kerüld az olyan homályos szavakat, mint: "szívdolog", "immersion hatás", "megnövekedett vagus tónus", "kedvező paraméterek".
+- Ne használj fölösleges szakzsargont. Ha mégis muszáj, egyszerűen fogalmazd át.
+- Ne ígérj gyógyulást, és ne legyen kattintásvadász.
+- A tartalom jelentését tartsd meg.
+
+Adj vissza EGYETLEN JSON objektumot:
+{
+  "title": "...",
+  "excerpt": "..."
+}
+
+CIKK:
+Cím: ${article.title || ""}
+Kivonat: ${article.excerpt || ""}
+Tartalom (HTML): ${article.content_html || ""}
+`.trim();
+
+  const parsed = await openaiJson(prompt);
+  return {
+    title: String(parsed?.title || "").trim(),
+    excerpt: String(parsed?.excerpt || "").trim(),
+  };
+}
+
+async function polishArticleForLayAudience(article: { title?: string; excerpt?: string; content_html?: string }) {
+  const prompt = `
+Dolgozd át a cikket úgy, hogy természetes, idiomatikus magyar nyelven szóljon laikus olvasóhoz.
+
+Szabályok:
+- A jelentést, a szerkezetet és a fő állításokat tartsd meg.
+- Javítsd a magyartalan, gépies, tükörfordított vagy zavaros megfogalmazásokat.
+- Írd át a túl szakmai, túl elvont vagy laikusnak nehezen érthető részeket közérthetőre.
+- Kerüld az orvosi, élettani vagy edzéselméleti szakzsargont.
+- Ha egy szakkifejezés nélkül pontatlan lenne a szöveg, azonnal ugyanabban a mondatban magyarázd meg egyszerű magyar nyelven.
+- Ne maradjanak benne ilyen jellegű fordulatok: "immersion hatás", "megnövekedett vagus tónus", "kedvező paraméterek", "szívdolog".
+- Rossz példa: "Pulzus a vízben más lehet: az immersion hatás és a megnövekedett vagus tónus miatt..."
+- Jó irány: "A vízben gyakran alacsonyabb lehet a pulzusod, mert a tested másképp reagál a víz nyomására és a nyugodtabb terhelésre..."
+- Ne ígérj gyógyulást.
+- Ne tedd tudálékossá vagy tankönyvszagúvá a szöveget.
+- A hangnem maradjon empatikus, természetes és hiteles.
+
+Adj vissza EGYETLEN JSON objektumot:
+{
+  "title": "...",
+  "excerpt": "...",
+  "content_html": "<p>...</p>..."
+}
+
+CIKK:
+Cím: ${article.title || ""}
+Kivonat: ${article.excerpt || ""}
+Tartalom (HTML): ${article.content_html || ""}
+`.trim();
+
+  const parsed = await openaiJson(prompt);
+  return {
+    title: String(parsed?.title || "").trim(),
+    excerpt: String(parsed?.excerpt || "").trim(),
+    content_html: String(parsed?.content_html || "").trim(),
+  };
+}
+
 function stripHtml(input: string): string {
   return input
     .replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, " ")
@@ -1038,8 +1108,8 @@ Adj vissza egyetlen JSON objektumot:
 `.trim();
 
       const generated = await openaiJson(prompt);
-      const title = String(generated?.title || "").trim();
-      const excerpt = String(generated?.excerpt || "").trim();
+      let title = String(generated?.title || "").trim();
+      let excerpt = String(generated?.excerpt || "").trim();
       let content_html = String(generated?.content_html || "").trim();
       const disclaimer =
         "Megjegyzés: A cikkben szereplő információk tájékoztató jellegűek, nem helyettesítik az orvosi tanácsadást. Egészségügyi problémák esetén kérjük, fordulj szakorvoshoz vagy egészségügyi szakemberhez.";
@@ -1050,6 +1120,23 @@ Adj vissza egyetlen JSON objektumot:
 
       if (!title || !content_html) {
         throw new Error("empty_article");
+      }
+
+      try {
+        const polished = await polishTitleAndExcerpt({ title, excerpt, content_html });
+        title = polished.title || title;
+        excerpt = polished.excerpt || excerpt;
+      } catch (err) {
+        console.warn("title_excerpt_polish_failed", String((err as Error)?.message || err));
+      }
+
+      try {
+        const polishedArticle = await polishArticleForLayAudience({ title, excerpt, content_html });
+        title = polishedArticle.title || title;
+        excerpt = polishedArticle.excerpt || excerpt;
+        content_html = polishedArticle.content_html || content_html;
+      } catch (err) {
+        console.warn("article_lay_polish_failed", String((err as Error)?.message || err));
       }
 
       const generatedForDedup = `${title}\n${excerpt}\n${stripHtml(content_html).slice(0, 4000)}`;
@@ -1140,6 +1227,27 @@ Adj vissza egyetlen JSON objektumot:
           excerpt: revised.excerpt || article.excerpt,
           content_html: revised.content_html || article.content_html,
         };
+        try {
+          const polished = await polishTitleAndExcerpt(article);
+          article = {
+            ...article,
+            title: polished.title || article.title,
+            excerpt: polished.excerpt || article.excerpt,
+          };
+        } catch (err) {
+          console.warn("title_excerpt_polish_failed", String((err as Error)?.message || err));
+        }
+        try {
+          const polishedArticle = await polishArticleForLayAudience(article);
+          article = {
+            ...article,
+            title: polishedArticle.title || article.title,
+            excerpt: polishedArticle.excerpt || article.excerpt,
+            content_html: polishedArticle.content_html || article.content_html,
+          };
+        } catch (err) {
+          console.warn("article_lay_polish_failed", String((err as Error)?.message || err));
+        }
         await supabaseServer
           .from("articles")
           .update({
