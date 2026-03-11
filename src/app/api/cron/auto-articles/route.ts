@@ -329,7 +329,7 @@ function detectVisualTheme(input: {
   category: string;
   headings: string[];
   keySentences: string[];
-}): "nutrition" | "movement" | "sleep" | "heart" | "brain" | "hydration" | "generic" {
+}): "nutrition" | "movement" | "sleep" | "heart" | "brain" | "hydration" | "swimming" | "generic" {
   const hay = [
     input.title,
     input.category,
@@ -340,6 +340,7 @@ function detectVisualTheme(input: {
     .toLowerCase();
 
   const has = (arr: string[]) => arr.some((k) => hay.includes(k));
+  if (has(["uszas", "úszás", "uszni", "úszni", "uszod", "uszoda", "medence", "swim", "swimmer"])) return "swimming";
   if (has(["hidrat", "elektrolit", "folyadek", "folyadék", "dehidr"])) return "hydration";
   if (has(["taplalkoz", "táplálkoz", "etrend", "étrend", "zoldseg", "zöldség", "gyumolcs", "gyümölcs", "feherje", "fehérje"])) return "nutrition";
   if (has(["seta", "séta", "mozgas", "mozgás", "edzes", "edzés", "sport", "lepesszam", "lépésszám"])) return "movement";
@@ -373,6 +374,10 @@ async function generateCoverImage(article: any) {
       "Visual direction: dynamic walking/running scene outdoors, clear movement cues, optimistic energy.",
       "Visual direction: athletic shoes and walking path composition, strong forward motion, no food objects.",
     ],
+    swimming: [
+      "Visual direction: swimming-focused scene in or beside a pool, unmistakable water context, no running cues.",
+      "Visual direction: swimmer in motion with lane lines or rippling pool water, editorial health cover style.",
+    ],
     sleep: [
       "Visual direction: calm bedroom atmosphere, evening light, restful composition, no food/water props.",
       "Visual direction: abstract moon/circadian concept with soft gradients, minimal scene.",
@@ -399,6 +404,7 @@ async function generateCoverImage(article: any) {
   const chosenVariant = creativeVariants[variantIdx];
   const negativeByTheme: Record<string, string> = {
     movement: "Hard negative: do not show vegetables, meal prep, fruit bowls, or glasses of water as main subject.",
+    swimming: "Hard negative: do not show running, jogging, walking trails, bicycles, or gym equipment. Water or pool context must be visible.",
     brain: "Hard negative: avoid generic kitchen still-life, random vegetables, and unrelated hydration props.",
     sleep: "Hard negative: avoid food imagery and fitness action shots.",
     heart: "Hard negative: avoid unrelated kitchen still-life and random pantry objects.",
@@ -596,7 +602,7 @@ Szabályok:
   const parsedPlacements = safeJsonParsePlacements(JSON.stringify(data));
   if (!parsedPlacements) return [];
 
-  let placements = parsedPlacements
+  const placements = parsedPlacements
     .filter((p) => allowed.has(p.slug))
     .slice(0, 5);
 
@@ -904,7 +910,6 @@ function assertNotDuplicateText(candidate: string, context: DuplicateCheckContex
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const secret = searchParams.get("secret") || "";
-  const force = searchParams.get("force") === "1";
   const expected = process.env.CRON_SECRET || "";
   const cronHeader = req.headers.get("x-vercel-cron");
   const isVercelCron = cronHeader === "1" || cronHeader === "true";
@@ -973,7 +978,6 @@ export async function GET(req: Request) {
   }
 
   let article: any = null;
-  let isNewArticle = false;
   let runStatus = "ok";
   let details = "";
 
@@ -1087,7 +1091,6 @@ Adj vissza egyetlen JSON objektumot:
       }
 
       article = inserted;
-      isNewArticle = true;
       await supabaseServer
         .from("article_automation_queue")
         .update({ article_id: article.id })
@@ -1157,7 +1160,7 @@ Adj vissza egyetlen JSON objektumot:
       const issuesText = formatIssuesMarkdown(factCheckIssues) || "- (nincs részletezett hiba)";
       const allLowSeverity =
         factCheckIssues.length > 0 && factCheckIssues.every((i) => normalizeSeverity(i.severity) === "low");
-      const warningType = allLowSeverity ? "soft_warning" : "hard_warning_but_publish";
+      const warningType = allLowSeverity ? "soft_warning" : "hard_warning";
       const warningMsg = `fact_check_${warningType}_after_${factFixAttempts}_attempts: ${issuesText}`;
       details = details ? `${details} | ${warningMsg}` : warningMsg;
 
@@ -1166,8 +1169,8 @@ Adj vissza egyetlen JSON objektumot:
       const articleUrl = `${siteUrl.replace(/\/$/, "")}/admin/articles/${article.slug}`;
       const html = `
         <div style="font-family:Arial,Helvetica,sans-serif;color:#111827;">
-          <div style="font-size:16px;font-weight:600;margin-bottom:10px;">Fact-check figyelmeztetés (publikálva)</div>
-          <div style="margin-bottom:12px;">A cikk publikálva lett, de a fact-check után maradtak nyitott pontok.</div>
+          <div style="font-size:16px;font-weight:600;margin-bottom:10px;">Fact-check figyelmeztetés</div>
+          <div style="margin-bottom:12px;">A cikk draft állapotban maradt, mert a fact-check után maradtak nyitott pontok.</div>
           <div style="margin-bottom:10px;"><strong>Cím:</strong> ${article.title || "(nincs cím)"}</div>
           <div style="margin-bottom:12px;"><a href="${articleUrl}">Szerkesztés megnyitása</a></div>
           <pre style="white-space:pre-wrap;font-size:13px;background:#f9fafb;border:1px solid #e5e7eb;padding:12px;border-radius:8px;">${issuesText}</pre>
@@ -1184,16 +1187,21 @@ Adj vissza egyetlen JSON objektumot:
       }
     }
 
-    const shouldPublish = isNewArticle || article.status === "published";
-    if (shouldPublish) {
-      await supabaseServer
-        .from("articles")
-        .update({
-          status: "published",
-          published_at: article.published_at || new Date().toISOString(),
-        })
-        .eq("id", article.id);
-    }
+    const shouldPublish = false;
+    const finalArticleStatus = "draft";
+    const finalPublishedAt = null;
+    await supabaseServer
+      .from("articles")
+      .update({
+        status: finalArticleStatus,
+        published_at: finalPublishedAt,
+      })
+      .eq("id", article.id);
+    article = {
+      ...article,
+      status: finalArticleStatus,
+      published_at: finalPublishedAt,
+    };
 
     let coverImageUrl = article?.cover_image_url || "";
     if (!coverImageUrl) {
