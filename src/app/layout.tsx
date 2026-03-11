@@ -2,11 +2,7 @@ import "./globals.css";
 import type { Metadata } from "next";
 import type React from "react";
 
-import SiteHeader from "@/components/SiteHeader";
-import SiteFooter from "@/components/SiteFooter";
-import ChatWidgetClient from "@/components/ChatWidgetClient";
-import CookieNoticeClient from "@/components/CookieNoticeClient";
-import GtmConsentLoader from "@/components/GtmConsentLoader";
+import RootShell from "@/components/RootShell";
 
 export const metadata: Metadata = {
   title: "Sokáig élek",
@@ -37,16 +33,9 @@ export default function RootLayout({
     <html lang="hu">
       <head />
       <body className="bg-white text-gray-900 antialiased">
-        <GtmConsentLoader gtmId={process.env.NEXT_PUBLIC_GTM_ID} />
-        <SiteHeader />
-
-        <main className="min-h-screen container mx-auto px-4 py-6">{children}</main>
-
-        <SiteFooter />
-        <CookieNoticeClient />
-
-        {/* Globális chat widget – pontosan egyszer */}
-        <ChatWidgetClient />
+        <RootShell gtmId={process.env.NEXT_PUBLIC_GTM_ID}>
+          {children}
+        </RootShell>
       </body>
     </html>
   );

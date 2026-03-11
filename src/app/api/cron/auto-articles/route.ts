@@ -181,6 +181,7 @@ async function reviseArticleWithIssues(article: { title?: string; excerpt?: stri
   const prompt = `
 Javítsd a cikket a felsorolt tárgyi hibák alapján. Csak a hibákat javítsd, a stílust, hangnemet, szerkezetet tartsd meg.
 FONTOS: A "Javítás" mező iránymutatás, nem feltétlenül beillesztendő szöveg. Úgy írd át a releváns részt, hogy természetesen illeszkedjen a szövegkörnyezetbe, közérthetően, szakzsargon nélkül. Ha az állítás javíthatatlan vagy félrevezető, töröld a hibás részt (ne hagyj benne magyarázó/oktató mondatot).
+Az olvasó laikus. Kerüld az orvosi, élettani vagy edzéselméleti szakszavakat. Ha egy szakkifejezés nélkül pontatlan lenne a mondat, azonnal, ugyanabban a mondatban egyszerű magyar magyarázatot is adj hozzá.
 Ne adj hozzá új, ismétlődő orvosi figyelmeztetéseket (pl. "beszéld meg orvosoddal"). Ha szükséges, legfeljebb egyszer szerepelhet a cikk teljes szövegében. Ha a cikk végén már van figyelmeztetés, ne tegyél közbe újat. Kerüld a pontosvessző használatát.
 Ne tedd túlzottan védekezővé vagy ijesztővé a szöveget. Kerüld a mantraszerű bizonytalansági fordulatok ismétlését.
 Adj vissza EGYETLEN JSON objektumot:
@@ -1013,6 +1014,7 @@ Követelmények:
 - HTML tartalom, bekezdések, alcímek (h2/h3), felsorolás ha indokolt.
 - Kíméletes, empatikus és hiteles hangvétel; ne ígérj gyógyulást.
 - Mindig tegezés, ne váltogasd a megszólítást.
+- A cikk laikus olvasónak szól, nem szakembernek.
 - 900-1400 szó.
 - A bekezdések legyenek rövidek és könnyen olvashatók.
 - Rövid, tömör cím: max 60 karakter, lehetőleg 6-9 szó.
@@ -1022,6 +1024,10 @@ Követelmények:
 - Írj természetes, szakértői hangon, mintha egy tapasztalt egészségügyi szakíró fogalmazna.
 - Kerüld a sablonos, AI-szerű fordulatokat és az ismétlődő mondatszerkezeteket.
 - Legyen változatos a mondathossz és a ritmus; ne legyen “tankönyvszagú”.
+- Ne használj fölösleges szakzsargont, latin vagy angol szakkifejezéseket.
+- Ha elkerülhetetlen egy szakkifejezés, azonnal magyarázd meg egyszerű, hétköznapi magyar nyelven.
+- Rossz példa: "az immersion hatás és a megnövekedett vagus tónus miatt".
+- Jó irány: "a vízben végzett mozgás és a nyugodtabb idegrendszeri állapot miatt".
 
 Adj vissza egyetlen JSON objektumot:
 {
