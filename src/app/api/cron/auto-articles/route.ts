@@ -621,6 +621,99 @@ Ha semmi nem releváns: {"slugs":[]}
   return slugs;
 }
 
+function stripHtmlToText(input: unknown) {
+  return String(input || "")
+    .replace(/<[^>]*>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+type ProductContextCandidate = {
+  slug?: string | null;
+  name?: string | null;
+  short?: string | null;
+  description?: string | null;
+  tags?: unknown;
+  benefits?: unknown;
+  ingredients?: unknown;
+  is_featured?: boolean | null;
+};
+
+function buildProductContextLine(product: ProductContextCandidate) {
+  const name = String(product?.name || product?.slug || "").trim();
+  if (!name) return "";
+
+  const short = stripHtmlToText(product?.short).slice(0, 180);
+  const description = stripHtmlToText(product?.description).slice(0, 220);
+  const tags = Array.isArray(product?.tags) ? product.tags.map((t: unknown) => String(t || "").trim()).filter(Boolean) : [];
+  const benefits = Array.isArray(product?.benefits)
+    ? product.benefits.map((b: unknown) => stripHtmlToText(b)).filter(Boolean)
+    : [];
+  const ingredients = Array.isArray(product?.ingredients)
+    ? product.ingredients.map((i: unknown) => stripHtmlToText(i)).filter(Boolean)
+    : [];
+
+  const parts = [
+    short,
+    description,
+    tags.length ? `címkék: ${tags.slice(0, 5).join(", ")}` : "",
+    benefits.length ? `előnyök: ${benefits.slice(0, 3).join(", ")}` : "",
+    ingredients.length ? `összetevők: ${ingredients.slice(0, 4).join(", ")}` : "",
+  ].filter(Boolean);
+
+  return `- ${product.slug} — ${name}${parts.length ? ` | ${parts.join(" | ")}` : ""}`;
+}
+
+async function buildRelevantProductContext(categorySlug: string | null, articlePrompt: string) {
+  const { data: products, error } = await supabaseServer
+    .from("products")
+    .select("slug, name, short, description, tags, benefits, ingredients, is_featured, status")
+    .eq("status", "published")
+    .order("is_featured", { ascending: false })
+    .order("name", { ascending: true });
+
+  if (error || !products?.length) {
+    return "";
+  }
+
+  const normalizedPrompt = `${String(categorySlug || "")} ${String(articlePrompt || "")}`.toLowerCase();
+  const scored = products
+    .map((product) => {
+      const haystack = [
+        product.slug,
+        product.name,
+        product.short,
+        product.description,
+        ...(Array.isArray(product.tags) ? product.tags : []),
+        ...(Array.isArray(product.benefits) ? product.benefits : []),
+        ...(Array.isArray(product.ingredients) ? product.ingredients : []),
+      ]
+        .map((part) => stripHtmlToText(part).toLowerCase())
+        .join(" ");
+
+      let score = product.is_featured ? 2 : 0;
+      const promptWords = normalizedPrompt.match(/[a-záéíóöőúüű0-9]{4,}/gi) || [];
+      for (const word of promptWords) {
+        if (haystack.includes(word)) score += 3;
+      }
+
+      if (categorySlug && haystack.includes(String(categorySlug).replace(/-/g, " "))) score += 2;
+
+      return { product, score };
+    })
+    .sort((a, b) => b.score - a.score || Number(Boolean(b.product.is_featured)) - Number(Boolean(a.product.is_featured)));
+
+  const shortlisted = scored
+    .filter((entry, index) => entry.score > 0 || index < 3)
+    .slice(0, 6)
+    .map((entry) => buildProductContextLine(entry.product))
+    .filter(Boolean);
+
+  if (!shortlisted.length) return "";
+
+  return `RELEVÁNS TERMÉK-KONTEXTUS A WEBÁRUHÁZBÓL:\n${shortlisted.join("\n")}`;
+}
+
 async function placeInlineProductEmbeds(article: any, preferredSlugs: string[]) {
   const { data: products, error: pErr } = await supabaseServer
     .from("products")
@@ -1071,6 +1164,7 @@ export async function GET(req: Request) {
     } else {
       const duplicateContext = await buildDuplicateCheckContext(nextItem.category_slug || null, nextItem.id);
       assertNotDuplicateText(String(nextItem.prompt || ""), duplicateContext, 0.8);
+      const productContext = await buildRelevantProductContext(nextItem.category_slug || null, String(nextItem.prompt || ""));
 
       const prompt = `
 Te egy magyar egészség/életmód magazin szerzője vagy.
@@ -1078,6 +1172,7 @@ Készíts egy cikket a következő témára/prompt alapján.
 
 KATEGÓRIA: ${nextItem.category_slug || ""}
 PROMPT: ${nextItem.prompt}
+${productContext ? `\n${productContext}\n` : ""}
 
 Követelmények:
 - Magyar nyelv.
@@ -1098,6 +1193,11 @@ Követelmények:
 - Ha elkerülhetetlen egy szakkifejezés, azonnal magyarázd meg egyszerű, hétköznapi magyar nyelven.
 - Rossz példa: "az immersion hatás és a megnövekedett vagus tónus miatt".
 - Jó irány: "a vízben végzett mozgás és a nyugodtabb idegrendszeri állapot miatt".
+- Ha a fenti webshop-termékek közül valamelyik SZOROSAN kapcsolódik a témához, természetes módon említs meg 1-2 konkrét terméktípust vagy terméket a cikk releváns pontján.
+- Az említés legyen informatív és visszafogott: ne legyen sales-es, ne legyen direkt vásárlásra ösztönző, ne használj reklámszlogent.
+- Csak akkor említs terméket, ha az tényleg segít gyakorlati példát adni vagy a felszívódás / forma / összetétel szempontjából releváns.
+- Ha például a téma C-vitamin és van releváns folyékony C-vitamin a terméklistában, akkor ezt említheted mint jól hasznosuló formai példát, de ne állíts olyat, amit a cikkből vagy termékadatból nem lehet alátámasztani.
+- Ne erőltesd bele a termékeket minden alcímbe; 1 természetes kapcsolódás bőven elég.
 
 Adj vissza egyetlen JSON objektumot:
 {

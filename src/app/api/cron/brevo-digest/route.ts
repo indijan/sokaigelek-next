@@ -96,6 +96,23 @@ function buildEmailHtml(params: {
   `;
 }
 
+function getBudapestParts(date = new Date()) {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/Budapest",
+    weekday: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(date);
+
+  const lookup = (type: string) => parts.find((part) => part.type === type)?.value || "";
+  return {
+    weekday: lookup("weekday"),
+    hour: Number(lookup("hour")),
+    minute: Number(lookup("minute")),
+  };
+}
+
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const secret = searchParams.get("secret") || "";
@@ -111,6 +128,19 @@ export async function GET(req: Request) {
   const hours = Math.max(1, Math.min(24, Number(searchParams.get("hours") || "24")));
   const force = searchParams.get("force") === "1" || searchParams.get("force") === "true";
   const onlyCategory = String(searchParams.get("category") || "").trim();
+  const budapestNow = getBudapestParts();
+  const allowedWeekdays = new Set(["Tue", "Wed", "Thu"]);
+  const withinSendWindow = allowedWeekdays.has(budapestNow.weekday) && budapestNow.hour === 10 && budapestNow.minute === 0;
+
+  if (!force && !withinSendWindow) {
+    return NextResponse.json({
+      ok: true,
+      skipped: "outside_send_window",
+      budapest: budapestNow,
+      rule: "Newsletter sends only on Tuesday, Wednesday, or Thursday at 10:00 Europe/Budapest time.",
+    });
+  }
+
   const end = new Date();
   const start = new Date(Date.now() - hours * 60 * 60 * 1000);
 
