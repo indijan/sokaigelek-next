@@ -113,6 +113,20 @@ function getBudapestParts(date = new Date()) {
   };
 }
 
+function resolveDigestHours(rawHours: string | null, weekday: string) {
+  if (rawHours) {
+    return Math.max(1, Math.min(24 * 14, Number(rawHours || "24")));
+  }
+
+  // Tue 10:00 should cover the gap since the last Thu 10:00 send window.
+  if (weekday === "Tue") return 24 * 5;
+  return 24;
+}
+
+function resolveArticleWindowDate(article: { published_at?: string | null; updated_at?: string | null; created_at?: string | null }) {
+  return article.published_at || article.updated_at || article.created_at || null;
+}
+
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const secret = searchParams.get("secret") || "";
@@ -125,10 +139,10 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  const hours = Math.max(1, Math.min(24, Number(searchParams.get("hours") || "24")));
+  const budapestNow = getBudapestParts();
+  const hours = resolveDigestHours(searchParams.get("hours"), budapestNow.weekday);
   const force = searchParams.get("force") === "1" || searchParams.get("force") === "true";
   const onlyCategory = String(searchParams.get("category") || "").trim();
-  const budapestNow = getBudapestParts();
   const allowedWeekdays = new Set(["Tue", "Wed", "Thu"]);
   const withinSendWindow = allowedWeekdays.has(budapestNow.weekday) && budapestNow.hour === 10 && budapestNow.minute === 0;
 
@@ -157,21 +171,33 @@ export async function GET(req: Request) {
   }
 
   const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || "https://www.sokaigelek.hu").replace(/\/$/, "");
+  const startIso = start.toISOString();
+  const endIso = end.toISOString();
 
   const { data: articles, error } = await supabaseServer
     .from("articles")
-    .select("id, title, slug, excerpt, category_slug, published_at, related_product_slugs, status")
+    .select("id, title, slug, excerpt, category_slug, published_at, updated_at, created_at, related_product_slugs, status")
     .eq("status", "published")
-    .gte("published_at", start.toISOString())
-    .lt("published_at", end.toISOString())
-    .order("published_at", { ascending: true });
+    .or(`published_at.gte.${startIso},updated_at.gte.${startIso},created_at.gte.${startIso}`);
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
+  const windowedArticles = (articles || [])
+    .filter((article) => {
+      const effectiveDate = resolveArticleWindowDate(article);
+      if (!effectiveDate) return false;
+      return effectiveDate >= startIso && effectiveDate < endIso;
+    })
+    .sort((a, b) => {
+      const aDate = resolveArticleWindowDate(a) || "";
+      const bDate = resolveArticleWindowDate(b) || "";
+      return aDate.localeCompare(bDate);
+    });
+
   const byCategory = new Map<string, typeof articles>();
-  for (const a of articles || []) {
+  for (const a of windowedArticles) {
     const cat = String(a.category_slug || "").trim();
     if (!cat) continue;
     if (onlyCategory && cat !== onlyCategory) continue;

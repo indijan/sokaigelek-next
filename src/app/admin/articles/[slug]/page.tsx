@@ -8,11 +8,17 @@ import GenerateArticleCoverButton from "@/components/admin/GenerateArticleCoverB
 import HtmlEditor from "@/components/admin/HtmlEditor";
 import AdminActionButton from "@/components/admin/AdminActionButton";
 import FactCheckActions from "@/components/admin/FactCheckActions";
+import { postArticleToSocial } from "@/lib/articleSocial";
 
 type Props = {
     params: Promise<{ slug: string }>;
     searchParams?: Promise<{ delete?: string | string[]; err?: string | string[]; ok?: string | string[] }>;
 };
+
+function resolvePublishedAt(nextStatus: string, currentPublishedAt?: string | null) {
+    if (nextStatus !== "published") return null;
+    return currentPublishedAt || new Date().toISOString();
+}
 
 function safeJsonParseSlugs(text: string): string[] | null {
     try {
@@ -375,6 +381,7 @@ export default async function AdminArticleEditPage({ params, searchParams }: Pro
             .eq("id", articleId)
             .maybeSingle();
         if (fetchErr || !articleForCheck) return { ok: false, message: "Article not found" };
+        const shouldPostToSocial = String(articleForCheck.status || "") !== "published";
 
         try {
             const check = await factCheckArticle(articleForCheck);
@@ -411,9 +418,13 @@ export default async function AdminArticleEditPage({ params, searchParams }: Pro
                 .from("articles")
                 .update({
                     status: "published",
-                    published_at: articleForCheck.published_at,
+                    published_at: resolvePublishedAt("published", articleForCheck.published_at),
                 })
                 .eq("id", articleForCheck.id);
+
+            if (shouldPostToSocial) {
+                await postArticleToSocial(articleForCheck);
+            }
 
             revalidatePath(`/admin/articles/${articleForCheck.slug}`);
             return { ok: true, message: "Fact-check rendben, nem talált hibát. A cikk publikálva." };
@@ -449,6 +460,7 @@ export default async function AdminArticleEditPage({ params, searchParams }: Pro
             .eq("id", articleId)
             .maybeSingle();
         if (fetchErr || !articleForCheck) return { ok: false, message: "Article not found" };
+        const shouldPostToSocial = String(articleForCheck.status || "") !== "published";
 
         const issuesFromLast = parseIssuesFromLastError(lastAutomation?.last_error || "");
         let issues = issuesFromLast;
@@ -514,9 +526,17 @@ export default async function AdminArticleEditPage({ params, searchParams }: Pro
             .from("articles")
             .update({
                 status: "published",
-                published_at: articleForCheck.published_at,
+                published_at: resolvePublishedAt("published", articleForCheck.published_at),
             })
             .eq("id", articleForCheck.id);
+
+        if (shouldPostToSocial) {
+            await postArticleToSocial({
+                slug: articleForCheck.slug,
+                title: resolvedTitle,
+                excerpt: resolvedExcerpt,
+            });
+        }
 
         revalidatePath(`/admin/articles/${articleForCheck.slug}`);
         return { ok: true, message: "Javítás kész, a fact-check tiszta. A cikk publikálva." };
@@ -622,6 +642,7 @@ export default async function AdminArticleEditPage({ params, searchParams }: Pro
                     const content_html = String(formData.get("content_html") || "");
                     const status = String(formData.get("status") || "draft");
                     const category_slug = String(formData.get("category_slug") || "").trim() || null;
+                    const wasPublished = String(article.status || "") === "published";
 
                     // 1) slug alap: kézi slug vagy cím alapján
                     const rawSlug = String(formData.get("new_slug") || "").trim();
@@ -658,13 +679,7 @@ export default async function AdminArticleEditPage({ params, searchParams }: Pro
                     }
 
                     // published_at logika
-                    let published_at = article.published_at;
-                    if (status === "published" && !published_at) {
-                        published_at = new Date().toISOString();
-                    }
-                    if (status !== "published") {
-                        published_at = null;
-                    }
+                    const published_at = resolvePublishedAt(status, article.published_at);
 
                     const { error: saveErr } = await supabaseServer
                         .from("articles")
@@ -680,6 +695,14 @@ export default async function AdminArticleEditPage({ params, searchParams }: Pro
                         .eq("id", id);
                     if (saveErr) {
                         redirect(`/admin/articles/${slug}?err=${encodeURIComponent(saveErr.message)}`);
+                    }
+
+                    if (!wasPublished && status === "published") {
+                        await postArticleToSocial({
+                            slug: nextSlug,
+                            title,
+                            excerpt,
+                        });
                     }
 
                     redirect(`/admin/articles/${nextSlug}`);
