@@ -2,6 +2,9 @@ import type { MetadataRoute } from "next";
 import { supabaseServer } from "@/lib/supabaseServer";
 
 type SitemapEntry = MetadataRoute.Sitemap[number];
+type ArticleRow = { slug: string; updated_at?: string | null; published_at?: string | null; created_at?: string | null };
+type ProductRow = { slug: string; updated_at?: string | null; created_at?: string | null };
+type CategoryRow = { slug: string; created_at?: string | null };
 
 export const revalidate = 3600;
 
@@ -35,7 +38,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       .eq("status", "published"),
   ]);
 
-  const articleRoutes: SitemapEntry[] = (articles || []).map((article: any) => ({
+  const { data: categories } = await supabaseServer
+    .from("categories")
+    .select("slug, created_at")
+    .order("name", { ascending: true });
+
+  const articleRoutes: SitemapEntry[] = ((articles || []) as ArticleRow[]).map((article) => ({
     url: `${siteUrl}/cikkek/${article.slug}`,
     lastModified:
       safeDate(article.updated_at) ||
@@ -45,12 +53,19 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.7,
   }));
 
-  const productRoutes: SitemapEntry[] = (products || []).map((product: any) => ({
+  const productRoutes: SitemapEntry[] = ((products || []) as ProductRow[]).map((product) => ({
     url: `${siteUrl}/termek/${product.slug}`,
     lastModified: safeDate(product.updated_at) || safeDate(product.created_at),
     changeFrequency: "monthly",
     priority: 0.7,
   }));
 
-  return [...staticRoutes, ...articleRoutes, ...productRoutes];
+  const categoryRoutes: SitemapEntry[] = ((categories || []) as CategoryRow[]).map((category) => ({
+    url: `${siteUrl}/kategoria/${category.slug}`,
+    lastModified: safeDate(category.created_at),
+    changeFrequency: "weekly",
+    priority: 0.6,
+  }));
+
+  return [...staticRoutes, ...articleRoutes, ...productRoutes, ...categoryRoutes];
 }

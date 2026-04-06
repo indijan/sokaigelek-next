@@ -1,22 +1,80 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { supabaseServer } from "@/lib/supabaseServer";
 import { cdnImageUrl } from "@/lib/cdn";
 
 export const revalidate = 900;
 
+type SearchParamsInput =
+    | Promise<{ cat?: string | string[]; page?: string | string[] }>
+    | { cat?: string | string[]; page?: string | string[] };
+
+function normalizeSingleParam(value?: string | string[]) {
+    return Array.isArray(value) ? value[0] : value;
+}
+
+async function resolveCategoryName(slug?: string) {
+    if (!slug) return "";
+    const { data: category } = await supabaseServer
+        .from("categories")
+        .select("name")
+        .eq("slug", slug)
+        .maybeSingle();
+    return String(category?.name || slug).trim();
+}
+
+export async function generateMetadata({
+    searchParams,
+}: {
+    searchParams?: SearchParamsInput;
+}): Promise<Metadata> {
+    const sp = searchParams ? await Promise.resolve(searchParams) : undefined;
+    const activeCat = normalizeSingleParam(sp?.cat);
+    const pageRaw = normalizeSingleParam(sp?.page);
+    const page = Math.max(1, Number.parseInt(String(pageRaw ?? "1"), 10) || 1);
+    const categoryName = await resolveCategoryName(activeCat);
+
+    const siteName = "Sokaigelek";
+    const baseTitle = categoryName
+        ? `${categoryName} cikkek | Jóllét Kalauz | ${siteName}`
+        : `Jóllét Kalauz cikkek | ${siteName}`;
+    const title = page > 1 ? `${baseTitle} | ${page}. oldal` : baseTitle;
+    const description = categoryName
+        ? `${categoryName} témájú cikkek, útmutatók és gyakorlati tanácsok a Sokáig élek Jóllét Kalauzban.`
+        : "Egészség, tudatos életmód és étrend-kiegészítők témájú cikkek, útmutatók és gyakorlati tanácsok.";
+
+    const params = new URLSearchParams();
+    if (activeCat) params.set("cat", activeCat);
+    if (page > 1) params.set("page", String(page));
+    const canonicalPath = params.toString() ? `/cikkek?${params.toString()}` : "/cikkek";
+
+    return {
+        title,
+        description,
+        alternates: { canonical: canonicalPath },
+        openGraph: {
+            title,
+            description,
+            url: canonicalPath,
+            type: "website",
+        },
+        twitter: {
+            card: "summary_large_image",
+            title,
+            description,
+        },
+    };
+}
+
 export default async function ArticlesIndexPage({
     searchParams,
 }: {
-    searchParams?:
-        | Promise<{ cat?: string | string[]; page?: string | string[] }>
-        | { cat?: string | string[]; page?: string | string[] };
+    searchParams?: SearchParamsInput;
 }) {
     const sp = searchParams ? await Promise.resolve(searchParams) : undefined;
-    const catParam = sp?.cat;
-    const activeCat = Array.isArray(catParam) ? catParam[0] : catParam;
+    const activeCat = normalizeSingleParam(sp?.cat);
 
-    const pageParam = sp?.page;
-    const pageRaw = Array.isArray(pageParam) ? pageParam[0] : pageParam;
+    const pageRaw = normalizeSingleParam(sp?.page);
     const page = Math.max(1, Number.parseInt(String(pageRaw ?? "1"), 10) || 1);
 
     const perPage = 12;
@@ -121,7 +179,7 @@ export default async function ArticlesIndexPage({
                     return (
                         <Link
                             key={c.id ?? slug}
-                            href={`/cikkek?cat=${encodeURIComponent(String(slug))}`}
+                            href={`/kategoria/${encodeURIComponent(String(slug))}`}
                             className={`rounded-full border px-4 py-2 text-sm font-medium transition ${
                                 isActive
                                     ? "border-amber-300 bg-amber-50 text-amber-900"

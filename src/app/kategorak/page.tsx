@@ -33,7 +33,9 @@ export default async function CategoriesIndexPage() {
             <div className="mt-6 grid gap-3 md:grid-cols-2">
                 {(categories ?? []).map((c) => (
                     <div key={c.id} className="rounded-2xl border bg-white p-4">
-                        <div className="font-semibold">{c.name}</div>
+                        <Link href={`/kategoria/${c.slug}`} className="font-semibold hover:underline">
+                            {c.name}
+                        </Link>
                         <div className="text-sm text-gray-500">{c.slug}</div>
                     </div>
                 ))}

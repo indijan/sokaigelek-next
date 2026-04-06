@@ -191,6 +191,13 @@ function formatDate(input?: string | null): string {
   return d.toLocaleDateString("hu-HU", { year: "numeric", month: "long", day: "numeric" });
 }
 
+function toIsoDate(input?: string | null) {
+  if (!input) return undefined;
+  const d = new Date(input);
+  if (Number.isNaN(d.getTime())) return undefined;
+  return d.toISOString();
+}
+
 function IconArrowLeft() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -334,10 +341,79 @@ export default async function ArticlePageRoute({ params }: Props) {
   const relatedProductsUrl = relatedProductSlugs.length
     ? `/termek?slugs=${encodeURIComponent(relatedProductSlugs.join(","))}`
     : null;
+  const publishedIso = toIsoDate((article as any).published_at || (article as any).created_at || null);
+  const modifiedIso = toIsoDate((article as any).updated_at || (article as any).published_at || (article as any).created_at || null);
+
+  const { data: relatedArticles } = await supabaseServer
+    .from("articles")
+    .select("id, slug, title, excerpt, published_at, created_at")
+    .eq("status", "published")
+    .eq("category_slug", String((article as any).category_slug || ""))
+    .neq("id", article.id)
+    .order("published_at", { ascending: false, nullsFirst: false })
+    .order("created_at", { ascending: false })
+    .limit(3);
+
+  const articleJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    headline: String(article.title || "").trim(),
+    description: buildDescription(article),
+    inLanguage: "hu-HU",
+    datePublished: publishedIso,
+    dateModified: modifiedIso,
+    mainEntityOfPage: shareUrl,
+    image: coverUrl ? [coverUrl] : undefined,
+    author: {
+      "@type": "Organization",
+      name: "Sokáig élek",
+    },
+    publisher: {
+      "@type": "Organization",
+      name: "Sokáig élek",
+      logo: {
+        "@type": "ImageObject",
+        url: `${siteUrl.replace(/\/$/, "")}/logo.png`,
+      },
+    },
+  };
+
+  const breadcrumbJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      {
+        "@type": "ListItem",
+        position: 1,
+        name: "Főoldal",
+        item: `${siteUrl.replace(/\/$/, "")}/`,
+      },
+      {
+        "@type": "ListItem",
+        position: 2,
+        name: "Jóllét Kalauz",
+        item: `${siteUrl.replace(/\/$/, "")}/cikkek`,
+      },
+      {
+        "@type": "ListItem",
+        position: 3,
+        name: String(article.title || "").trim(),
+        item: shareUrl,
+      },
+    ],
+  };
 
   return (
     <main className="container page">
       <ArticleChatTrigger title={article.title} excerpt={(article as any).excerpt ?? null} />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(articleJsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
+      />
       <style
         dangerouslySetInnerHTML={{
           __html: `
@@ -608,6 +684,64 @@ export default async function ArticlePageRoute({ params }: Props) {
           ) : null}
         </section>
       ) : null}
+
+      {(relatedArticles || []).length > 0 ? (
+        <section style={{ marginTop: 26 }}>
+          <div
+            style={{
+              border: "1px solid rgba(0,0,0,0.08)",
+              borderRadius: 18,
+              background: "rgba(255,255,255,0.75)",
+              boxShadow: "0 10px 28px rgba(0,0,0,0.05)",
+              padding: 18,
+            }}
+          >
+            <h2 style={{ margin: "0 0 12px", fontSize: 24, lineHeight: 1.2 }}>Kapcsolódó cikkek</h2>
+            <div style={{ display: "grid", gap: 12 }}>
+              {(relatedArticles || []).map((related: any) => (
+                <Link
+                  key={related.id}
+                  href={`/cikkek/${related.slug}`}
+                  style={{
+                    textDecoration: "none",
+                    border: "1px solid rgba(0,0,0,0.08)",
+                    borderRadius: 14,
+                    padding: 14,
+                    background: "rgba(255,255,255,0.8)",
+                    display: "block",
+                  }}
+                >
+                  <div style={{ fontWeight: 800, lineHeight: 1.3, marginBottom: 6 }}>{related.title}</div>
+                  {String(related.excerpt || "").trim() ? (
+                    <div style={{ fontSize: 14, lineHeight: 1.55, opacity: 0.8 }}>
+                      {String(related.excerpt || "").trim()}
+                    </div>
+                  ) : null}
+                </Link>
+              ))}
+            </div>
+          </div>
+        </section>
+      ) : null}
+
+      <section style={{ marginTop: 26 }}>
+        <div
+          style={{
+            border: "1px solid rgba(0,0,0,0.08)",
+            borderRadius: 18,
+            background: "rgba(255,255,255,0.75)",
+            boxShadow: "0 10px 28px rgba(0,0,0,0.05)",
+            padding: 18,
+          }}
+        >
+          <h2 style={{ margin: "0 0 10px", fontSize: 22, lineHeight: 1.2 }}>Szerkesztői megjegyzés</h2>
+          <p style={{ margin: 0, fontSize: 15, lineHeight: 1.7, color: "rgba(17,24,39,0.88)" }}>
+            A cikk a Sokáig élek szerkesztőségi folyamata alapján készült és szerkesztett tartalom. Célja az
+            egészségügyi és életmódbeli tájékoztatás közérthető formában. Nem helyettesít személyre szabott orvosi
+            tanácsadást vagy diagnózist.
+          </p>
+        </div>
+      </section>
 
     </main>
   );

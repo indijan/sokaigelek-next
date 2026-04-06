@@ -76,6 +76,10 @@ function parseNum(v: any): number | null {
   return null;
 }
 
+function toProductAvailability(hasAnyAffiliate: boolean) {
+  return hasAnyAffiliate ? "https://schema.org/InStock" : "https://schema.org/Discontinued";
+}
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
 
@@ -334,8 +338,52 @@ export default async function ProductPageRoute({ params }: Props) {
     }
   }
 
+  const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || "https://www.sokaigelek.hu").replace(/\/$/, "");
+  const productUrl = `${siteUrl}/termek/${product.slug}`;
+  const imageUrl = safeRemoteImageUrl((product as any)?.image_url);
+  const hasAffiliate1 = Boolean(String(product?.affiliate_label_1 || "").trim() && String(product?.affiliate_url_1 || "").trim());
+  const hasAffiliate2 = Boolean(String(product?.affiliate_label_2 || "").trim() && String(product?.affiliate_url_2 || "").trim());
+  const structuredData = {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    name: String(product.name || "").trim(),
+    description: buildProductDescription(product),
+    image: imageUrl ? [imageUrl] : undefined,
+    sku: String(product.slug || "").trim(),
+    category: tags[0] || undefined,
+    brand: {
+      "@type": "Brand",
+      name: "Sokáig élek",
+    },
+    offers: {
+      "@type": "Offer",
+      url: productUrl,
+      priceCurrency: "HUF",
+      price: sokaigelekPrice ?? basePrice ?? undefined,
+      availability: toProductAvailability(hasAffiliate1 || hasAffiliate2),
+    },
+  };
+
+  const breadcrumbJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "Kezdőlap", item: `${siteUrl}/` },
+      { "@type": "ListItem", position: 2, name: "Termékek", item: `${siteUrl}/termek` },
+      { "@type": "ListItem", position: 3, name: String(product.name || "").trim(), item: productUrl },
+    ],
+  };
+
   return (
     <main className="container page product-page space-y-10">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
+      />
       <nav className="text-sm text-gray-500">
         <div className="inline-flex items-center gap-2 rounded-full border bg-white/70 px-3 py-1">
           <a className="hover:text-gray-800" href="/">Kezdőlap</a>
@@ -412,6 +460,12 @@ export default async function ProductPageRoute({ params }: Props) {
               </div>
             ) : null}
           </header>
+
+          <div className="rounded-2xl border bg-slate-50 p-4 text-sm leading-6 text-slate-700">
+            A termékoldal tájékoztató célt szolgál. A leírás szerkesztett összefoglaló, amely nem helyettesít
+            orvosi vagy dietetikai tanácsadást. A választásnál mindig vedd figyelembe az egyéni állapotodat,
+            érzékenységeidet és a gyártói tájékoztatót is.
+          </div>
 
           <div className="lg:hidden">
             <BuyBox

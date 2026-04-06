@@ -708,8 +708,8 @@ async function buildRelevantProductContext(categorySlug: string | null, articleP
     .sort((a, b) => b.score - a.score || Number(Boolean(b.product.is_featured)) - Number(Boolean(a.product.is_featured)));
 
   const shortlisted = scored
-    .filter((entry, index) => entry.score > 0 || index < 3)
-    .slice(0, 6)
+    .filter((entry, index) => entry.score > 0 || index < 2)
+    .slice(0, 3)
     .map((entry) => buildProductContextLine(entry.product))
     .filter(Boolean);
 
@@ -738,7 +738,7 @@ async function placeInlineProductEmbeds(article: any, preferredSlugs: string[]) 
   const preferredLine = preferred.length ? preferred.join(", ") : "(nincs megadva)";
 
   const prompt = `
-A feladatod: helyezd el 0-5 termék ajánlót a cikk HTML tartalmában LOGIKUS pontokra.
+A feladatod: helyezz el legfeljebb 1 termék ajánlót a cikk HTML tartalmában LOGIKUS pontra.
 
 A megjelenítés jelölője: <!--PRODUCT:slug-->
 
@@ -758,12 +758,11 @@ Kimenet: CSAK egy JSON objektum legyen:
 
 Szabályok:
 - afterParagraph 0 = első </p> után, 1 = második </p> után, stb.
-- 1–3 placement az ideális (csak akkor adj 4-et, ha nagyon hosszú a cikk)
-- NE tedd mindet a végére: a cél az elosztás (korai / közép / késői)
-- Ne rakj két ajánlót egymás után: legalább 2 bekezdés távolság legyen köztük
-- Lehetőleg ne az utolsó bekezdés után legyen (kerüld a zárást)
-- csak létező slugok
-- ha nincs jó hely: {"placements":[]}
+- maximum 1 placement lehet
+- csak akkor tegyél be terméket, ha tényleg szorosan kapcsolódik a cikkhez
+- lehetőleg a cikk első harmadában vagy közepén legyen, ne a legvégén
+- csak létező slugot használj
+- ha nincs igazán jó hely vagy releváns termék: {"placements":[]}
 `.trim();
 
   const data = await openaiJson(prompt);
@@ -772,7 +771,7 @@ Szabályok:
 
   const placements = parsedPlacements
     .filter((p) => allowed.has(p.slug))
-    .slice(0, 5);
+    .slice(0, 1);
 
   if (!placements.length) {
     return [];
@@ -789,8 +788,7 @@ Szabályok:
     afterParagraph,
   }));
 
-  const idealMax = paragraphCount >= 12 ? 4 : 3;
-  cleaned = cleaned.slice(0, idealMax);
+  cleaned = cleaned.slice(0, 1);
 
   const tooEndHeavy = cleaned.length > 0 && cleaned.every((p) => p.afterParagraph >= maxInsert - 1);
   const asc = [...cleaned].sort((a, b) => a.afterParagraph - b.afterParagraph);
