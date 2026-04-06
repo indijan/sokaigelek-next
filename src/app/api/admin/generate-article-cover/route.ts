@@ -7,6 +7,17 @@ export const runtime = "nodejs";
 
 type Body = {
     articleId: string;
+    title?: string;
+    excerpt?: string;
+    contentHtml?: string;
+    categorySlug?: string;
+    slug?: string;
+};
+
+type OpenAiImageResponse = {
+    data?: Array<{
+        b64_json?: string;
+    }>;
 };
 
 function stripHtml(input: string): string {
@@ -106,10 +117,10 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: aErr?.message || "Article not found" }, { status: 404 });
     }
 
-    const title = article.title || "";
-    const intro = (article.excerpt || "").slice(0, 260);
-    const category = article.category_slug || "";
-    const bodyHtml = String(article.content_html || "");
+    const title = String(body.title || article.title || "").trim();
+    const intro = String(body.excerpt || article.excerpt || "").trim().slice(0, 260);
+    const category = String(body.categorySlug || article.category_slug || "").trim();
+    const bodyHtml = String(body.contentHtml || article.content_html || "");
     const headings = extractHeadings(bodyHtml);
     const bodyText = stripHtml(bodyHtml);
     const keySentences = pickKeySentences(bodyText, 3);
@@ -168,6 +179,7 @@ export async function POST(req: Request) {
     // 2) prompt (FB engagement friendly, still clean)
     const prompt = [
         "Create a clean, modern blog cover image optimized for Facebook feed engagement.",
+        "Base the image on the CURRENT article version only. Ignore any earlier drafts or alternative topic directions.",
         "Composition: clear subject, bold focal point, high contrast, inviting mood.",
         "Style: premium, soft lighting, subtle gradients, no clutter.",
         "Theme: health & wellbeing education (Hungarian audience).",
@@ -224,7 +236,7 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: `OpenAI image error: ${t}` }, { status: 500 });
     }
 
-    const imgJson = (await imgRes.json()) as any;
+    const imgJson = (await imgRes.json()) as OpenAiImageResponse;
     const b64 = imgJson?.data?.[0]?.b64_json;
     if (!b64) {
         return NextResponse.json({ error: "No image returned" }, { status: 500 });
@@ -234,7 +246,7 @@ export async function POST(req: Request) {
 
     // 4) feltöltés Supabase Storage vagy Vercel Blob
     const bucket = process.env.ARTICLE_IMAGES_BUCKET || "article-images";
-    const safeSlug = String(article.slug || "article")
+    const safeSlug = String(body.slug || article.slug || "article")
         .toLowerCase()
         .replace(/[^a-z0-9._-]+/g, "-")
         .replace(/^-+|-+$/g, "")

@@ -113,13 +113,10 @@ function getBudapestParts(date = new Date()) {
   };
 }
 
-function resolveDigestHours(rawHours: string | null, weekday: string) {
+function resolveDigestHours(rawHours: string | null) {
   if (rawHours) {
     return Math.max(1, Math.min(24 * 14, Number(rawHours || "24")));
   }
-
-  // Tue 10:00 should cover the gap since the last Thu 10:00 send window.
-  if (weekday === "Tue") return 24 * 5;
   return 24;
 }
 
@@ -140,18 +137,17 @@ export async function GET(req: Request) {
   }
 
   const budapestNow = getBudapestParts();
-  const hours = resolveDigestHours(searchParams.get("hours"), budapestNow.weekday);
+  const hours = resolveDigestHours(searchParams.get("hours"));
   const force = searchParams.get("force") === "1" || searchParams.get("force") === "true";
   const onlyCategory = String(searchParams.get("category") || "").trim();
-  const allowedWeekdays = new Set(["Tue", "Wed", "Thu"]);
-  const withinSendWindow = allowedWeekdays.has(budapestNow.weekday) && budapestNow.hour === 10 && budapestNow.minute === 0;
+  const withinSendWindow = budapestNow.hour === 10 && budapestNow.minute === 0;
 
   if (!force && !withinSendWindow) {
     return NextResponse.json({
       ok: true,
       skipped: "outside_send_window",
       budapest: budapestNow,
-      rule: "Newsletter sends only on Tuesday, Wednesday, or Thursday at 10:00 Europe/Budapest time.",
+      rule: "Newsletter sends daily at 10:00 Europe/Budapest time.",
     });
   }
 

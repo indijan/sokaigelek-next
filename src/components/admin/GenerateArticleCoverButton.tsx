@@ -3,7 +3,13 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-export default function GenerateArticleCoverButton({ articleId }: { articleId: string }) {
+export default function GenerateArticleCoverButton({
+    articleId,
+    formId,
+}: {
+    articleId: string;
+    formId: string;
+}) {
     const router = useRouter();
     const [loading, setLoading] = useState(false);
     const [err, setErr] = useState<string | null>(null);
@@ -12,18 +18,27 @@ export default function GenerateArticleCoverButton({ articleId }: { articleId: s
         setErr(null);
         setLoading(true);
         try {
+            const form = document.getElementById(formId);
+            const formData = form instanceof HTMLFormElement ? new FormData(form) : null;
             const res = await fetch("/api/admin/generate-article-cover", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ articleId }),
+                body: JSON.stringify({
+                    articleId,
+                    title: String(formData?.get("title") || "").trim(),
+                    excerpt: String(formData?.get("excerpt") || "").trim(),
+                    contentHtml: String(formData?.get("content_html") || "").trim(),
+                    categorySlug: String(formData?.get("category_slug") || "").trim(),
+                    slug: String(formData?.get("new_slug") || "").trim(),
+                }),
             });
 
             const json = await res.json();
             if (!res.ok) throw new Error(json?.error || "Hiba történt");
 
             router.refresh(); // frissíti a szerver oldalt, megjelenik az új kép
-        } catch (e: any) {
-            setErr(e?.message || "Hiba történt");
+        } catch (e: unknown) {
+            setErr(e instanceof Error ? e.message : "Hiba történt");
         } finally {
             setLoading(false);
         }

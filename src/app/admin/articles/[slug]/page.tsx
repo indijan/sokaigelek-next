@@ -630,9 +630,10 @@ export default async function AdminArticleEditPage({ params, searchParams }: Pro
                 currentUrl={article.cover_image_url}
             />
             <div className="mt-3">
-                <GenerateArticleCoverButton articleId={article.id} />
+                <GenerateArticleCoverButton articleId={article.id} formId="article-edit-form" />
             </div>
             <form
+                id="article-edit-form"
                 className="space-y-4"
                 action={async (formData) => {
                     "use server";

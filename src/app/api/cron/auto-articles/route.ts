@@ -249,6 +249,9 @@ Szabályok:
 - Javítsd a magyartalan, gépies, tükörfordított vagy zavaros megfogalmazásokat.
 - Írd át a túl szakmai, túl elvont vagy laikusnak nehezen érthető részeket közérthetőre.
 - Kerüld az orvosi, élettani vagy edzéselméleti szakzsargont.
+- Úgy hasson, mintha egy tapasztalt magyar egészségmagazin-szerző írta volna, nem AI.
+- Kerüld a sablonos AI-ritmust, a túl szabályos mondathosszakat és az üres átvezetéseket.
+- Legyenek apró, természetes nyelvi váltások, de maradjon tiszta és gördülékeny.
 - Ha egy szakkifejezés nélkül pontatlan lenne a szöveg, azonnal ugyanabban a mondatban magyarázd meg egyszerű magyar nyelven.
 - Ne maradjanak benne ilyen jellegű fordulatok: "immersion hatás", "megnövekedett vagus tónus", "kedvező paraméterek", "szívdolog".
 - Rossz példa: "Pulzus a vízben más lehet: az immersion hatás és a megnövekedett vagus tónus miatt..."
@@ -256,6 +259,7 @@ Szabályok:
 - Ne ígérj gyógyulást.
 - Ne tedd tudálékossá vagy tankönyvszagúvá a szöveget.
 - A hangnem maradjon empatikus, természetes és hiteles.
+- Ha releváns étrend-kiegészítő kerül szóba, az kiegyensúlyozottan pozitív fényben jelenjen meg: mint praktikus, átgondolt segítség vagy kényelmes forma, de ne reklámszövegként.
 
 Adj vissza EGYETLEN JSON objektumot:
 {
@@ -1187,6 +1191,7 @@ Követelmények:
 - Ne írj önreflexív vagy kommentáló mondatot a cikkről (pl. "Ez a cikk ... elmagyarázza", "ebben a cikkben bemutatjuk", "az alábbiakban áttekintjük").
 - Ne kezdeményezz párbeszédet, ne tegyél "ha szeretnéd..." típusú záró felhívást.
 - Írj természetes, szakértői hangon, mintha egy tapasztalt egészségügyi szakíró fogalmazna.
+- Úgy hasson, mintha valódi ember írta volna: legyen természetes ritmusa, enyhe nyelvi változatossága, ne legyen sablonos vagy túl steril.
 - Kerüld a sablonos, AI-szerű fordulatokat és az ismétlődő mondatszerkezeteket.
 - Legyen változatos a mondathossz és a ritmus; ne legyen “tankönyvszagú”.
 - Ne használj fölösleges szakzsargont, latin vagy angol szakkifejezéseket.
@@ -1194,7 +1199,8 @@ Követelmények:
 - Rossz példa: "az immersion hatás és a megnövekedett vagus tónus miatt".
 - Jó irány: "a vízben végzett mozgás és a nyugodtabb idegrendszeri állapot miatt".
 - Ha a fenti webshop-termékek közül valamelyik SZOROSAN kapcsolódik a témához, természetes módon említs meg 1-2 konkrét terméktípust vagy terméket a cikk releváns pontján.
-- Az említés legyen informatív és visszafogott: ne legyen sales-es, ne legyen direkt vásárlásra ösztönző, ne használj reklámszlogent.
+- Az említés legyen informatív és visszafogott, de ne legyen indokolatlanul távolságtartó: nyugodtan mutasd be pozitív, gyakorlati megoldásként vagy kényelmes formaként, ha ez tényleg következik a témából.
+- Ne legyen sales-es, ne legyen direkt vásárlásra ösztönző, ne használj reklámszlogent.
 - Csak akkor említs terméket, ha az tényleg segít gyakorlati példát adni vagy a felszívódás / forma / összetétel szempontjából releváns.
 - Ha például a téma C-vitamin és van releváns folyékony C-vitamin a terméklistában, akkor ezt említheted mint jól hasznosuló formai példát, de ne állíts olyat, amit a cikkből vagy termékadatból nem lehet alátámasztani.
 - Ne erőltesd bele a termékeket minden alcímbe; 1 természetes kapcsolódás bőven elég.
