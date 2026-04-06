@@ -111,19 +111,7 @@ function IconLink({
 }) {
   const common = (
       <>
-      <span
-          style={{
-            width: 28,
-            height: 28,
-            borderRadius: 999,
-            display: "inline-flex",
-            alignItems: "center",
-            justifyContent: "center",
-            border: "1px solid var(--border)",
-            background: "var(--card)",
-            boxShadow: "var(--shadow-sm)",
-          }}
-      >
+      <span className="footer-icon-badge">
         <Icon name={icon} />
       </span>
         <span style={{ fontWeight: 600 }}>{children}</span>
@@ -190,19 +178,7 @@ export default function SiteFooter() {
                     href="mailto:csakazertis@sokaigelek.hu"
                     style={{ gap: "0.65rem" }}
                 >
-                <span
-                    style={{
-                      width: 28,
-                      height: 28,
-                      borderRadius: 999,
-                      display: "inline-flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      border: "1px solid var(--border)",
-                      background: "var(--card)",
-                      boxShadow: "var(--shadow-sm)",
-                    }}
-                >
+                <span className="footer-icon-badge">
                   <Icon name="mail" />
                 </span>
                   <span style={{ fontWeight: 600 }}>csakazertis@sokaigelek.hu</span>

@@ -215,6 +215,7 @@ Javítsd ki a cikk címét és kivonatát úgy, hogy természetes, idiomatikus m
 Szabályok:
 - A cím legyen rövid, tiszta, természetes magyar.
 - A kivonat legyen 1-2 mondat, konkrét és közérthető.
+- A kivonat ne legyen sablonos felvezetés, inkább mondjon ki egy valós hétköznapi helyzetet vagy gyakorlati szempontot.
 - Kerüld a magyartalan, gépies, tükörfordított vagy zavaros kifejezéseket.
 - Kerüld az olyan homályos szavakat, mint: "szívdolog", "immersion hatás", "megnövekedett vagus tónus", "kedvező paraméterek".
 - Ne használj fölösleges szakzsargont. Ha mégis muszáj, egyszerűen fogalmazd át.
@@ -246,6 +247,13 @@ Dolgozd át a cikket úgy, hogy természetes, idiomatikus magyar nyelven szóljo
 
 Szabályok:
 - A jelentést, a szerkezetet és a fő állításokat tartsd meg.
+- Ne legyen promós vagy sales-es hangulatú.
+- Legyen olyan, mintha egy rutinos magazinszerző vagy egészségrovat-szerkesztő írta volna.
+- A nyitás legyen emberi és konkrét: induljon hétköznapi tapasztalatból vagy valós élethelyzetből, ne általános közhellyel.
+- A bekezdések legyenek rövidek, jól törhetők, könnyen szkennelhetők.
+- Az alcímek legyenek egyszerűek, természetesek, ne túl technikaiak.
+- A szöveg inkább gyakorlati legyen, mint elméleti: mondjon ki hétköznapi példákat és alkalmazható szempontokat.
+- Kerüld az üres felvezetéseket, a túlmagyarázást és az ismétléseket.
 - Javítsd a magyartalan, gépies, tükörfordított vagy zavaros megfogalmazásokat.
 - Írd át a túl szakmai, túl elvont vagy laikusnak nehezen érthető részeket közérthetőre.
 - Kerüld az orvosi, élettani vagy edzéselméleti szakzsargont.
@@ -260,6 +268,8 @@ Szabályok:
 - Ne tedd tudálékossá vagy tankönyvszagúvá a szöveget.
 - A hangnem maradjon empatikus, természetes és hiteles.
 - Ha releváns étrend-kiegészítő kerül szóba, az kiegyensúlyozottan pozitív fényben jelenjen meg: mint praktikus, átgondolt segítség vagy kényelmes forma, de ne reklámszövegként.
+- A cikktestben legfeljebb 1 természetes termékes kapcsolódás maradjon.
+- Ne emelj ki több külön terméket vagy terméktípust a szöveg különböző pontjain.
 
 Adj vissza EGYETLEN JSON objektumot:
 {
@@ -1184,6 +1194,12 @@ Követelmények:
 - A cikk laikus olvasónak szól, nem szakembernek.
 - 900-1400 szó.
 - A bekezdések legyenek rövidek és könnyen olvashatók.
+- A nyitás induljon valós, hétköznapi helyzetből vagy ismerős problémából, ne általános közhellyel.
+- A cikk legyen gyakorlati és emberi hangú: legyen benne kézzelfogható példa, hétköznapi megfigyelés vagy jól érthető élethelyzet.
+- Az alcímek legyenek természetesek és tiszták, ne legyenek túl technikaiak vagy mesterkéltek.
+- Kerüld a túl egyforma mondathosszakat, a sablonos átvezetéseket és az AI-s ritmust.
+- Ne legyen tankönyvszagú, steril vagy túlmagyarázott.
+- Inkább szerkesztett magazincikknek hasson, mint SEO-vázlatnak.
 - Rövid, tömör cím: max 60 karakter, lehetőleg 6-9 szó.
 - Ne írj meta-szöveget a stílusról (pl. "a cikk barátságos hangvételben...").
 - Ne írj önreflexív vagy kommentáló mondatot a cikkről (pl. "Ez a cikk ... elmagyarázza", "ebben a cikkben bemutatjuk", "az alábbiakban áttekintjük").
@@ -1196,12 +1212,12 @@ Követelmények:
 - Ha elkerülhetetlen egy szakkifejezés, azonnal magyarázd meg egyszerű, hétköznapi magyar nyelven.
 - Rossz példa: "az immersion hatás és a megnövekedett vagus tónus miatt".
 - Jó irány: "a vízben végzett mozgás és a nyugodtabb idegrendszeri állapot miatt".
-- Ha a fenti webshop-termékek közül valamelyik SZOROSAN kapcsolódik a témához, természetes módon említs meg 1-2 konkrét terméktípust vagy terméket a cikk releváns pontján.
+- Ha a fenti webshop-termékek közül valamelyik SZOROSAN kapcsolódik a témához, természetes módon említs meg legfeljebb 1 konkrét terméktípust vagy terméket a cikk egy releváns pontján.
 - Az említés legyen informatív és visszafogott, de ne legyen indokolatlanul távolságtartó: nyugodtan mutasd be pozitív, gyakorlati megoldásként vagy kényelmes formaként, ha ez tényleg következik a témából.
 - Ne legyen sales-es, ne legyen direkt vásárlásra ösztönző, ne használj reklámszlogent.
 - Csak akkor említs terméket, ha az tényleg segít gyakorlati példát adni vagy a felszívódás / forma / összetétel szempontjából releváns.
 - Ha például a téma C-vitamin és van releváns folyékony C-vitamin a terméklistában, akkor ezt említheted mint jól hasznosuló formai példát, de ne állíts olyat, amit a cikkből vagy termékadatból nem lehet alátámasztani.
-- Ne erőltesd bele a termékeket minden alcímbe; 1 természetes kapcsolódás bőven elég.
+- Ne erőltesd bele a terméket több alcímbe; 1 természetes kapcsolódás bőven elég.
 
 Adj vissza egyetlen JSON objektumot:
 {
