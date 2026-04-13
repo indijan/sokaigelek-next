@@ -46,6 +46,15 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  async redirects() {
+    return [
+      {
+        source: "/cikkek/uj-cikk-1776029780596",
+        destination: "/cikkek/miert-gorcsol-a-labad-este",
+        permanent: true,
+      },
+    ];
+  },
 };
 
 export default nextConfig;
