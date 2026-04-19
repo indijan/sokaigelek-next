@@ -7,6 +7,11 @@ import ShareButtons from "@/components/Article/ShareButtons";
 import ArticleAudioSummary from "@/components/Article/ArticleAudioSummary";
 import SubscribeInline from "@/components/Article/SubscribeInline";
 import { cdnImageUrl } from "@/lib/cdn";
+import {
+  ArticleMiniAppDesktopStickyCta,
+  ArticleMiniAppFloatingCta,
+  ArticleMiniAppInlinePromo,
+} from "@/components/mi-hianyzik/ArticleMiniAppCtas";
 import "../article.css";
 
 export const revalidate = 3600;
@@ -405,6 +410,8 @@ export default async function ArticlePageRoute({ params }: Props) {
 
   return (
     <main className="container page">
+      <ArticleMiniAppDesktopStickyCta />
+      <ArticleMiniAppFloatingCta />
       <ArticleChatTrigger title={article.title} excerpt={(article as any).excerpt ?? null} />
       <script
         type="application/ld+json"
@@ -579,6 +586,7 @@ export default async function ArticlePageRoute({ params }: Props) {
           shareUrl={shareUrl}
           relatedProductsUrl={relatedProductsUrl}
         />
+        <ArticleMiniAppInlinePromo />
       </header>
 
       {/* Content + Sidebar */}

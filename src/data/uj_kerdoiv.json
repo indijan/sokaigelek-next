@@ -1,0 +1,806 @@
+{
+  "version": "2.0.0",
+  "appId": "mi-hianyzik-nekem-adaptive-quiz",
+  "language": "hu",
+  "goal": "A felhasználó 4-6 célzott kérdés után azt érezze, hogy a miniapp pontosan rá van hangolva, értelmes mintázatot ismer fel, és valóban használható következő lépést ad.",
+  "designPrinciples": [
+    "nincs 3-as belépőválasztás, csak 1 fő kiinduló probléma vagy cél",
+    "minden következő kérdés az előző válaszok alapján szűkül",
+    "a kérdések ne általánosak, hanem élethelyzetre és mintázatra kérdezzenek rá",
+    "a kimenet ne diagnózis legyen, hanem hihető, pontos mintázat + gyakorlati következő lépések",
+    "a user ne lássa az összes lehetséges irányt, csak a saját útvonalát",
+    "a rendszer ne csak primary találatot adjon, hanem secondary mintázatot és bizonytalansági szintet is"
+  ],
+  "limits": {
+    "minQuestions": 4,
+    "maxQuestions": 6,
+    "entryCountsAsQuestion": true
+  },
+  "flow": {
+    "states": [
+      "intro",
+      "primary_intent",
+      "context_probe",
+      "pattern_probe",
+      "discriminator_probe",
+      "confidence_probe",
+      "result"
+    ],
+    "questionSelectionStrategy": "A rendszer minden lépésben a top 3 legvalószínűbb domain közül választ olyan kérdést, amely a legjobban elkülöníti őket egymástól.",
+    "stoppingRules": [
+      "Ha az első domain score legalább 30%-kal vezet a második előtt, és legalább 4 kérdés lefutott, mehet az eredmény.",
+      "Ha a top 2 domain közti különbség kicsi, még 1 differenciáló kérdést felteszünk.",
+      "Ha 6 kérdés után is vegyes a kép, kombinált eredményt adunk: primary + secondary mintázat."
+    ]
+  },
+  "entryQuestion": {
+    "id": "primary_intent",
+    "type": "single_select_cards",
+    "title": "Mi az a fő dolog, ami miatt most itt vagy?",
+    "description": "Válaszd azt, ami most a legerősebben igaz rád. A következő kérdések ehhez igazodnak.",
+    "options": [
+      {
+        "id": "entry_energy",
+        "label": "Állandó fáradtság vagy lemerültség",
+        "mapsTo": {
+          "energy": 3,
+          "sleep": 2,
+          "blood": 2,
+          "mind": 1,
+          "hydration": 1,
+          "metabolism": 1
+        }
+      },
+      {
+        "id": "entry_stress_focus_sleep",
+        "label": "Nem tudok kikapcsolni, szétesek fejben vagy rosszul alszom",
+        "mapsTo": {
+          "mind": 3,
+          "sleep": 3,
+          "minerals": 1,
+          "energy": 1
+        }
+      },
+      {
+        "id": "entry_hydration_muscle",
+        "label": "Görcsök, levertség, fejfájás vagy gyanúsan kevés folyadék",
+        "mapsTo": {
+          "hydration": 3,
+          "minerals": 3,
+          "energy": 1,
+          "cardio": 1
+        }
+      },
+      {
+        "id": "entry_immunity",
+        "label": "Gyakran lerobbanok vagy immunoldali támogatást keresek",
+        "mapsTo": {
+          "immunity": 3,
+          "upper_resp": 2,
+          "antioxidant": 1,
+          "energy": 1
+        }
+      },
+      {
+        "id": "entry_digestion",
+        "label": "Emésztés, puffadás, bélflóra vagy gyomorpanasz",
+        "mapsTo": {
+          "digestion": 3,
+          "gut": 3,
+          "liver_detox": 1,
+          "metabolism": 1
+        }
+      },
+      {
+        "id": "entry_cardiometabolic",
+        "label": "Keringés, vérnyomás, koleszterin, vércukor vagy testsúly",
+        "mapsTo": {
+          "cardio": 3,
+          "metabolism": 3,
+          "weight": 2,
+          "blood": 1
+        }
+      },
+      {
+        "id": "entry_mobility",
+        "label": "Ízületek, csontok, mozgáskomfort",
+        "mapsTo": {
+          "bones_joints": 3,
+          "minerals": 1,
+          "antioxidant": 1
+        }
+      },
+      {
+        "id": "entry_appearance",
+        "label": "Bőr, haj, köröm vagy általános megjelenésbeli támogatás",
+        "mapsTo": {
+          "skin_hair_nails": 3,
+          "blood": 1,
+          "antioxidant": 1
+        }
+      },
+      {
+        "id": "entry_hormonal",
+        "label": "Ciklus, hormonális egyensúly vagy női panaszok",
+        "mapsTo": {
+          "hormonal": 3,
+          "mind": 1,
+          "blood": 1,
+          "sleep": 1
+        }
+      },
+      {
+        "id": "entry_male",
+        "label": "Férfi vitalitás vagy célzott férfi támogatás",
+        "mapsTo": {
+          "sexual": 3,
+          "prostate": 2,
+          "energy": 1,
+          "mind": 1
+        }
+      }
+    ]
+  },
+  "domains": {
+    "energy": {
+      "label": "Sejtszintű energia és vitalitás",
+      "shortReason": "A mintázat inkább valódi energiarendszer-lemerülésre utal, nem egyszerűen egy rossz napra.",
+      "adviceStyle": "energiaszintet támogató, nem stimuláló"
+    },
+    "mind": {
+      "label": "Mentális túlterhelés és fókuszvesztés",
+      "shortReason": "A mintázat inkább idegrendszeri túlterhelésre és mentális kifáradásra utal.",
+      "adviceStyle": "idegrendszeri tehermentesítés + fókusztámogatás"
+    },
+    "sleep": {
+      "label": "Regeneráció és alvásminőség",
+      "shortReason": "A fő probléma inkább a helyreállás és a valódi pihenés hiánya.",
+      "adviceStyle": "esti lecsendesedés + alvásminőség"
+    },
+    "hydration": {
+      "label": "Hidratáció és elektrolit-egyensúly",
+      "shortReason": "A minta inkább folyadék- és elektrolitoldali támogatási igényt mutat.",
+      "adviceStyle": "folyadékpótlás + elektrolit-egyensúly"
+    },
+    "minerals": {
+      "label": "Ásványi egyensúly és izomműködés",
+      "shortReason": "A mintázat inkább magnézium-, kálium- vagy izomműködés-oldali támogatás felé mutat.",
+      "adviceStyle": "izom- és idegrendszeri támogatás"
+    },
+    "immunity": {
+      "label": "Immunrendszeri támogatás",
+      "shortReason": "A fókusz inkább ellenállóbb közérzet és immunoldali támogatás.",
+      "adviceStyle": "immunrendszeri megelőző támogatás"
+    },
+    "upper_resp": {
+      "label": "Felső légúti támogatás",
+      "shortReason": "A minta főleg felső légúti érzékenység és szezonális támogatás irányába mutat.",
+      "adviceStyle": "szezonális és légúti fókusz"
+    },
+    "digestion": {
+      "label": "Emésztés és gyomorkomfort",
+      "shortReason": "A panasz inkább emésztési ritmusra, gyomorérzékenységre vagy puffadásra hasonlít.",
+      "adviceStyle": "emésztést könnyítő, kényelmesebb napi ritmus"
+    },
+    "gut": {
+      "label": "Bélflóra-egyensúly",
+      "shortReason": "A válaszok inkább a bélflóra és mikrobiom oldalát erősítik.",
+      "adviceStyle": "mikrobiom és rostoldali támogatás"
+    },
+    "liver_detox": {
+      "label": "Máj és antioxidáns védelem",
+      "shortReason": "A minta inkább tisztító folyamatok és antioxidáns tehermentesítés irányába mutat.",
+      "adviceStyle": "májbarát, antioxidáns szemléletű támogatás"
+    },
+    "cardio": {
+      "label": "Szív- és keringési támogatás",
+      "shortReason": "A fókusz inkább keringés-, vérnyomás- vagy szívbarát támogatás.",
+      "adviceStyle": "keringés- és szívbarát szokások"
+    },
+    "metabolism": {
+      "label": "Anyagcsere és vércukor-egyensúly",
+      "shortReason": "A válaszok inkább anyagcsere- vagy szénhidrát-egyensúly oldali támogatást jeleznek.",
+      "adviceStyle": "ritmus, vércukor-stabilitás, anyagcsere"
+    },
+    "weight": {
+      "label": "Testsúly és alakformálás",
+      "shortReason": "A cél inkább testsúly- és közérzetjavító támogatás, nem önmagában egyetlen tünet kezelése.",
+      "adviceStyle": "fenntartható testsúlyoldali támogatás"
+    },
+    "bones_joints": {
+      "label": "Csontok, ízületek és mozgáskomfort",
+      "shortReason": "A panasz inkább mozgásrendszeri fenntartó vagy kényelmi támogatást kíván.",
+      "adviceStyle": "mozgásrendszer-barát támogatás"
+    },
+    "skin_hair_nails": {
+      "label": "Bőr, haj és köröm támogatása",
+      "shortReason": "A válaszok inkább megjelenésbeli és szöveti támogatás felé mutatnak.",
+      "adviceStyle": "szépség és belső egyensúly"
+    },
+    "hormonal": {
+      "label": "Hormonális egyensúly és ciklustámogatás",
+      "shortReason": "A minta inkább ciklushoz, hormonális ritmushoz vagy női egyensúlyhoz kapcsolódik.",
+      "adviceStyle": "finomhangolt, ritmusalapú támogatás"
+    },
+    "blood": {
+      "label": "Vérképzés és általános vitalitás",
+      "shortReason": "A minta inkább általános vitalitási és vérképzési támogatást sugall.",
+      "adviceStyle": "általános erőnlét és regeneráció"
+    },
+    "sexual": {
+      "label": "Szexuális vitalitás",
+      "shortReason": "A fókusz inkább szexuális energiaszint és vitalitásoldali támogatás.",
+      "adviceStyle": "vitalitás és célzott támogatás"
+    },
+    "prostate": {
+      "label": "Célzott férfi támogatás",
+      "shortReason": "A minta inkább férfi fókuszú, célzottabb támogatást mutat.",
+      "adviceStyle": "célzott férfi támogatás"
+    },
+    "antioxidant": {
+      "label": "Antioxidáns védelem és fokozott terhelés",
+      "shortReason": "A válaszok alapján a fokozott terheléshez antioxidáns oldalról is érdemes nyúlni.",
+      "adviceStyle": "antioxidáns és terheléscsökkentő szemlélet"
+    }
+  },
+  "adaptiveQuestions": [
+    {
+      "id": "context_time_pattern",
+      "title": "Mikor a legerősebb ez nálad?",
+      "type": "single_select",
+      "appliesIfAnyTopDomains": ["energy", "mind", "sleep", "hydration", "metabolism", "blood"],
+      "options": [
+        {
+          "id": "morning_worse",
+          "label": "Már reggel is érzem",
+          "scores": {
+            "sleep": 3,
+            "energy": 2,
+            "blood": 1
+          }
+        },
+        {
+          "id": "afternoon_crash",
+          "label": "Délután zuhanok be",
+          "scores": {
+            "energy": 2,
+            "metabolism": 2,
+            "hydration": 1
+          }
+        },
+        {
+          "id": "evening_overdrive",
+          "label": "Este túl aktív az agyam, miközben fáradt vagyok",
+          "scores": {
+            "mind": 3,
+            "sleep": 2
+          }
+        },
+        {
+          "id": "all_day_flat",
+          "label": "Egész nap tompább vagyok",
+          "scores": {
+            "energy": 2,
+            "blood": 2,
+            "mind": 1
+          }
+        }
+      ]
+    },
+    {
+      "id": "context_trigger_pattern",
+      "title": "Mi után érzed a leginkább, hogy nem vagy rendben?",
+      "type": "single_select",
+      "appliesIfAnyTopDomains": ["mind", "sleep", "hydration", "minerals", "immunity", "digestion", "cardio", "metabolism"],
+      "options": [
+        {
+          "id": "after_stress",
+          "label": "Stresszesebb napok után",
+          "scores": {
+            "mind": 3,
+            "sleep": 2,
+            "immunity": 1
+          }
+        },
+        {
+          "id": "after_heat_or_training",
+          "label": "Edzés, izzadás vagy meleg után",
+          "scores": {
+            "hydration": 3,
+            "minerals": 2,
+            "energy": 1
+          }
+        },
+        {
+          "id": "after_eating",
+          "label": "Étkezések körül vagy után",
+          "scores": {
+            "digestion": 3,
+            "gut": 2,
+            "metabolism": 1
+          }
+        },
+        {
+          "id": "constantly_no_clear_trigger",
+          "label": "Nincs egyértelmű kiváltó, inkább állandó",
+          "scores": {
+            "energy": 1,
+            "blood": 1,
+            "metabolism": 1,
+            "cardio": 1
+          }
+        }
+      ]
+    },
+    {
+      "id": "discriminator_mental_vs_sleep",
+      "title": "Melyik mondat ír le pontosabban?",
+      "type": "single_select",
+      "appliesIfTopDomainsExactlyLike": ["mind", "sleep"],
+      "options": [
+        {
+          "id": "mind_can_not_focus",
+          "label": "Napközben fejben szétcsúszom, este pedig nehéz kikapcsolni",
+          "scores": {
+            "mind": 4,
+            "sleep": 1
+          }
+        },
+        {
+          "id": "sleep_not_rested",
+          "label": "A fő gond, hogy hiába alszom, nem érzem, hogy visszatöltődtem",
+          "scores": {
+            "sleep": 4,
+            "mind": 1
+          }
+        },
+        {
+          "id": "mind_stimulated",
+          "label": "Túl sok inger ér, és mintha állandóan készenlétben lennék",
+          "scores": {
+            "mind": 4
+          }
+        },
+        {
+          "id": "sleep_fragmented",
+          "label": "Az alvásom darabos, sekély vagy nyugtalan",
+          "scores": {
+            "sleep": 4
+          }
+        }
+      ]
+    },
+    {
+      "id": "discriminator_hydration_vs_minerals",
+      "title": "Mi illik rád jobban?",
+      "type": "single_select",
+      "appliesIfTopDomainsExactlyLike": ["hydration", "minerals"],
+      "options": [
+        {
+          "id": "dehydration_pattern",
+          "label": "Fejfájás, szédülés, levertség vagy \"összeesős\" érzés jellemzőbb",
+          "scores": {
+            "hydration": 4,
+            "minerals": 1
+          }
+        },
+        {
+          "id": "mineral_pattern",
+          "label": "Izomfeszülés, görcs, remegés vagy nyugtalan testérzet jellemzőbb",
+          "scores": {
+            "minerals": 4,
+            "hydration": 1
+          }
+        },
+        {
+          "id": "water_not_enough",
+          "label": "A sima víz önmagában nem tűnik elégnek",
+          "scores": {
+            "hydration": 3,
+            "minerals": 2
+          }
+        },
+        {
+          "id": "evening_cramps",
+          "label": "Estére rosszabbodik, főleg izomoldalon",
+          "scores": {
+            "minerals": 4
+          }
+        }
+      ]
+    },
+    {
+      "id": "discriminator_energy_vs_blood_vs_metabolism",
+      "title": "Melyik a legtalálóbb?",
+      "type": "single_select",
+      "appliesIfAnyTopDomains": ["energy", "blood", "metabolism"],
+      "options": [
+        {
+          "id": "energy_plain_depletion",
+          "label": "Hiába pihenek, valahogy nincs valódi belső töltöttségem",
+          "scores": {
+            "energy": 4
+          }
+        },
+        {
+          "id": "blood_low_stamina",
+          "label": "Terhelésre gyorsan elfáradok, mintha kevés lenne a tartalék",
+          "scores": {
+            "blood": 4,
+            "energy": 1
+          }
+        },
+        {
+          "id": "metabolism_crash",
+          "label": "Inkább hullámzik: néha bezuhanok, éhség vagy evés körül változik",
+          "scores": {
+            "metabolism": 4,
+            "energy": 1
+          }
+        },
+        {
+          "id": "mixed_flat",
+          "label": "Általános, tompa lemerültség, nehéz jól körülírni",
+          "scores": {
+            "energy": 2,
+            "blood": 2
+          }
+        }
+      ]
+    },
+    {
+      "id": "discriminator_digestion_vs_gut_vs_liver",
+      "title": "Mi a legerősebb célod ezen a területen?",
+      "type": "single_select",
+      "appliesIfAnyTopDomains": ["digestion", "gut", "liver_detox"],
+      "options": [
+        {
+          "id": "digestion_comfort",
+          "label": "Kényelmesebb, nyugodtabb emésztést szeretnék",
+          "scores": {
+            "digestion": 4,
+            "gut": 1
+          }
+        },
+        {
+          "id": "gut_balance",
+          "label": "A bélflóra-egyensúlyt raknám rendbe",
+          "scores": {
+            "gut": 4,
+            "digestion": 1
+          }
+        },
+        {
+          "id": "liver_support",
+          "label": "Tisztább, könnyebb közérzetet és több antioxidáns támogatást szeretnék",
+          "scores": {
+            "liver_detox": 4,
+            "antioxidant": 2
+          }
+        },
+        {
+          "id": "mixed_digestive",
+          "label": "Nem tudom pontosan, csak érzem, hogy ezen a területen nincs egyensúly",
+          "scores": {
+            "digestion": 2,
+            "gut": 2,
+            "liver_detox": 1
+          }
+        }
+      ]
+    },
+    {
+      "id": "discriminator_cardio_vs_metabolism_vs_weight",
+      "title": "Melyik szempont a legfontosabb neked?",
+      "type": "single_select",
+      "appliesIfAnyTopDomains": ["cardio", "metabolism", "weight"],
+      "options": [
+        {
+          "id": "cardio_focus",
+          "label": "Keringés, vérnyomás vagy szívbarát támogatás",
+          "scores": {
+            "cardio": 4
+          }
+        },
+        {
+          "id": "cholesterol_or_sugar",
+          "label": "Vércukor- vagy koleszterinoldali egyensúly",
+          "scores": {
+            "metabolism": 4,
+            "cardio": 1
+          }
+        },
+        {
+          "id": "weight_comfort",
+          "label": "Testsúly és könnyebb közérzet",
+          "scores": {
+            "weight": 4,
+            "metabolism": 2
+          }
+        },
+        {
+          "id": "mixed_cardio_metabolic",
+          "label": "Ezek nálam összefüggenek, nem tudom különválasztani",
+          "scores": {
+            "cardio": 2,
+            "metabolism": 2,
+            "weight": 1
+          }
+        }
+      ]
+    },
+    {
+      "id": "confidence_probe_intensity",
+      "title": "Mennyire zavar ez a mindennapokban?",
+      "type": "single_select",
+      "alwaysAskIfQuestionCountBelow": 4,
+      "options": [
+        {
+          "id": "mild",
+          "label": "Inkább csak jelzés, még együtt tudok vele élni",
+          "scores": {
+            "global_confidence": 0
+          }
+        },
+        {
+          "id": "moderate",
+          "label": "Visszatérően zavar, de nem állandó",
+          "scores": {
+            "global_confidence": 1
+          }
+        },
+        {
+          "id": "high",
+          "label": "Eléggé befolyásolja a napjaimat",
+          "scores": {
+            "global_confidence": 2
+          }
+        },
+        {
+          "id": "very_high",
+          "label": "Régóta fennáll és nagyon zavar",
+          "scores": {
+            "global_confidence": 3
+          }
+        }
+      ]
+    }
+  ],
+  "resultEngine": {
+    "primaryResultRule": "A legmagasabb pontszámú domain lesz a primary result.",
+    "secondaryResultRule": "A secondary result csak akkor jelenjen meg, ha a pontszáma eléri a primary 60%-át, vagy ha az útvonal végig szoros versenyt mutatott.",
+    "confidenceRule": {
+      "high": "A primary domain legalább 30%-kal vezet, és legalább 2 differenciáló kérdés támogatja.",
+      "medium": "A primary vezet, de a secondary is erős.",
+      "mixed": "A top 2 domain nagyon közel van egymáshoz, kombinált mintázat jelenjen meg."
+    },
+    "combinedPatternRule": "Ha confidence = mixed, akkor a fő eredmény címe legyen 'Nálad valószínűleg két terület kapcsolódik össze', és egyszerre jelenjen meg a primary és secondary domain közös magyarázata."
+  },
+  "resultTemplates": {
+    "high": {
+      "title": "Ez a terület rajzolódik ki legerősebben nálad",
+      "tone": "határozott, de nem diagnosztizáló"
+    },
+    "medium": {
+      "title": "Valószínűleg ez a fő irány nálad, de van mellette egy második erősebb mintázat is",
+      "tone": "óvatosan pontosító"
+    },
+    "mixed": {
+      "title": "Nálad valószínűleg két terület kapcsolódik össze",
+      "tone": "összetett mintázatot magyarázó"
+    }
+  },
+  "outputContent": {
+    "energy": {
+      "headline": "Nálad inkább valódi lemerülés látszik, nem egyszerűen egy rosszabb nap.",
+      "explanation": "A válaszaid alapján nem az tűnik fő problémának, hogy néha kevés az energiád, hanem az, hogy a rendszered nem tölt vissza igazán. Ez gyakran akkor érződik, amikor az alvás, a kávé vagy a rövid pihenés sem hoz valódi javulást.",
+      "practicalAdvice": [
+        "Ne gyors pörgetést keress, hanem tartósabb energiát adó napi ritmust: reggeli folyadék, könnyű mozgás, kiszámíthatóbb napindítás.",
+        "Figyeld meg, hogy a lemerültség inkább állandó vagy hullámzó. Ez sokat elárul arról, mennyire tiszta az energiamintázat.",
+        "Ha a fáradtság mellé mentális tompaság vagy terhelésre gyors kifáradás társul, érdemes a kapcsolódó másodlagos mintázatot is komolyan venni."
+      ]
+    },
+    "mind": {
+      "headline": "Nálad inkább idegrendszeri túlterhelés látszik, nem egyszerűen 'stressz'.",
+      "explanation": "A válaszaid alapján a fő gond nem az, hogy sok a teendő, hanem az, hogy a rendszered nehezen vált ki a készenléti állapotból. Ezért lehet egyszerre jelen a túlpörgés, az agyi köd és a kimerültség.",
+      "practicalAdvice": [
+        "Napközben iktass be rövid ingermentes szakaszokat. Nem telefonmentes jutalomként, hanem idegrendszeri tehermentesítésként.",
+        "Az esti lelassítás fontosabb lehet, mint az, hogy összesen mennyit alszol. A képernyős 'pihenés' nem mindig valódi leállás.",
+        "Ne csak arra figyelj, hogy fáradt vagy-e, hanem arra is, hogy mennyire tudsz csendesedni fejben."
+      ]
+    },
+    "sleep": {
+      "headline": "Nálad a fő töréspont inkább a valódi regeneráció hiánya.",
+      "explanation": "A válaszok alapján nem elsősorban a nappali teljesítmény oldaláról indult a probléma, hanem onnan, hogy az alvás és a pihenés nem hoz igazi visszatöltődést. Ettől a nappal is tompábbá válhat.",
+      "practicalAdvice": [
+        "Kezeld külön az esti lecsendesedést és az alvás hosszát. A kettő nem ugyanaz.",
+        "Az utolsó 60-90 perc ritmusa sokszor többet számít, mint hinnéd.",
+        "Ha reggel is fáradtan ébredsz, ne csak az alvásidőt nézd, hanem a pihenés minőségét is."
+      ]
+    },
+    "hydration": {
+      "headline": "Nálad a folyadék- és elektrolit-egyensúly oldala lehet most hangsúlyosabb.",
+      "explanation": "A válaszaid alapján nem pusztán arról lehet szó, hogy keveset iszol, hanem arról, hogy a folyadékpótlásod nem ad valódi egyensúlyt. Ez gyakran fejfájás, levertség, szédülés vagy 'nem vagyok teljesen egyben' érzés formájában jelenik meg.",
+      "practicalAdvice": [
+        "Ne csak az összvíz-mennyiséget nézd, hanem azt is, hogy meleg, terhelés vagy stresszesebb nap után hogyan pótolsz.",
+        "Ha a sima víz kevésnek érződik, érdemes elektrolitoldalról is gondolkodni.",
+        "Figyeld meg, mikor jön a rosszabb állapot: délután, melegben vagy edzés után. Ez sokat pontosít."
+      ]
+    },
+    "minerals": {
+      "headline": "Nálad inkább ásványi egyensúly és izomműködés oldali jelzés látszik.",
+      "explanation": "A mintázat alapján nem egyszerűen fáradtságról van szó, hanem olyan testi jelzésekről is, amelyek ásványi oldalra utalnak: görcs, izomfeszülés, remegés, nyugtalanabb testérzet vagy estére romló állapot.",
+      "practicalAdvice": [
+        "Érdemes megfigyelni, napszakhoz kötött-e a romlás. Az esti rosszabbodás gyakran beszédes.",
+        "Az ásványi támogatás és a folyadékbevitel együtt ad igazán jó eredményt.",
+        "Ne egyetlen tünetet nézz, hanem a teljes mintát: feszülés, görcs, nyugtalanság, levertség."
+      ]
+    },
+    "immunity": {
+      "headline": "Nálad inkább az ellenállóbb közérzet és immunoldali támogatás lehet most fontos.",
+      "explanation": "A válaszaid alapján nem egyetlen konkrét panasz rajzolódott ki, hanem az, hogy a rendszered könnyebben billen ki, különösen terheltebb időszakokban.",
+      "practicalAdvice": [
+        "Ne csak akkor gondolj erre a területre, amikor már lerobbantál. Az immunoldal megelőző szemléletben működik a legjobban.",
+        "A stressz és a lemerültség sokszor ugyanerről a területről is levesz.",
+        "Szezonális vagy terheltebb időszakok előtt különösen hasznos lehet a tudatosabb támogatás."
+      ]
+    },
+    "upper_resp": {
+      "headline": "Nálad a felső légúti érzékenység és szezonális támogatás oldala hangsúlyosabb.",
+      "explanation": "A mintázat inkább arra utal, hogy nem általános közérzeti problémát szeretnél megoldani, hanem egy visszatérő, szezonálisan vagy érzékenyebb időszakokban előjövő területet.",
+      "practicalAdvice": [
+        "Itt különösen sokat számít az előre gondolkodás.",
+        "Ha ez rendszeresen visszatér, ne csak tünetnél reagálj rá.",
+        "Érdemes ezt az immunoldali támogatással együtt kezelni."
+      ]
+    },
+    "digestion": {
+      "headline": "Nálad inkább az emésztés kényelme és a gyomoroldali egyensúly a kulcsterület.",
+      "explanation": "A válaszaid alapján nem általános vitalitáshiány látszik, hanem egy olyan minta, ahol az emésztés ritmusa, a gyomor kényelme vagy az étkezés utáni közérzet a fő gond.",
+      "practicalAdvice": [
+        "Figyeld meg, hogy étkezés után, bizonyos napszakokban vagy bizonyos típusú terhelésnél rosszabb-e.",
+        "Nem minden emésztési panasz bélflóraeredetű. Jó, ha célzottan gondolkodsz.",
+        "Az evés tempója, a napi ritmus és a célzott támogatás együtt lehet igazán hasznos."
+      ]
+    },
+    "gut": {
+      "headline": "Nálad a bélflóra-egyensúly oldala erősebbnek tűnik.",
+      "explanation": "A válaszaid inkább arra utalnak, hogy nem egyszerű emésztési kényelmetlenség a fő kérdés, hanem az egyensúly mélyebb, bélflóraoldali helyreállítása lehet releváns.",
+      "practicalAdvice": [
+        "A bélflóra támogatása nem azonnali projekt, inkább következetes építkezés.",
+        "A rostbevitel és a célzott mikrobiomoldali támogatás jól kiegészíthetik egymást.",
+        "A napi ritmus és a bélflóra állapota gyakran jobban összefügg, mint elsőre látszik."
+      ]
+    },
+    "liver_detox": {
+      "headline": "Nálad a tehermentesítés és antioxidáns oldal is fontosabb lehet.",
+      "explanation": "A válaszaid alapján nem közvetlenül egyetlen tünet a hangsúlyos, hanem az az érzés, hogy a rendszered túlterheltebb, nehezebben 'tisztul', és jól jönne egy máj- illetve antioxidáns szemléletű támogatás.",
+      "practicalAdvice": [
+        "Itt ne azonnali felpörgetést várj, hanem fokozatosan jobb közérzetet.",
+        "A túl sok inger, a stressz és az általános terhelés ezen a területen is nyomot hagyhat.",
+        "Érdemes ezt hosszabb távú egyensúlyépítésként kezelni."
+      ]
+    },
+    "cardio": {
+      "headline": "Nálad a keringés és a szívbarát támogatás oldala került előtérbe.",
+      "explanation": "A mintázat alapján most inkább tudatos keringési vagy szív-érrendszeri támogatás irányába érdemes gondolkodni, nem csak általános közérzeti oldalról.",
+      "practicalAdvice": [
+        "Itt a ritmus, a mozgás és a célzott támogatás együtt a legerősebb.",
+        "Érdemes külön kezelni, hogy nálad inkább vérnyomás-, keringés- vagy koleszterinoldali fókusz van-e.",
+        "A megelőző gondolkodás ezen a területen különösen sokat számít."
+      ]
+    },
+    "metabolism": {
+      "headline": "Nálad inkább anyagcsere- és egyensúlyoldali támogatás látszik.",
+      "explanation": "A válaszok alapján nem pusztán fáradtságról vagy közérzetről van szó, hanem arról, hogy a rendszered ritmusa, energia-hullámzása vagy anyagcseréje kér több figyelmet.",
+      "practicalAdvice": [
+        "Figyeld meg, hogy a rosszabb állapot éhséghez, evéshez vagy napszakhoz kötődik-e.",
+        "Itt különösen fontos a napi ritmus és a kiszámíthatóbb terhelés.",
+        "A stabilabb közérzet sokszor jobb indikátor, mint a pillanatnyi energiaszint."
+      ]
+    },
+    "weight": {
+      "headline": "Nálad inkább testsúly- és közérzetoldali támogatás látszik.",
+      "explanation": "A minta azt mutatja, hogy nem egyetlen tünetet szeretnél megoldani, hanem egy összetettebb testsúly- és anyagcsereoldali egyensúlyt keresel.",
+      "practicalAdvice": [
+        "Érdemes a testsúly mellett a közérzetet és az energiahullámzást is figyelni.",
+        "A fenntarthatóbb ritmus többet ér, mint az egyszeri nagy lendület.",
+        "Ha fáradtság vagy sóvárgás is társul hozzá, azt külön jelzésként kezeld."
+      ]
+    },
+    "bones_joints": {
+      "headline": "Nálad inkább a mozgásrendszer és a mozgáskomfort oldala kér támogatást.",
+      "explanation": "A válaszok alapján most nem általános vitalitásoldali megoldásra van leginkább szükség, hanem olyan támogatásra, ami a csontok, ízületek vagy porcok kényelmesebb működését segíti.",
+      "practicalAdvice": [
+        "Jó különválasztani, hogy nálad inkább csont-, ízület- vagy porcoldali a hangsúly.",
+        "Ha izomfeszülés is társul hozzá, ásványi oldalról is érdemes ránézni.",
+        "A mindennapi mozgásminőség sokszor jobb visszajelzés, mint az egyszeri erősebb panasz."
+      ]
+    },
+    "skin_hair_nails": {
+      "headline": "Nálad inkább a bőr-haj-köröm tengely támogatása került előtérbe.",
+      "explanation": "A válaszok alapján most inkább belülről építkező, megjelenésoldali támogatásra van igény, nem egy gyors külső javításra.",
+      "practicalAdvice": [
+        "Itt a türelem és a következetesség sokkal fontosabb, mint a gyors várakozások.",
+        "A stressz és az általános vitalitás ezen a területen is hamar meglátszik.",
+        "Komplexebb, több irányból támogató megközelítés általában jobb eredményt ad."
+      ]
+    },
+    "hormonal": {
+      "headline": "Nálad inkább hormonális ritmus és ciklustámogatás látszik.",
+      "explanation": "A minta arra utal, hogy nem önálló tünetről van szó, hanem egy finomabb egyensúlyról, ahol a ciklus, a közérzet, a stressz és az energia összekapcsolódhat.",
+      "practicalAdvice": [
+        "Érdemes megfigyelni, visszatérően melyik időszak érzékenyebb nálad.",
+        "A hormonális egyensúlyt ritmusoldalról is érdemes nézni, nem csak tünetoldalról.",
+        "A stresszkezelés és az általános regeneráció sokat számíthat ezen a területen."
+      ]
+    },
+    "blood": {
+      "headline": "Nálad inkább általános vitalitás- és vérképzésoldali támogatás lehet fontos.",
+      "explanation": "A válaszok alapján a minta nem pusztán mentális vagy napi ritmusoldali, hanem mélyebb tartalékhiányra emlékeztető jellegű is lehet.",
+      "practicalAdvice": [
+        "Ha a gyors kifáradás vagy az általános gyengeség a legerősebb, ezt a területet érdemes komolyan venni.",
+        "A regeneráció és a tartalékérzet jó indikátorok lehetnek.",
+        "Ez a minta gyakran kapcsolódik energia- vagy immunoldalhoz is."
+      ]
+    },
+    "sexual": {
+      "headline": "Nálad inkább szexuális vitalitásoldali támogatás rajzolódik ki.",
+      "explanation": "A válaszaid alapján itt nem feltétlenül önálló tüneti kérdésről van szó, hanem vitalitás, energiaszint és célzott támogatási igény összekapcsolódásáról.",
+      "practicalAdvice": [
+        "Érdemes ezt nem elszigetelten, hanem általános vitalitással együtt nézni.",
+        "A stressz és a lemerültség ezen a területen is gyorsan megjelenhet.",
+        "A célzott támogatás akkor működik a legjobban, ha a napi ritmus is rendezettebb."
+      ]
+    },
+    "prostate": {
+      "headline": "Nálad inkább a célzott férfi támogatás iránya erősödött meg.",
+      "explanation": "A minta inkább férfi fókuszú, célzottabb támogatás irányát mutatja, nem általános közérzeti megközelítést.",
+      "practicalAdvice": [
+        "A megelőző gondolkodás ezen a területen különösen hasznos lehet.",
+        "Érdemes az általános vitalitást is együtt kezelni ezzel a területtel.",
+        "A rendszeresebb ritmus és a tudatosabb fenntartó támogatás itt is számít."
+      ]
+    },
+    "antioxidant": {
+      "headline": "Nálad a fokozott terhelés mellé antioxidáns oldalról is érdemes támogatást tenni.",
+      "explanation": "Ez a minta gyakran nem önálló főirány, hanem olyan háttértényező, ami több más területen is gyengítheti a közérzetet és a regenerációt.",
+      "practicalAdvice": [
+        "A terheltebb, stresszesebb időszakokban ez az oldal különösen hasznos lehet.",
+        "Az antioxidáns szemlélet gyakran akkor erős, ha több kisebb jelzés áll össze.",
+        "Érdemes ezt kiegészítő irányként nézni a primary mintázat mellett."
+      ]
+    }
+  },
+  "secondaryOutputRules": {
+    "showWhen": [
+      "secondaryScore >= 0.6 * primaryScore",
+      "confidence = mixed"
+    ],
+    "title": "A háttérben ez a második mintázat is erősen látszik",
+    "descriptionTemplate": "Ez azért fontos, mert a te mintád nem egyetlen területből áll össze. A fő irány mellett a(z) {secondaryLabel} is beleszólhat abba, hogyan érzed magad."
+  },
+  "practicalOutputAssembler": {
+    "primaryAdviceCount": 3,
+    "secondaryAdviceCount": 1,
+    "mixedMode": "2 tanács a primary domainből + 2 tanács a secondary domainből",
+    "tone": "gyakorlati, hiteles, nem túl általános"
+  },
+  "qualitySafeguards": {
+    "neverSay": [
+      "biztosan ez a bajod",
+      "egyértelmű hiányod van",
+      "orvosi diagnózist helyettesít"
+    ],
+    "alwaysSayLike": [
+      "a válaszaid alapján",
+      "inkább ez a mintázat rajzolódik ki",
+      "érdemes ebben az irányban gondolkodni"
+    ],
+    "validationPhrases": [
+      "Ez a minta sokszor akkor jelenik meg, amikor...",
+      "Nem vagy egyedül ezzel az érzéssel.",
+      "Ez nem feltétlenül drámai tünet, inkább visszatérő jelzés."
+    ]
+  }
+}

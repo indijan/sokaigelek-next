@@ -7,6 +7,24 @@ import { usePathname } from "next/navigation";
 import ChatOpenButton from "@/components/ChatOpenButton";
 import "./SiteHeader.css";
 
+function IconSearch() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <circle cx="11" cy="11" r="6.5" stroke="currentColor" strokeWidth="1.8" />
+      <path d="M16 16 21 21" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function IconContact() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <rect x="3.5" y="5.5" width="17" height="13" rx="2.5" stroke="currentColor" strokeWidth="1.8" />
+      <path d="M4.5 7 12 12l7.5-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 export default function SiteHeader() {
   const pathname = usePathname() || "/";
   const [menuOpen, setMenuOpen] = useState(false);
@@ -82,21 +100,36 @@ export default function SiteHeader() {
           </Link>
 
           <Link
-            href="/kereses"
-            className={isActive("/kereses") ? "is-active" : undefined}
-            aria-current={isActive("/kereses") ? "page" : undefined}
+            href="/mi-hianyzik-nekem"
+            className={isActive("/mi-hianyzik-nekem") ? "is-active" : undefined}
+            aria-current={isActive("/mi-hianyzik-nekem") ? "page" : undefined}
             onClick={() => setMenuOpen(false)}
           >
-            Keresés
+            Mi hiányzik nekem?
+          </Link>
+
+          <Link
+            href="/kereses"
+            className={`nav-icon-link${isActive("/kereses") ? " is-active" : ""}`}
+            aria-current={isActive("/kereses") ? "page" : undefined}
+            aria-label="Keresés"
+            title="Keresés"
+            onClick={() => setMenuOpen(false)}
+          >
+            <IconSearch />
+            <span className="sr-only">Keresés</span>
           </Link>
 
           <Link
             href="/kapcsolat"
-            className={isActive("/kapcsolat") ? "is-active" : undefined}
+            className={`nav-icon-link${isActive("/kapcsolat") ? " is-active" : ""}`}
             aria-current={isActive("/kapcsolat") ? "page" : undefined}
+            aria-label="Kapcsolat"
+            title="Kapcsolat"
             onClick={() => setMenuOpen(false)}
           >
-            Kapcsolat
+            <IconContact />
+            <span className="sr-only">Kapcsolat</span>
           </Link>
 
           <ChatOpenButton

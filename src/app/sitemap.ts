@@ -20,6 +20,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const staticRoutes: SitemapEntry[] = [
     { url: `${siteUrl}/`, changeFrequency: "weekly", priority: 1 },
     { url: `${siteUrl}/cikkek`, changeFrequency: "daily", priority: 0.8 },
+    { url: `${siteUrl}/mi-hianyzik-nekem`, changeFrequency: "weekly", priority: 0.8 },
     { url: `${siteUrl}/termek`, changeFrequency: "weekly", priority: 0.8 },
     { url: `${siteUrl}/kategorak`, changeFrequency: "weekly", priority: 0.5 },
     { url: `${siteUrl}/kapcsolat`, changeFrequency: "monthly", priority: 0.5 },

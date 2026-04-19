@@ -95,6 +95,32 @@
   text-decoration: none;
 }
 
+.site-nav .nav-icon-link {
+  width: 40px;
+  min-width: 40px;
+  height: 40px;
+  padding: 0;
+  justify-content: center;
+  border-color: rgba(15, 23, 42, 0.1);
+  background: rgba(255, 255, 255, 0.66);
+}
+
+.site-nav .nav-icon-link svg {
+  display: block;
+}
+
+.site-nav .sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 .nav a[aria-current="page"],
 .site-nav a[aria-current="page"],
 .nav a.is-active,
