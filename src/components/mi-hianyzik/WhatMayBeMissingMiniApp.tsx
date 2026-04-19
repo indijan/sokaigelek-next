@@ -757,6 +757,19 @@ export default function WhatMayBeMissingMiniApp({
   const [productVisuals, setProductVisuals] = useState<Record<string, string>>({});
   const resultSeenRef = useRef(false);
   const resultTopRef = useRef<HTMLDivElement | null>(null);
+  const rootRef = useRef<HTMLElement | null>(null);
+
+  const scrollToAppTop = useCallback(() => {
+    if (typeof window === "undefined") return;
+    window.setTimeout(() => {
+      const node = rootRef.current;
+      if (!node) return;
+      const prefersReducedMotion =
+        typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      const top = window.scrollY + node.getBoundingClientRect().top - 12;
+      window.scrollTo({ top: Math.max(0, top), behavior: prefersReducedMotion ? "auto" : "smooth" });
+    }, 40);
+  }, []);
 
   const emit = useCallback(
     (eventName: MiniAppEventName, payload: MiniAppEventPayload) => {
@@ -1077,6 +1090,7 @@ export default function WhatMayBeMissingMiniApp({
     };
     emit("miniapp_started", basePayload);
     emit("miniapp_entry_selected", basePayload);
+    scrollToAppTop();
   };
 
   const handleFollowupAnswer = (questionId: string, optionId: string) => {
@@ -1102,12 +1116,14 @@ export default function WhatMayBeMissingMiniApp({
     if (!answers[currentQuestion.id]) return;
     if (followupIndex < orderedQuestions.length - 1) {
       setFollowupIndex((v) => v + 1);
+      scrollToAppTop();
       return;
     }
     if (nextQuestionId) {
       setQuestionOrder((prev) => (prev.includes(nextQuestionId) ? prev : [...prev, nextQuestionId]));
       setFollowupIndex((v) => v + 1);
       setResultRequested(false);
+      scrollToAppTop();
       return;
     }
     setResultRequested(true);
@@ -1157,7 +1173,7 @@ export default function WhatMayBeMissingMiniApp({
   const rootClass = `mh-miniapp ${mode === "inline_article" ? "is-inline" : "is-landing"}${className ? ` ${className}` : ""}`;
 
   return (
-    <section className={rootClass} aria-label="Mi hiányzik nekem állapotfelmérés">
+    <section ref={rootRef} className={rootClass} aria-label="Mi hiányzik nekem állapotfelmérés">
       <header className="mh-stage-header">
         <h2>{stageTitle}</h2>
         <p>{stageDescription}</p>

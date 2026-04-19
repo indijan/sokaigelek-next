@@ -516,7 +516,57 @@
 }
 
 @media (max-width: 759px) {
+  .mh-miniapp,
+  .mh-miniapp.is-landing {
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    padding: 0;
+  }
+
+  .mh-stage-header {
+    margin-bottom: 10px;
+  }
+
+  .mh-stage-header h2 {
+    font-size: 1.35rem;
+  }
+
+  .mh-stage-header p {
+    font-size: 0.94rem;
+  }
+
   .mh-panel {
     min-height: 0;
+    border-radius: 16px;
+    padding: 14px;
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+  }
+
+  .mh-miniapp.is-landing .mh-panel {
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+  }
+
+  .mh-result-block {
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    padding: 0;
+  }
+
+  .mh-result-card,
+  .mh-tips li,
+  .mh-product-card {
+    box-shadow: none;
+  }
+
+  .mh-actions {
+    gap: 8px;
+  }
+
+  .mh-btn {
+    min-height: 44px;
+    padding: 0 15px;
   }
 }

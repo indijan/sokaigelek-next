@@ -376,6 +376,39 @@
     grid-template-columns: 1fr;
   }
 
+  .mh-choice-shell {
+    gap: 14px;
+  }
+
+  .mh-choice-panel {
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    padding: 0;
+  }
+
+  .mh-choice-panel-lab {
+    background: transparent;
+  }
+
+  .mh-choice-card {
+    min-height: 0;
+    border-radius: 16px;
+    padding: 14px;
+  }
+
+  .mh-lab-result-main,
+  .mh-lab-result-card {
+    border-radius: 16px;
+    padding: 14px;
+    box-shadow: none;
+  }
+
+  .mh-lab-drop {
+    border-radius: 16px;
+    padding: 14px;
+  }
+
   .mh-lab-submit {
     min-height: 48px;
   }
