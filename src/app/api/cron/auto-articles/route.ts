@@ -409,6 +409,10 @@ function stableHash(input: string): number {
   return Math.abs(h >>> 0);
 }
 
+function compactText(input: unknown, maxLen = 220) {
+  return String(input || "").replace(/\s+/g, " ").trim().slice(0, maxLen);
+}
+
 function detectVisualTheme(input: {
   title: string;
   category: string;
@@ -446,6 +450,7 @@ async function generateCoverImage(article: any) {
   const headings = extractHeadings(bodyHtml);
   const bodyText = stripHtml(bodyHtml);
   const keySentences = pickKeySentences(bodyText, 3);
+  const keyAnchor = compactText(headings[0] || keySentences[0] || intro || title, 180);
 
   const imageSize = process.env.ARTICLE_COVER_IMAGE_SIZE || "1536x1024";
   const styleHint = process.env.ARTICLE_COVER_STYLE_HINT || "";
@@ -480,8 +485,8 @@ async function generateCoverImage(article: any) {
       "Visual direction: glass/water droplet macro with athletic context, crisp fresh palette.",
     ],
     generic: [
-      "Visual direction: conceptual health illustration with soft geometric forms, vibrant but elegant palette.",
-      "Visual direction: home wellness environment, calm tidy interior, warm daylight, no stress cues.",
+      "Visual direction: editorial concept built around the article's exact subject, with one unmistakable visual anchor from the title or first key point.",
+      "Visual direction: precise object-based or scene-based concept tied to the article topic, never a generic wellness lifestyle fallback.",
     ],
   };
   const creativeVariants = creativeVariantsByTheme[theme] || creativeVariantsByTheme.generic;
@@ -498,18 +503,43 @@ async function generateCoverImage(article: any) {
     hydration: "",
   };
 
+  const { data: recentArticles } = await supabaseServer
+    .from("articles")
+    .select("title, excerpt, category_slug")
+    .not("cover_image_url", "is", null)
+    .neq("id", article.id)
+    .order("updated_at", { ascending: false })
+    .limit(4);
+
+  const antiRepeatContext = (recentArticles || [])
+    .map((item: { title?: string | null; excerpt?: string | null; category_slug?: string | null }, index: number) => {
+      const parts = [
+        compactText(item.title, 90),
+        compactText(item.category_slug, 40),
+        compactText(item.excerpt, 120),
+      ].filter(Boolean);
+      return parts.length ? `Recent cover ${index + 1}: ${parts.join(" | ")}` : "";
+    })
+    .filter(Boolean)
+    .join("\n");
+
   const prompt = [
     "Create a clean, modern blog cover image optimized for Facebook feed engagement.",
+    "Base the image on the CURRENT final article version only. Ignore any earlier drafts, alternate angles, old prompts, and previous article topics.",
     "Composition: clear subject, bold focal point, high contrast, inviting mood.",
     "Style: premium, soft lighting, subtle gradients, no clutter.",
     "Theme: health & wellbeing education (Hungarian audience).",
     "Avoid repetition: vary color palettes, subjects, and composition across images.",
+    "Hard rule: the image must be specifically about this article's actual topic, not a generic healthy lifestyle, generic wellness, generic supplement, or random stock scene.",
+    "Hard rule: if the article topic is specific, the visual must also be specific and unmistakable at first glance.",
     "Do NOT always use portraits. Prefer diverse compositions and often avoid faces.",
     "If a person appears: varied ages and genders, friendly neutral expression, never worried/stressed look.",
     "People are optional. Use objects, hands, silhouettes, or abstract/still-life scenes when fitting.",
     "If the topic is anatomy (heart, blood vessels, organs), use stylized or abstract visuals, not realistic organs.",
+    "Avoid generic fallback scenes like random pills, random fruits, random yoga pose, random smiling portrait, random kitchen table, unless the article is directly about that.",
     "Do not include any text, letters, or typography on the image.",
     `Primary theme: ${theme}. The image must match the title meaning directly.`,
+    `Main visual anchor from the final article: ${keyAnchor}`,
     chosenVariant,
     negativeByTheme[theme] || "",
     styleHint ? `Style hint: ${styleHint}` : "",
@@ -518,6 +548,8 @@ async function generateCoverImage(article: any) {
     intro ? `Intro: ${intro}` : "",
     headings.length ? `Outline: ${headings.join(" | ")}` : "",
     keySentences.length ? `Key points: ${keySentences.join(" / ")}` : "",
+    antiRepeatContext ? "Do not repeat the composition, color mood, subject choice, or visual metaphor of these recent covers:" : "",
+    antiRepeatContext,
   ]
     .filter(Boolean)
     .join("\n");
