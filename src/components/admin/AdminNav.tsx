@@ -4,6 +4,7 @@ const items = [
     { href: "/admin/articles", label: "Cikkek" },
     { href: "/admin/products", label: "Termékek" },
     { href: "/admin/categories", label: "Kategóriák" },
+    { href: "/admin/labor-uploads", label: "Labor feltöltések" },
 ];
 
 export default function AdminNav() {
