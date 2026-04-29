@@ -25,7 +25,7 @@ function formatBytes(bytes: number | null) {
 export default async function AdminLaborUploadsPage({
   searchParams,
 }: {
-  searchParams?: Promise<{ page?: string | string[]; q?: string | string[] }>;
+  searchParams?: Promise<{ page?: string | string[]; q?: string | string[]; delete?: string | string[]; err?: string | string[] }>;
 }) {
   const cookieStore = await cookies();
   const ok = cookieStore.get("admin_ok")?.value === "1";
@@ -34,7 +34,10 @@ export default async function AdminLaborUploadsPage({
   const params = (await searchParams) ?? {};
   const qParam = Array.isArray(params.q) ? params.q[0] : params.q;
   const pageParam = Array.isArray(params.page) ? params.page[0] : params.page;
+  const delParam = Array.isArray(params.delete) ? params.delete[0] : params.delete;
+  const errParam = Array.isArray(params.err) ? params.err[0] : params.err;
   const q = String(qParam || "").trim();
+  const errMessage = String(errParam || "").trim();
   const page = Math.max(1, Number(pageParam || "1") || 1);
   const offset = (page - 1) * PAGE_SIZE;
 
@@ -54,9 +57,61 @@ export default async function AdminLaborUploadsPage({
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const baseParams = new URLSearchParams();
   if (q) baseParams.set("q", q);
+  const pendingDeleteRow = String(delParam || "")
+    ? ((data || []) as LabUploadRow[]).find((row) => String(row.id) === String(delParam))
+    : null;
 
   return (
     <main className="space-y-6">
+      {errMessage ? (
+        <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-4 text-sm text-red-700">{errMessage}</div>
+      ) : null}
+
+      {pendingDeleteRow ? (
+        <div className="border border-amber-200 bg-amber-50 rounded-2xl p-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <div className="font-semibold">Törlés megerősítése</div>
+              <div className="text-sm text-gray-700">
+                Biztosan törlöd ezt a feltöltést? <span className="font-medium">&quot;{pendingDeleteRow.original_filename}&quot;</span>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Link href="/admin/labor-uploads" className="rounded-xl px-3 py-2 text-sm border bg-white hover:bg-gray-50">
+                Mégse
+              </Link>
+              <form
+                action={async () => {
+                  "use server";
+                  const { data: row, error: fetchErr } = await supabaseServer
+                    .from("lab_upload_requests")
+                    .select("id, storage_bucket, storage_path")
+                    .eq("id", pendingDeleteRow.id)
+                    .maybeSingle();
+
+                  if (fetchErr || !row?.id) {
+                    redirect(`/admin/labor-uploads?err=${encodeURIComponent("A feltöltés nem található.")}`);
+                  }
+
+                  if (row.storage_bucket && row.storage_path) {
+                    await supabaseServer.storage.from(String(row.storage_bucket)).remove([String(row.storage_path)]);
+                  }
+
+                  const { error: deleteErr } = await supabaseServer.from("lab_upload_requests").delete().eq("id", pendingDeleteRow.id);
+                  if (deleteErr) {
+                    redirect(`/admin/labor-uploads?err=${encodeURIComponent(deleteErr.message)}`);
+                  }
+
+                  redirect("/admin/labor-uploads");
+                }}
+              >
+                <button className="rounded-xl px-3 py-2 text-sm bg-red-600 text-white hover:bg-red-700">Igen, törlés</button>
+              </form>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold">Labor feltöltések</h1>
@@ -108,9 +163,12 @@ export default async function AdminLaborUploadsPage({
                 <div className="text-xs text-slate-500">{row.status}</div>
               </div>
               <div className="col-span-1 text-slate-600">{formatBytes(row.file_size)}</div>
-              <div className="col-span-1">
+              <div className="col-span-1 flex flex-col gap-1">
                 <Link className="underline" href={`/api/admin/labor-uploads/${row.id}/download`}>
                   Letöltés
+                </Link>
+                <Link className="text-red-700 underline" href={`/admin/labor-uploads?delete=${encodeURIComponent(row.id)}`}>
+                  Törlés
                 </Link>
               </div>
             </div>

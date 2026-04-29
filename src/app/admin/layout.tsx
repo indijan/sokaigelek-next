@@ -4,12 +4,24 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { supabaseServer } from "@/lib/supabaseServer";
 
 export const metadata = {
   title: "Admin – Sokáig élek",
 };
 
-export default function AdminLayout({ children }: { children: ReactNode }) {
+export default async function AdminLayout({ children }: { children: ReactNode }) {
+  let newLabUploadsCount = 0;
+  try {
+    const { count } = await supabaseServer
+      .from("lab_upload_requests")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "new");
+    newLabUploadsCount = count ?? 0;
+  } catch {
+    newLabUploadsCount = 0;
+  }
+
   return (
     <div
       className="admin-shell min-h-screen bg-slate-50 text-slate-900"
@@ -78,7 +90,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
               <AdminNavLink href="/admin/articles" label="Cikkek" />
               <AdminNavLink href="/admin/products" label="Termékek" />
               <AdminNavLink href="/admin/categories" label="Kategóriák" />
-              <AdminNavLink href="/admin/labor-uploads" label="Labor feltöltések" />
+              <AdminNavLink href="/admin/labor-uploads" label="Labor feltöltések" badge={newLabUploadsCount} />
               <AdminNavLink href="/admin/automation" label="Automata" />
               <AdminNavLink href="/admin/chat-sessions" label="Chat sessionök" />
             </nav>
@@ -105,15 +117,22 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   );
 }
 
-function AdminNavLink({ href, label }: { href: string; label: string }) {
+function AdminNavLink({ href, label, badge }: { href: string; label: string; badge?: number }) {
   return (
     <Link
       href={href}
       className="flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl border border-slate-900/10 bg-slate-900/5 text-slate-900 no-underline"
     >
       <span className="font-bold">{label}</span>
-      <span aria-hidden className="opacity-60">
-        →
+      <span className="flex items-center gap-2">
+        {badge && badge > 0 ? (
+          <span className="min-w-[22px] h-[22px] px-1 rounded-full bg-red-600 text-white text-[11px] font-black inline-flex items-center justify-center">
+            {badge > 99 ? "99+" : badge}
+          </span>
+        ) : null}
+        <span aria-hidden className="opacity-60">
+          →
+        </span>
       </span>
     </Link>
   );
