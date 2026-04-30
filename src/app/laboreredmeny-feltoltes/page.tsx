@@ -32,7 +32,7 @@ export default function LaborEredmenyFeltoltesPage() {
         </div>
 
         <div className="mt-8 rounded-2xl border border-slate-900/10 bg-slate-50 px-4 py-4 text-sm leading-6 text-slate-600">
-          <strong className="block text-slate-900 mb-1">Adatvédelmi rövid szöveg</strong>
+          <strong className="block text-slate-900 mb-1">Adatvédelem</strong>
           Az adataidat kizárólag a laboreredményed elemzésére és az eredmény elküldésére használjuk. Nem adjuk tovább
           harmadik félnek.
         </div>
