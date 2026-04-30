@@ -4,6 +4,20 @@ import { useMemo, useState } from "react";
 
 const allowed = ".pdf,.png,.jpg,.jpeg,.webp";
 
+function logUploadEvent(eventName: string, payload: Record<string, unknown> = {}) {
+  fetch("/api/mi-hianyzik/event", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      source: "labor_upload_form",
+      eventName,
+      mode: "landing",
+      payload,
+    }),
+    keepalive: true,
+  }).catch(() => null);
+}
+
 function formatFileSize(bytes: number) {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
@@ -46,12 +60,19 @@ export default function LabUploadForm() {
       const data = await response.json();
       if (!response.ok) throw new Error(data?.error || "Nem sikerült feltölteni a laboreredményt.");
 
+      logUploadEvent("lab_upload_completed", {
+        fileName: file.name,
+        fileSize: file.size,
+        fileType: file.type || "unknown",
+      });
       setSuccess("A laboreredményt sikeresen megkaptuk. Hamarosan e-mailben jelentkezünk az összefoglalóval.");
       setName("");
       setEmail("");
       setFile(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Váratlan hiba történt.");
+      const message = err instanceof Error ? err.message : "Váratlan hiba történt.";
+      setError(message);
+      logUploadEvent("lab_upload_failed", { message });
     } finally {
       setIsSubmitting(false);
     }

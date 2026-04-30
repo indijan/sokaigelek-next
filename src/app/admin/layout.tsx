@@ -90,6 +90,8 @@ export default async function AdminLayout({ children }: { children: ReactNode })
               <AdminNavLink href="/admin/articles" label="Cikkek" />
               <AdminNavLink href="/admin/products" label="Termékek" />
               <AdminNavLink href="/admin/categories" label="Kategóriák" />
+              <AdminNavLink href="/admin/mi-hianyzik-stats" label="Mi hiányzik stat" />
+              <AdminNavLink href="/admin/labor-analysis" label="Labor elemző" />
               <AdminNavLink href="/admin/labor-uploads" label="Labor feltöltések" badge={newLabUploadsCount} />
               <AdminNavLink href="/admin/automation" label="Automata" />
               <AdminNavLink href="/admin/chat-sessions" label="Chat sessionök" />

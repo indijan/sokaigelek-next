@@ -43,6 +43,20 @@ const loadingMessages = [
   "Még egy pillanat, és mutatjuk az eredményt...",
 ];
 
+function logLabEvent(eventName: string, payload: Record<string, unknown> = {}) {
+  fetch("/api/mi-hianyzik/event", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      source: "lab_checker",
+      eventName,
+      mode: "landing",
+      payload,
+    }),
+    keepalive: true,
+  }).catch(() => null);
+}
+
 function formatFileSize(bytes: number) {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
@@ -78,6 +92,11 @@ export default function LabResultChecker() {
     const interval = window.setInterval(() => {
       setLoadingStep((step) => Math.min(step + 1, loadingMessages.length - 1));
     }, 2400);
+    logLabEvent("lab_analysis_started", {
+      fileName: file.name,
+      fileSize: file.size,
+      fileType: file.type || "unknown",
+    });
 
     try {
       const body = new FormData();
@@ -90,8 +109,17 @@ export default function LabResultChecker() {
       const data = await response.json();
       if (!response.ok) throw new Error(data?.error || "Nem sikerült elemezni a laboreredményt.");
       setResult(data as LabAnalysis);
+      logLabEvent("lab_analysis_completed", {
+        abnormalMarkerCount: Array.isArray(data?.abnormalMarkers) ? data.abnormalMarkers.length : 0,
+        productCount: Array.isArray(data?.products) ? data.products.length : 0,
+        primaryFinding: data?.primaryFinding?.title || "",
+      });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Váratlan hiba történt.");
+      const message = err instanceof Error ? err.message : "Váratlan hiba történt.";
+      setError(message);
+      logLabEvent("lab_analysis_failed", {
+        message,
+      });
     } finally {
       window.clearInterval(interval);
       setIsLoading(false);

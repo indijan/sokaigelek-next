@@ -782,9 +782,22 @@ export default function WhatMayBeMissingMiniApp({
           miniappId: "mi-hianyzik-nekem-miniapp",
           ...payload,
         });
+        window.setTimeout(() => {
+          fetch("/api/mi-hianyzik/event", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              source: "miniapp",
+              eventName,
+              mode,
+              payload,
+            }),
+            keepalive: true,
+          }).catch(() => null);
+        }, 0);
       }
     },
-    [onAnalyticsEvent]
+    [mode, onAnalyticsEvent]
   );
 
   const activeEntryId = entrySelections[0] || "";

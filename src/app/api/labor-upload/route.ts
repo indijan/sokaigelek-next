@@ -82,6 +82,22 @@ export async function POST(request: Request) {
       );
     }
 
+    try {
+      await supabaseServer.from("miniapp_events").insert({
+        source: "labor_upload",
+        event_name: "lab_upload_received",
+        mode: "landing",
+        payload: {
+          uploaderEmail: email,
+          originalFilename: file.name,
+          fileSize: file.size,
+          mimeType: file.type || "application/octet-stream",
+        },
+      });
+    } catch {
+      // Stat logging must not block the upload flow.
+    }
+
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error("labor upload error", error);
