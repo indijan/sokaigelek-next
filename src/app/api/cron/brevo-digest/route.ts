@@ -21,11 +21,8 @@ function slugToLabel(slug: string) {
     .join(" ");
 }
 
-function withAz(label: string) {
-  const trimmed = label.trim();
-  const first = trimmed[0]?.toLowerCase() || "";
-  const vowels = new Set(["a", "á", "e", "é", "i", "í", "o", "ó", "ö", "ő", "u", "ú", "ü", "ű"]);
-  return `${vowels.has(first) ? "az" : "a"} ${trimmed}`;
+function stripHtml(input: string) {
+  return input.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
 }
 
 function escapeHtml(input: string) {
@@ -100,6 +97,9 @@ function getBudapestParts(date = new Date()) {
   const parts = new Intl.DateTimeFormat("en-GB", {
     timeZone: "Europe/Budapest",
     weekday: "short",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
     hour: "2-digit",
     minute: "2-digit",
     hourCycle: "h23",
@@ -108,9 +108,84 @@ function getBudapestParts(date = new Date()) {
   const lookup = (type: string) => parts.find((part) => part.type === type)?.value || "";
   return {
     weekday: lookup("weekday"),
+    year: Number(lookup("year")),
+    month: Number(lookup("month")),
+    day: Number(lookup("day")),
     hour: Number(lookup("hour")),
     minute: Number(lookup("minute")),
   };
+}
+
+async function generateOpenAiSubject(params: {
+  articleTitle: string;
+  articleExcerpt: string;
+  categoryLabel: string;
+}) {
+  const apiKey = process.env.OPENAI_API_KEY || "";
+  if (!apiKey) return "";
+
+  const prompt = `
+Feladat: írj 1 darab magyar nyelvű, kattintásra ösztönző, de nem clickbait e-mail tárgyat egészségcikkhez.
+
+Szabályok:
+- maximum 55 karakter
+- legyen természetes, emberi és kíváncsiságkeltő
+- ne legyen benne kategórianév
+- ne legyen benne ilyen: "Sokáig élek értesítés", "új cikk", "hírlevél"
+- ne használj csupa nagybetűt
+- ne legyen túlzó vagy ijesztgető
+- lehetőség szerint problémafelvető vagy okkereső legyen
+- csak a tárgyat add vissza, idézőjelek és magyarázat nélkül
+
+Cikk címe: ${params.articleTitle}
+Kivonat: ${params.articleExcerpt}
+Kategória: ${params.categoryLabel}
+`.trim();
+
+  const response = await fetch("https://api.openai.com/v1/responses", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model: "gpt-5-mini",
+      input: prompt,
+    }),
+  });
+
+  if (!response.ok) return "";
+  const data = await response.json();
+  const text = String(
+    data?.output_text ||
+      data?.output?.map((o: { content?: Array<{ text?: string }> }) => (o.content || []).map((c) => c.text || "").join("")).join("") ||
+      ""
+  )
+    .trim()
+    .replace(/^["'„”]+|["'„”]+$/g, "")
+    .replace(/\s+/g, " ");
+
+  if (!text) return "";
+  return text.slice(0, 55).trim();
+}
+
+function buildFallbackSubject(articleTitle: string) {
+  const clean = stripHtml(articleTitle).replace(/\s+/g, " ").trim();
+  if (!clean) return "Ez lehet a háttérben";
+  const lowered = clean.charAt(0).toLowerCase() + clean.slice(1);
+  if (lowered.startsWith("mi történik")) {
+    return lowered.replace(/^mi történik/i, "Ez lehet a háttérben");
+  }
+  if (lowered.startsWith("mit jelez")) {
+    return lowered.replace(/^mit jelez/i, "Ezt jelezheti");
+  }
+  if (lowered.startsWith("miért")) {
+    return clean;
+  }
+  if (lowered.startsWith("hogyan")) {
+    return clean;
+  }
+  return clean.length > 55 ? `${clean.slice(0, 52).trim()}...` : clean;
 }
 
 function resolveDigestHours(rawHours: string | null) {
@@ -140,14 +215,15 @@ export async function GET(req: Request) {
   const hours = resolveDigestHours(searchParams.get("hours"));
   const force = searchParams.get("force") === "1" || searchParams.get("force") === "true";
   const onlyCategory = String(searchParams.get("category") || "").trim();
-  const withinSendWindow = budapestNow.hour === 10 && budapestNow.minute === 0;
+  const allowedWeekdays = new Set(["Tue", "Wed", "Thu"]);
+  const withinSendWindow = allowedWeekdays.has(budapestNow.weekday) && budapestNow.hour === 14 && budapestNow.minute === 0;
 
   if (!force && !withinSendWindow) {
     return NextResponse.json({
       ok: true,
       skipped: "outside_send_window",
       budapest: budapestNow,
-      rule: "Newsletter sends daily at 10:00 Europe/Budapest time.",
+      rule: "Newsletter sends Tuesday, Wednesday, and Thursday at 14:00 Europe/Budapest time.",
     });
   }
 
@@ -189,7 +265,7 @@ export async function GET(req: Request) {
     .sort((a, b) => {
       const aDate = resolveArticleWindowDate(a) || "";
       const bDate = resolveArticleWindowDate(b) || "";
-      return aDate.localeCompare(bDate);
+      return bDate.localeCompare(aDate);
     });
 
   const byCategory = new Map<string, typeof articles>();
@@ -201,10 +277,10 @@ export async function GET(req: Request) {
     byCategory.get(cat)!.push(a);
   }
 
-  const results: Array<{ category: string; campaignId?: string; count: number; ok: boolean; error?: string }> = [];
+  const results: Array<{ category: string; campaignId?: string; count: number; ok: boolean; error?: string; subject?: string }> = [];
   for (const [category, items] of byCategory.entries()) {
     try {
-      const dateLabel = end.toISOString().slice(0, 10);
+      const dateLabel = `${budapestNow.year}-${String(budapestNow.month).padStart(2, "0")}-${String(budapestNow.day).padStart(2, "0")}`;
       const sentSince = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString();
       const { data: recentLogs } = await supabaseServer
         .from("email_logs")
@@ -216,7 +292,9 @@ export async function GET(req: Request) {
 
       const alreadySentArticleIds = new Set<string>();
       for (const log of recentLogs || []) {
-        const ids = Array.isArray((log as any).article_ids) ? (log as any).article_ids : [];
+        const ids = Array.isArray((log as { article_ids?: unknown[] }).article_ids)
+          ? (log as { article_ids?: unknown[] }).article_ids || []
+          : [];
         for (const id of ids) {
           const normalized = String(id || "").trim();
           if (normalized) alreadySentArticleIds.add(normalized);
@@ -225,7 +303,7 @@ export async function GET(req: Request) {
 
       const pendingItems = force
         ? items
-        : items.filter((a: any) => !alreadySentArticleIds.has(String(a?.id || "").trim()));
+        : items.filter((a: { id?: string | null }) => !alreadySentArticleIds.has(String(a?.id || "").trim()));
       if (!pendingItems.length) {
         results.push({ category, count: items.length, ok: true });
         continue;
@@ -233,7 +311,7 @@ export async function GET(req: Request) {
 
       const groupId = await getOrCreateGroupId(category);
       const label = slugToLabel(category);
-      const articleCards = pendingItems.map((a: any) => ({
+      const articleCards = pendingItems.map((a: { title?: string | null; excerpt?: string | null; slug?: string | null }) => ({
         title: String(a.title || "").trim(),
         excerpt: String(a.excerpt || "").trim(),
         url: `${siteUrl}/cikkek/${a.slug}`,
@@ -241,7 +319,7 @@ export async function GET(req: Request) {
 
       let featuredProduct: { name: string; url: string } | undefined;
       const firstWithProduct = pendingItems.find(
-        (a: any) => Array.isArray(a.related_product_slugs) && a.related_product_slugs.length > 0
+        (a: { related_product_slugs?: string[] | null }) => Array.isArray(a.related_product_slugs) && a.related_product_slugs.length > 0
       );
       if (firstWithProduct) {
         const slug = String((firstWithProduct.related_product_slugs || [])[0] || "").trim();
@@ -258,6 +336,17 @@ export async function GET(req: Request) {
         }
       }
 
+      const heroArticle = pendingItems[0];
+      const aiSubject =
+        heroArticle && heroArticle.title
+          ? await generateOpenAiSubject({
+              articleTitle: String(heroArticle.title || "").trim(),
+              articleExcerpt: String(heroArticle.excerpt || "").trim(),
+              categoryLabel: label,
+            })
+          : "";
+      const finalSubject = aiSubject || buildFallbackSubject(String(heroArticle?.title || ""));
+
       const html = buildEmailHtml({
         category: label,
         articles: articleCards,
@@ -268,7 +357,7 @@ export async function GET(req: Request) {
 
       const campaign = await createCampaign({
         name: `digest-${category}-${dateLabel}`,
-        subject: `Sokáig élek értesítés: új cikk ${withAz(label)} kategóriában`,
+        subject: finalSubject,
         fromName,
         fromEmail,
         replyTo: replyTo || undefined,
@@ -280,14 +369,19 @@ export async function GET(req: Request) {
 
       await supabaseServer.from("email_logs").insert({
         category_slug: category,
-        article_ids: pendingItems.map((a: any) => a.id),
+        article_ids: pendingItems.map((a: { id?: string | null }) => a.id),
         campaign_id: campaign.data.id,
         sent_at: new Date().toISOString(),
       });
 
-      results.push({ category, campaignId: campaign.data.id, count: items.length, ok: true });
-    } catch (err: any) {
-      results.push({ category, count: items.length, ok: false, error: err?.message || "error" });
+      results.push({ category, campaignId: campaign.data.id, count: items.length, ok: true, subject: finalSubject });
+    } catch (err: unknown) {
+      results.push({
+        category,
+        count: items.length,
+        ok: false,
+        error: err instanceof Error ? err.message : "error",
+      });
     }
   }
 
