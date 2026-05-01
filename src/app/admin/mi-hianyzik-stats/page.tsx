@@ -41,6 +41,7 @@ export default async function MiHianyzikStatsPage() {
   const events = (eventsRes.data || []) as EventRow[];
   const uploads = uploadsRes.data || [];
   const todayIso = today.toISOString();
+  const eventsError = eventsRes.error?.message || "";
 
   const surveyStarts = events.filter((e) => e.source === "miniapp" && e.event_name === "miniapp_started").length;
   const surveyResults = events.filter((e) => e.source === "miniapp" && e.event_name === "miniapp_result_viewed").length;
@@ -79,6 +80,13 @@ export default async function MiHianyzikStatsPage() {
           </Link>
         </div>
       </div>
+
+      {eventsError ? (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+          A statisztikai eventek most nem mérnek, mert a `miniapp_events` tábla nincs létrehozva az adatbázisban vagy
+          nem elérhető. Emiatt a nullák jelenleg nem valós forgalmat jelentenek.
+        </div>
+      ) : null}
 
       <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-6">
         <StatCard label="Kérdőív indítások / 7 nap" value={surveyStarts} />
