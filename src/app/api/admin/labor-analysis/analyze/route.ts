@@ -10,6 +10,7 @@ type ProductRow = {
   slug: string | null;
   short: string | null;
   description: string | null;
+  image_url: string | null;
   tags: string[] | null;
   affiliate_label_1: string | null;
   affiliate_url_1: string | null;
@@ -20,6 +21,7 @@ type ProductRow = {
 type NormalizedProduct = {
   name: string;
   reason: string;
+  imageUrl?: string | null;
   affiliateLabel1?: string | null;
   affiliateUrl1?: string | null;
   affiliateLabel2?: string | null;
@@ -48,17 +50,27 @@ function extractJsonObject(text: string) {
 function productCardHtml(product: {
   name: string;
   reason: string;
+  imageUrl?: string | null;
   affiliateLabel1?: string | null;
   affiliateUrl1?: string | null;
   affiliateLabel2?: string | null;
   affiliateUrl2?: string | null;
 }) {
-  return `<div style="border:1px solid #e5e7eb;border-radius:16px;padding:16px;margin-bottom:12px;background:#ffffff;">
-    <div style="font-size:18px;font-weight:800;color:#0f172a;margin-bottom:8px;">${product.name}</div>
-    <div style="font-size:14px;line-height:1.6;color:#475569;margin-bottom:12px;">${product.reason}</div>
+  return `<div style="border:1px solid #e5e7eb;border-radius:16px;padding:16px;margin-bottom:12px;background:#ffffff;page-break-inside:avoid;break-inside:avoid;">
+    <div style="display:flex;gap:14px;align-items:flex-start;">
+      ${
+        product.imageUrl
+          ? `<img src="${product.imageUrl}" alt="${product.name}" style="width:88px;height:88px;object-fit:cover;border-radius:14px;border:1px solid #e5e7eb;background:#fff;flex:0 0 88px;" />`
+          : ""
+      }
+      <div style="flex:1 1 auto;min-width:0;">
+        <div style="font-size:18px;font-weight:800;color:#0f172a;margin-bottom:8px;">${product.name}</div>
+        <div style="font-size:14px;line-height:1.6;color:#475569;margin-bottom:12px;">${product.reason}</div>
+      </div>
+    </div>
     ${
       product.affiliateUrl1
-        ? `<div style="margin-bottom:8px;"><a href="${product.affiliateUrl1}" style="display:inline-block;padding:10px 14px;border-radius:999px;background:#16a34a;color:#fff;text-decoration:none;font-weight:700;">${product.affiliateLabel1 || "Megveszem Sokáig élek áron"}</a></div>`
+        ? `<div style="margin-bottom:8px;"><a href="${product.affiliateUrl1}" style="display:inline-block;padding:10px 14px;border-radius:999px;background:#16a34a;color:#fff;text-decoration:none;font-weight:700;">${product.affiliateLabel1 || "Sokáig élek ár"} (15% kedvezmény)</a></div>`
         : ""
     }
     ${
@@ -85,7 +97,7 @@ export async function POST(request: Request) {
 
     const { data: products } = await supabaseServer
       .from("products")
-      .select("name, slug, short, description, tags, affiliate_label_1, affiliate_url_1, affiliate_label_2, affiliate_url_2")
+      .select("name, slug, short, description, image_url, tags, affiliate_label_1, affiliate_url_1, affiliate_label_2, affiliate_url_2")
       .eq("status", "published")
       .order("name");
 
@@ -96,6 +108,7 @@ export async function POST(request: Request) {
       slug: row.slug,
       tags: row.tags || [],
       description: stripHtml(`${row.short || ""} ${row.description || ""}`).slice(0, 1000),
+      imageUrl: row.image_url,
       affiliateLabel1: row.affiliate_label_1,
       affiliateUrl1: row.affiliate_url_1,
       affiliateLabel2: row.affiliate_label_2,
@@ -174,6 +187,7 @@ ${JSON.stringify(catalog).slice(0, 45000)}`,
         return {
           name: row.name,
           reason: String(product.reason || "").trim(),
+          imageUrl: row.image_url,
           affiliateLabel1: row.affiliate_label_1,
           affiliateUrl1: row.affiliate_url_1,
           affiliateLabel2: row.affiliate_label_2,
@@ -186,11 +200,11 @@ ${JSON.stringify(catalog).slice(0, 45000)}`,
     const adviceHtml = `<section style="margin-top:28px;"><h2 style="font-size:24px;line-height:1.2;color:#0f172a;margin:0 0 14px;font-weight:900;">2. Gyakorlati tanácsok</h2><div style="display:grid;gap:12px;">${adviceItems
       .map(
         (item: string) =>
-          `<div style="border:1px solid #e5e7eb;border-radius:16px;padding:14px 16px;background:#ffffff;font-size:15px;line-height:1.7;color:#334155;">${item}</div>`
+          `<div style="border:1px solid #e5e7eb;border-radius:16px;padding:14px 16px;background:#ffffff;font-size:15px;line-height:1.7;color:#334155;page-break-inside:avoid;break-inside:avoid;">${item}</div>`
       )
       .join("")}</div></section>`;
 
-    const productsHtml = `<section style="margin-top:28px;"><h2 style="font-size:24px;line-height:1.2;color:#0f172a;margin:0 0 14px;font-weight:900;">3. Termékajánló</h2>${normalizedProducts
+    const productsHtml = `<section style="margin-top:28px;"><h2 style="font-size:24px;line-height:1.2;color:#0f172a;margin:0 0 14px;font-weight:900;">3. A laboreredmény alapján ajánlott étrend-kiegészítők</h2>${normalizedProducts
       .map((product: NormalizedProduct) => productCardHtml(product))
       .join("")}</section>`;
 
@@ -200,7 +214,7 @@ ${JSON.stringify(catalog).slice(0, 45000)}`,
         const color =
           status === "high" ? "#ef4444" : status === "low" ? "#f97316" : status === "borderline" ? "#f59e0b" : "#22c55e";
         const width = status === "high" || status === "low" ? "84%" : status === "borderline" ? "58%" : "32%";
-        return `<div style="border:1px solid #e5e7eb;border-radius:18px;padding:16px;background:#ffffff;margin-bottom:12px;">
+        return `<div style="border:1px solid #e5e7eb;border-radius:18px;padding:16px;background:#ffffff;margin-bottom:12px;page-break-inside:avoid;break-inside:avoid;">
           <div style="display:flex;justify-content:space-between;gap:12px;align-items:center;">
             <div style="font-weight:800;color:#0f172a;">${marker.name || ""}</div>
             <div style="font-weight:900;color:${color};">${marker.value || ""}</div>
@@ -213,7 +227,12 @@ ${JSON.stringify(catalog).slice(0, 45000)}`,
       })
       .join("");
 
-    const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${parsed.subject || "Laboreredmény összefoglaló"}</title></head>
+    const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${parsed.subject || "Laboreredmény összefoglaló"}</title><style>
+      * { box-sizing:border-box; }
+      body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      section, article, div, img { break-inside: avoid; page-break-inside: avoid; }
+      @page { size: A4; margin: 16mm 12mm; }
+    </style></head>
     <body style="margin:0;background:#f8fafc;font-family:Arial,Helvetica,sans-serif;color:#0f172a;">
       <div style="max-width:760px;margin:0 auto;padding:24px 16px;">
         <div style="border:1px solid #e5e7eb;border-radius:28px;background:linear-gradient(145deg,#ffffff,#fff7ed);padding:28px;">

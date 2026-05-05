@@ -165,7 +165,7 @@ export default function AdminLaborAnalysisTool() {
                 />
               </div>
               <div className="rounded-2xl border p-4">
-                <h2 className="text-lg font-bold">3. Termékajánló</h2>
+                <h2 className="text-lg font-bold">3. A laboreredmény alapján ajánlott étrend-kiegészítők</h2>
                 <textarea
                   value={productsHtml}
                   onChange={(e) => setProductsHtml(e.target.value)}
