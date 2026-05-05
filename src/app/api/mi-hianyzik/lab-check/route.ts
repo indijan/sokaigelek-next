@@ -46,6 +46,20 @@ type LabAnalysis = {
   disclaimer: string;
 };
 
+type RawLabMarker = {
+  name?: string;
+  value?: string;
+  referenceRange?: string;
+  status?: "low" | "high" | "borderline" | "normal" | "unknown" | string;
+  plainMeaning?: string;
+};
+
+type MarkerAwareInput = Partial<LabAnalysis> & {
+  allMarkers?: RawLabMarker[];
+  doctorFollowUpNote?: string;
+  referencedMarkerNames?: string[];
+};
+
 function stripHtml(input: string) {
   return input
     .replace(/<script[\s\S]*?<\/script>/gi, " ")
@@ -72,6 +86,51 @@ function extractJsonObject(text: string) {
   }
 }
 
+function normalizeMarkerStatus(status: unknown): "low" | "high" | "borderline" | "normal" | "unknown" {
+  const value = String(status || "").trim().toLowerCase();
+  if (value === "low" || value === "high" || value === "borderline" || value === "normal") return value;
+  return "unknown";
+}
+
+function normalizeMarkerName(input: string) {
+  return input
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function stripUnverifiedMarkerMentions(text: string, unverifiedNames: string[]) {
+  const trimmed = String(text || "").trim();
+  if (!trimmed || unverifiedNames.length === 0) return trimmed;
+  const sentences = trimmed.split(/(?<=[.!?])\s+/);
+  const kept = sentences.filter((sentence) => {
+    const normalizedSentence = normalizeMarkerName(sentence);
+    return !unverifiedNames.some((name) => normalizedSentence.includes(name));
+  });
+  return kept.join(" ").trim();
+}
+
+function normalizeMarkers(input: RawLabMarker[]) {
+  const seen = new Set<string>();
+  return input
+    .map((marker) => ({
+      name: String(marker.name || "").slice(0, 80),
+      value: String(marker.value || "").slice(0, 80),
+      referenceRange: marker.referenceRange ? String(marker.referenceRange).slice(0, 80) : undefined,
+      status: normalizeMarkerStatus(marker.status),
+      plainMeaning: String(marker.plainMeaning || "").slice(0, 260),
+    }))
+    .filter((marker) => marker.name && marker.value)
+    .filter((marker) => {
+      const key = `${marker.name.toLowerCase()}::${marker.value}::${marker.referenceRange || ""}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+}
+
 function extractOutputText(data: unknown) {
   if (!data || typeof data !== "object") return "";
   const root = data as { output_text?: unknown; output?: unknown };
@@ -94,7 +153,22 @@ function extractOutputText(data: unknown) {
     .join("");
 }
 
-function normalizeAnalysis(input: Partial<LabAnalysis>, productsByName: Map<string, ProductRow>): LabAnalysis {
+function normalizeAnalysis(input: MarkerAwareInput, productsByName: Map<string, ProductRow>): LabAnalysis {
+  const rawMarkers = Array.isArray(input.allMarkers)
+    ? (input.allMarkers || [])
+    : Array.isArray(input.abnormalMarkers)
+      ? (input.abnormalMarkers as RawLabMarker[])
+      : [];
+  const allMarkers = normalizeMarkers(rawMarkers);
+  const nonNormalMarkers = allMarkers.filter((marker) => marker.status === "low" || marker.status === "high" || marker.status === "borderline");
+  const contextualNormalMarkers = allMarkers.filter((marker) => marker.status === "normal").slice(0, nonNormalMarkers.length > 0 ? 2 : 6);
+  const visualMarkers = (nonNormalMarkers.length > 0 ? [...nonNormalMarkers, ...contextualNormalMarkers] : allMarkers).slice(0, 10);
+  const verifiedMarkerNames = new Set(allMarkers.map((marker) => normalizeMarkerName(marker.name)));
+  const referencedMarkerNames = Array.isArray(input.referencedMarkerNames)
+    ? input.referencedMarkerNames.map((name) => normalizeMarkerName(String(name || ""))).filter(Boolean)
+    : [];
+  const unverifiedReferencedNames = referencedMarkerNames.filter((name) => !verifiedMarkerNames.has(name));
+
   const productSeen = new Set<string>();
   const products = (input.products || [])
     .map((product): LabProduct | null => {
@@ -114,36 +188,36 @@ function normalizeAnalysis(input: Partial<LabAnalysis>, productsByName: Map<stri
     .slice(0, 4);
 
   return {
-    summary: String(input.summary || "").slice(0, 700),
+    summary: stripUnverifiedMarkerMentions(String(input.summary || "").slice(0, 700), unverifiedReferencedNames),
     primaryFinding: {
       title: String(input.primaryFinding?.title || "A laboreredmény alapján óvatos értelmezés adható").slice(0, 160),
-      explanation: String(
-        input.primaryFinding?.explanation ||
+      explanation: stripUnverifiedMarkerMentions(
+        String(
+          input.primaryFinding?.explanation ||
           "A feltöltött leletből néhány érték kiemelhető, de az értelmezéshez mindig számít az életkor, tünetek, gyógyszerek és orvosi előzmények is."
-      ).slice(0, 900),
+        ).slice(0, 900),
+        unverifiedReferencedNames
+      ),
     },
     secondaryFinding: input.secondaryFinding?.title
       ? {
           title: String(input.secondaryFinding.title).slice(0, 160),
-          explanation: String(input.secondaryFinding.explanation || "").slice(0, 700),
+          explanation: stripUnverifiedMarkerMentions(String(input.secondaryFinding.explanation || "").slice(0, 700), unverifiedReferencedNames),
         }
       : undefined,
-    abnormalMarkers: (input.abnormalMarkers || [])
-      .map((marker) => ({
-        name: String(marker.name || "").slice(0, 80),
-        value: String(marker.value || "").slice(0, 80),
-        referenceRange: marker.referenceRange ? String(marker.referenceRange).slice(0, 80) : undefined,
-        status: ["low", "high", "borderline", "normal", "unknown"].includes(String(marker.status))
-          ? marker.status
-          : "unknown",
-        plainMeaning: String(marker.plainMeaning || "").slice(0, 260),
-      }))
-      .filter((marker) => marker.name && marker.value)
-      .slice(0, 10),
-    practicalAdvice: (input.practicalAdvice || [])
-      .map((item) => String(item || "").trim())
-      .filter(Boolean)
-      .slice(0, 4),
+    abnormalMarkers: visualMarkers,
+    practicalAdvice: [
+      ...(input.practicalAdvice || [])
+        .map((item) => stripUnverifiedMarkerMentions(String(item || "").trim(), unverifiedReferencedNames))
+        .filter(Boolean)
+        .slice(0, 4),
+      ...(() => {
+        const doctorNote = stripUnverifiedMarkerMentions(String(input.doctorFollowUpNote || "").trim(), unverifiedReferencedNames);
+        return doctorNote ? [doctorNote] : [];
+      })(),
+    ]
+      .filter((item, index, array) => array.findIndex((candidate) => candidate === item) === index)
+      .slice(0, 5),
     products,
     disclaimer:
       "Ez nem orvosi diagnózis és nem kezelési javaslat. Laboreredményt mindig orvossal érdemes értelmezni, különösen panasz, gyógyszerszedés, várandósság vagy tartós eltérés esetén.",
@@ -200,6 +274,11 @@ Elemezd a feltöltött vérvizsgálati leletet:
 4. Adj 3-4 gyakorlati, nem ijesztgető tanácsot.
 5. A termékajánlást KIZÁRÓLAG az alábbi termékkatalógusból válaszd. A termék leírását vesd össze a laborban látott mintával, és csak releváns terméket javasolj.
 6. Ha nincs elég adat termékhez, adj üres products tömböt.
+7. Kritikus konzisztencia-szabály: minden low, high vagy borderline státuszú érték KÖTELEZŐEN szerepeljen a markers tömbben. Ilyet soha nem hagyhatsz ki.
+8. Normal státuszú értéket csak akkor tegyél a markers tömbbe, ha az közvetlenül segít értelmezni egy eltérő értéket. Egyébként ne listázd.
+9. A summary, primaryFinding, secondaryFinding és practicalAdvice együtt ne hagyjon ki olyan eltérő értéket, ami a markers tömbben szerepel.
+10. Ha a minta alapján finoman javasolt orvossal egyeztetni, add meg külön a doctorFollowUpNote mezőben 1 rövid, nyugodt mondatban.
+11. Ha egy markert név szerint említesz a summary, primaryFinding, secondaryFinding, practicalAdvice vagy doctorFollowUpNote mezőben, annak KÖTELEZŐEN szerepelnie kell az allMarkers tömbben is.
 
 Termékkatalógus:
 ${JSON.stringify(productCatalog).slice(0, 45000)}
@@ -209,10 +288,12 @@ Válaszolj kizárólag érvényes JSON objektummal ebben a sémában:
   "summary": "2-4 mondatos közérthető összefoglaló",
   "primaryFinding": { "title": "rövid cím", "explanation": "magyarázat" },
   "secondaryFinding": { "title": "rövid cím", "explanation": "magyarázat" },
-  "abnormalMarkers": [
+  "allMarkers": [
     { "name": "marker neve", "value": "mért érték egységgel", "referenceRange": "referenciatartomány", "status": "low|high|borderline|normal|unknown", "plainMeaning": "közérthető jelentés" }
   ],
   "practicalAdvice": ["tanács 1", "tanács 2", "tanács 3"],
+  "doctorFollowUpNote": "rövid, finom orvosi kontroll-javaslat vagy üres string",
+  "referencedMarkerNames": ["minden marker neve, amit a szöveges mezőkben név szerint említesz"],
   "products": [
     { "name": "terméknév pontosan a katalógusból", "reason": "miért releváns, óvatos étrend-kiegészítő állítással" }
   ]

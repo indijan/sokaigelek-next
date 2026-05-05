@@ -28,6 +28,34 @@ type NormalizedProduct = {
   affiliateUrl2?: string | null;
 };
 
+type RawLabMarker = {
+  name?: string;
+  value?: string;
+  referenceRange?: string;
+  status?: "low" | "high" | "borderline" | "normal" | "unknown" | string;
+  plainMeaning?: string;
+};
+
+function normalizeMarkerName(input: string) {
+  return input
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function stripUnverifiedMarkerMentions(text: string, unverifiedNames: string[]) {
+  const trimmed = String(text || "").trim();
+  if (!trimmed || unverifiedNames.length === 0) return trimmed;
+  const sentences = trimmed.split(/(?<=[.!?])\s+/);
+  const kept = sentences.filter((sentence) => {
+    const normalizedSentence = normalizeMarkerName(sentence);
+    return !unverifiedNames.some((name) => normalizedSentence.includes(name));
+  });
+  return kept.join(" ").trim();
+}
+
 function stripHtml(input: string) {
   return input.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
 }
@@ -45,6 +73,31 @@ function extractJsonObject(text: string) {
       return null;
     }
   }
+}
+
+function normalizeMarkerStatus(status: unknown): "low" | "high" | "borderline" | "normal" | "unknown" {
+  const value = String(status || "").trim().toLowerCase();
+  if (value === "low" || value === "high" || value === "borderline" || value === "normal") return value;
+  return "unknown";
+}
+
+function normalizeMarkers(input: RawLabMarker[]) {
+  const seen = new Set<string>();
+  return input
+    .map((marker) => ({
+      name: String(marker.name || "").slice(0, 80),
+      value: String(marker.value || "").slice(0, 80),
+      referenceRange: marker.referenceRange ? String(marker.referenceRange).slice(0, 80) : undefined,
+      status: normalizeMarkerStatus(marker.status),
+      plainMeaning: String(marker.plainMeaning || "").slice(0, 260),
+    }))
+    .filter((marker) => marker.name && marker.value)
+    .filter((marker) => {
+      const key = `${marker.name.toLowerCase()}::${marker.value}::${marker.referenceRange || ""}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
 }
 
 function productCardHtml(product: {
@@ -137,10 +190,12 @@ Kimenet:
   "subject": "email tárgy",
   "summaryTitle": "rövid cím",
   "summaryLead": "rövid bevezető",
-  "markers": [
+  "allMarkers": [
     { "name": "TSH", "value": "2,81", "referenceRange": "0,40-4,00", "status": "normal|borderline|low|high|unknown", "plainMeaning": "közérthető jelentés" }
   ],
   "adviceItems": ["használható életmódtanács 1", "használható életmódtanács 2", "használható életmódtanács 3"],
+  "doctorFollowUpNote": "rövid, finom orvosi kontroll-javaslat vagy üres string",
+  "referencedMarkerNames": ["minden marker neve, amit a summaryLead, adviceItems vagy doctorFollowUpNote mezőkben név szerint említesz"],
   "products": [
     { "name": "pontos terméknév a katalógusból", "reason": "miért ajánlható" }
   ]
@@ -150,6 +205,11 @@ Követelmények:
 - ne diagnosztizálj
 - ne ijesztgess
 - közérthető, ténylegesen használható életmódtanácsokat adj
+- minden low, high vagy borderline státuszú érték KÖTELEZŐEN szerepeljen az allMarkers tömbben
+- normal értéket csak akkor tegyél az allMarkers tömbbe, ha közvetlenül segít értelmezni egy eltérő értéket
+- a summaryLead, adviceItems és doctorFollowUpNote együtt ne hagyjon ki olyan eltérő értéket, ami az allMarkers tömbben szerepel
+- ha a minta alapján finoman javasolt orvossal egyeztetni, ezt a doctorFollowUpNote mezőben add vissza 1 rövid, nyugodt mondatban
+- ha egy markert név szerint említesz a summaryLead, adviceItems vagy doctorFollowUpNote mezőkben, annak KÖTELEZŐEN szerepelnie kell az allMarkers tömbben is
 - a termékajánlás kizárólag ebből a katalógusból választhat:
 ${JSON.stringify(catalog).slice(0, 45000)}`,
               },
@@ -177,8 +237,28 @@ ${JSON.stringify(catalog).slice(0, 45000)}`,
     const parsed = extractJsonObject(outputText);
     if (!parsed) return NextResponse.json({ error: "Az AI nem adott vissza értelmezhető JSON-t." }, { status: 500 });
 
-    const markers = Array.isArray(parsed.markers) ? parsed.markers.slice(0, 12) : [];
-    const adviceItems = Array.isArray(parsed.adviceItems) ? parsed.adviceItems.slice(0, 5) : [];
+    const allMarkers = normalizeMarkers(
+      Array.isArray(parsed.allMarkers) ? (parsed.allMarkers as RawLabMarker[]).slice(0, 20) : Array.isArray(parsed.markers) ? (parsed.markers as RawLabMarker[]).slice(0, 20) : []
+    );
+    const nonNormalMarkers = allMarkers.filter((marker) => marker.status === "low" || marker.status === "high" || marker.status === "borderline");
+    const contextualNormalMarkers = allMarkers.filter((marker) => marker.status === "normal").slice(0, nonNormalMarkers.length > 0 ? 2 : 6);
+    const markers = (nonNormalMarkers.length > 0 ? [...nonNormalMarkers, ...contextualNormalMarkers] : allMarkers).slice(0, 12);
+    const verifiedMarkerNames = new Set(allMarkers.map((marker) => normalizeMarkerName(marker.name)));
+    const referencedMarkerNames = Array.isArray(parsed.referencedMarkerNames)
+      ? parsed.referencedMarkerNames.map((name: unknown) => normalizeMarkerName(String(name || ""))).filter(Boolean)
+      : [];
+    const unverifiedReferencedNames = referencedMarkerNames.filter((name: string) => !verifiedMarkerNames.has(name));
+    const adviceItems = [
+      ...(Array.isArray(parsed.adviceItems) ? parsed.adviceItems.slice(0, 5) : []),
+      ...(() => {
+        const note = String(parsed.doctorFollowUpNote || "").trim();
+        return note ? [note] : [];
+      })(),
+    ]
+      .map((item) => stripUnverifiedMarkerMentions(String(item || "").trim(), unverifiedReferencedNames))
+      .filter(Boolean)
+      .filter((item, index, array) => array.findIndex((candidate) => candidate === item) === index)
+      .slice(0, 6);
     const pickedProducts = Array.isArray(parsed.products) ? parsed.products : [];
     const normalizedProducts: NormalizedProduct[] = pickedProducts
       .map((product: { name?: string; reason?: string }): NormalizedProduct | null => {
@@ -227,6 +307,8 @@ ${JSON.stringify(catalog).slice(0, 45000)}`,
       })
       .join("");
 
+    const safeSummaryLead = stripUnverifiedMarkerMentions(String(parsed.summaryLead || ""), unverifiedReferencedNames);
+
     const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${parsed.subject || "Laboreredmény összefoglaló"}</title><style>
       * { box-sizing:border-box; }
       body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
@@ -237,7 +319,7 @@ ${JSON.stringify(catalog).slice(0, 45000)}`,
       <div style="max-width:760px;margin:0 auto;padding:24px 16px;">
         <div style="border:1px solid #e5e7eb;border-radius:28px;background:linear-gradient(145deg,#ffffff,#fff7ed);padding:28px;">
           <h1 style="font-size:34px;line-height:1.05;margin:0 0 12px;font-weight:900;">${parsed.summaryTitle || "Laboreredmény összefoglaló"}</h1>
-          <p style="margin:0;color:#475569;line-height:1.75;font-size:16px;">${parsed.summaryLead || ""}</p>
+          <p style="margin:0;color:#475569;line-height:1.75;font-size:16px;">${safeSummaryLead}</p>
           <section style="margin-top:28px;">
             <h2 style="font-size:24px;line-height:1.2;color:#0f172a;margin:0 0 14px;font-weight:900;">1. Értékek elemzése</h2>
             ${markersHtml}
