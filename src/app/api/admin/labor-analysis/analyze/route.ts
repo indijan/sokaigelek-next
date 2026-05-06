@@ -147,6 +147,7 @@ export async function POST(request: Request) {
 
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) return NextResponse.json({ error: "Missing OPENAI_API_KEY" }, { status: 500 });
+    const model = process.env.OPENAI_LAB_ADMIN_MODEL || "gpt-5";
 
     const { data: products } = await supabaseServer
       .from("products")
@@ -176,7 +177,7 @@ export async function POST(request: Request) {
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: "gpt-5-mini",
+        model,
         input: [
           {
             role: "user",

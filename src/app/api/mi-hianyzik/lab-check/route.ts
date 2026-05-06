@@ -253,6 +253,7 @@ async function loadProductCatalog() {
 async function callOpenAiWithFile(file: File, productCatalog: unknown[]) {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) throw new Error("missing_openai_key");
+  const model = process.env.OPENAI_LAB_PUBLIC_MODEL || "gpt-5-mini";
 
   const buffer = Buffer.from(await file.arrayBuffer());
   const contentType = file.type || "application/octet-stream";
@@ -321,7 +322,7 @@ Válaszolj kizárólag érvényes JSON objektummal ebben a sémában:
       Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
-      model: "gpt-5-mini",
+      model,
       input: [
         {
           role: "user",
