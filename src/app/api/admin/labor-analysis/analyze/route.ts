@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
+import { cdnImageUrl } from "@/lib/cdn";
 import { supabaseServer } from "@/lib/supabaseServer";
 
 export const runtime = "nodejs";
@@ -54,6 +55,19 @@ function stripUnverifiedMarkerMentions(text: string, unverifiedNames: string[]) 
     return !unverifiedNames.some((name) => normalizedSentence.includes(name));
   });
   return kept.join(" ").trim();
+}
+
+function sanitizePreviewUrl(raw: string | null | undefined) {
+  const value = String(raw || "").trim();
+  if (!value) return "";
+  if (value.startsWith("/")) return encodeURI(value);
+  try {
+    const url = new URL(value);
+    if (url.protocol !== "http:" && url.protocol !== "https:") return "";
+    return encodeURI(value);
+  } catch {
+    return "";
+  }
 }
 
 function stripHtml(input: string) {
@@ -268,11 +282,11 @@ ${JSON.stringify(catalog).slice(0, 45000)}`,
         return {
           name: row.name,
           reason: String(product.reason || "").trim(),
-          imageUrl: row.image_url,
+          imageUrl: row.image_url ? cdnImageUrl(row.image_url) : null,
           affiliateLabel1: row.affiliate_label_1,
-          affiliateUrl1: row.affiliate_url_1,
+          affiliateUrl1: sanitizePreviewUrl(row.affiliate_url_1),
           affiliateLabel2: row.affiliate_label_2,
-          affiliateUrl2: row.affiliate_url_2,
+          affiliateUrl2: sanitizePreviewUrl(row.affiliate_url_2),
         };
       })
       .filter((product: NormalizedProduct | null): product is NormalizedProduct => Boolean(product))
