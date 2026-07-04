@@ -3,11 +3,12 @@ import type { Metadata } from "next";
 import type React from "react";
 
 import RootShell from "@/components/RootShell";
+import { getSiteUrl } from "@/lib/siteUrl";
 
 export const metadata: Metadata = {
   title: "Sokáig élek",
   description: "Egészség, tudatosság, természetes megoldások – Sokáig élek.",
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://www.sokaigelek.hu"),
+  metadataBase: new URL(getSiteUrl()),
   alternates: { canonical: "/" },
   openGraph: {
     type: "website",

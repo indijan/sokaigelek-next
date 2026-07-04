@@ -7,6 +7,7 @@ import ShareButtons from "@/components/Article/ShareButtons";
 import ArticleAudioSummary from "@/components/Article/ArticleAudioSummary";
 import SubscribeInline from "@/components/Article/SubscribeInline";
 import { cdnImageUrl } from "@/lib/cdn";
+import { getSiteUrl } from "@/lib/siteUrl";
 import {
   ArticleMiniAppDesktopStickyCta,
   ArticleMiniAppFloatingCta,
@@ -144,7 +145,7 @@ function buildInlineProductHtml(product: any, slug: string, sideClass: string): 
   const safeSlug = encodeURIComponent(slug);
   const url = `/termek/${safeSlug}`;
   const img = product?.image_url || product?.cover_image_url || product?.image || null;
-  const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || "https://sokaigelek.hu").replace(/\/$/, "");
+  const siteUrl = getSiteUrl();
   const imgUrl = img ? cdnImageUrl(String(img)) : "";
   const imgSrc = imgUrl && imgUrl.startsWith("/") ? `${siteUrl}${imgUrl}` : imgUrl;
   const imgTag = img
@@ -242,7 +243,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const title = article.title ? `${article.title} | ${siteName}` : siteName;
   const description = buildDescription(article);
 
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+  const siteUrl = getSiteUrl("http://localhost:3000");
   const metadataBase = new URL(siteUrl);
   const canonicalPath = `/cikkek/${slug}`;
   const canonical = new URL(canonicalPath, metadataBase).toString();
@@ -339,7 +340,7 @@ export default async function ArticlePageRoute({ params }: Props) {
 
   const coverRaw = (article as any).cover_image_url || (article as any).image_url || null;
   const coverUrl = coverRaw ? cdnImageUrl(String(coverRaw)) : null;
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://sokaigelek.hu";
+  const siteUrl = getSiteUrl();
   const shareUrl = `${siteUrl.replace(/\/$/, "")}/cikkek/${article.slug}`;
   const dateLabel = formatDate((article as any).published_at || (article as any).created_at || null);
   const categoryLabel = String((article as any).category_label || "").trim();

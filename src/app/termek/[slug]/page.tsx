@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { supabaseServer } from "@/lib/supabaseServer";
 import { formatHuf } from "@/lib/formatHuf";
 import { cdnImageUrl } from "@/lib/cdn";
+import { getSiteUrl } from "@/lib/siteUrl";
 import "../product.css";
 
 export const revalidate = 3600;
@@ -103,7 +104,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const title = product.name ? `${product.name} | ${siteName}` : siteName;
   const description = buildProductDescription(product);
 
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+  const siteUrl = getSiteUrl("http://localhost:3000");
   const metadataBase = new URL(siteUrl);
   const canonicalPath = `/termek/${slug}`;
 
@@ -338,7 +339,7 @@ export default async function ProductPageRoute({ params }: Props) {
     }
   }
 
-  const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || "https://www.sokaigelek.hu").replace(/\/$/, "");
+  const siteUrl = getSiteUrl();
   const productUrl = `${siteUrl}/termek/${product.slug}`;
   const imageUrl = safeRemoteImageUrl((product as any)?.image_url);
   const hasAffiliate1 = Boolean(String(product?.affiliate_label_1 || "").trim() && String(product?.affiliate_url_1 || "").trim());

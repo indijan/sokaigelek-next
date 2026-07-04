@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
 import { supabaseServer } from "@/lib/supabaseServer";
+import { getSiteUrl } from "@/lib/siteUrl";
 
 type SitemapEntry = MetadataRoute.Sitemap[number];
 type ArticleRow = { slug: string; updated_at?: string | null; published_at?: string | null; created_at?: string | null };
@@ -15,7 +16,7 @@ function safeDate(input?: string | null): Date | undefined {
 }
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://www.sokaigelek.hu";
+  const siteUrl = getSiteUrl();
 
   const staticRoutes: SitemapEntry[] = [
     { url: `${siteUrl}/`, changeFrequency: "weekly", priority: 1 },
