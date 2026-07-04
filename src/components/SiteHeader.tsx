@@ -5,7 +5,6 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import ChatOpenButton from "@/components/ChatOpenButton";
-import { RECIPE_CATEGORIES } from "@/lib/recipeTaxonomy";
 import "./SiteHeader.css";
 
 function IconSearch() {
@@ -73,27 +72,14 @@ export default function SiteHeader() {
         </button>
 
         <nav className={`site-nav ${menuOpen ? "is-open" : ""}`} aria-label="Fő navigáció">
-          <div className="nav-dropdown">
-            <Link
-              href="/receptek"
-              className={isActive("/receptek") ? "is-active" : undefined}
-              aria-current={isActive("/receptek") ? "page" : undefined}
-              onClick={() => setMenuOpen(false)}
-            >
-              Receptek
-            </Link>
-            <div className="nav-dropdown-menu" aria-label="Recept kategóriák">
-              {RECIPE_CATEGORIES.map((category) => (
-                <Link
-                  key={category.slug}
-                  href={`/receptek?cat=${encodeURIComponent(category.slug)}`}
-                  onClick={() => setMenuOpen(false)}
-                >
-                  {category.label}
-                </Link>
-              ))}
-            </div>
-          </div>
+          <Link
+            href="/receptek"
+            className={isActive("/receptek") ? "is-active" : undefined}
+            aria-current={isActive("/receptek") ? "page" : undefined}
+            onClick={() => setMenuOpen(false)}
+          >
+            Receptek
+          </Link>
 
           <Link
             href="/cikkek"

@@ -93,6 +93,7 @@ export default async function RecipesPage({ searchParams }: { searchParams?: Sea
   const totalPages = Math.max(1, Math.ceil(totalCount / perPage));
 
   const commonParams = { cat: activeCat, meal: activeMeal, time: activeTime, diet: activeDiet };
+  const activeFilterCount = [activeCat, activeMeal, activeTime, activeDiet].filter(Boolean).length;
 
   if (error) {
     return (
@@ -117,12 +118,33 @@ export default async function RecipesPage({ searchParams }: { searchParams?: Sea
         </Link>
       </div>
 
-      <section className="mt-7 space-y-5 border-y border-gray-200 py-5">
-        <FilterGroup title="Recept kategória" items={RECIPE_CATEGORIES} active={activeCat} params={commonParams} field="cat" />
-        <FilterGroup title="Étel típusa" items={RECIPE_MEAL_TYPES} active={activeMeal} params={commonParams} field="meal" />
-        <FilterGroup title="Elkészítési idő" items={RECIPE_TIMES} active={activeTime} params={commonParams} field="time" />
-        <FilterGroup title="Speciális étrend" items={RECIPE_DIETS} active={activeDiet} params={commonParams} field="diet" />
-      </section>
+      <details
+        className="group mt-7 overflow-hidden rounded-3xl border border-amber-200 bg-gradient-to-br from-amber-50 via-white to-emerald-50 shadow-sm"
+        open={activeFilterCount > 0}
+      >
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 marker:hidden">
+          <span>
+            <span className="block text-base font-extrabold text-gray-950">
+              Szűrők megnyitása
+            </span>
+            <span className="mt-1 block text-sm text-gray-600">
+              Kategória, ételtípus, elkészítési idő és étrend szerint szűrhetsz.
+            </span>
+          </span>
+          <span className="flex shrink-0 items-center gap-2 rounded-full bg-white px-3 py-2 text-sm font-bold text-amber-900 shadow-sm ring-1 ring-amber-200">
+            {activeFilterCount ? `${activeFilterCount} aktív` : "Szűrés"}
+            <span className="text-lg leading-none transition group-open:rotate-180" aria-hidden="true">
+              ↓
+            </span>
+          </span>
+        </summary>
+        <section className="space-y-5 border-t border-amber-100 px-5 py-5">
+          <FilterGroup title="Recept kategória" items={RECIPE_CATEGORIES} active={activeCat} params={commonParams} field="cat" />
+          <FilterGroup title="Étel típusa" items={RECIPE_MEAL_TYPES} active={activeMeal} params={commonParams} field="meal" />
+          <FilterGroup title="Elkészítési idő" items={RECIPE_TIMES} active={activeTime} params={commonParams} field="time" />
+          <FilterGroup title="Speciális étrend" items={RECIPE_DIETS} active={activeDiet} params={commonParams} field="diet" />
+        </section>
+      </details>
 
       <div className="mt-6 text-sm text-gray-600">
         {totalCount} recept találat
@@ -257,4 +279,3 @@ function FilterGroup({
     </div>
   );
 }
-
