@@ -340,6 +340,15 @@ select {
   color: var(--fg);
 }
 
+input[type="checkbox"],
+input[type="radio"] {
+  width: auto;
+  min-width: 1rem;
+  height: 1rem;
+  padding: 0;
+  border-radius: 0.25rem;
+}
+
 input:focus,
 textarea:focus,
 select:focus {
