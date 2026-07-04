@@ -25,6 +25,7 @@ type RecipeArticle = {
   created_at?: string | null;
   recipe_categories?: string[] | null;
   recipe_meal_type?: string | null;
+  recipe_meal_types?: string[] | null;
   recipe_time?: string | null;
   recipe_diets?: string[] | null;
 };
@@ -75,7 +76,7 @@ export default async function RecipesPage({ searchParams }: { searchParams?: Sea
   let query = supabaseServer
     .from("articles")
     .select(
-      "id, slug, title, excerpt, cover_image_url, created_at, recipe_categories, recipe_meal_type, recipe_time, recipe_diets",
+      "id, slug, title, excerpt, cover_image_url, created_at, recipe_categories, recipe_meal_type, recipe_meal_types, recipe_time, recipe_diets",
       { count: "exact" }
     )
     .eq("status", "published")
@@ -83,7 +84,7 @@ export default async function RecipesPage({ searchParams }: { searchParams?: Sea
     .order("created_at", { ascending: false });
 
   if (activeCat) query = query.contains("recipe_categories", [activeCat]);
-  if (activeMeal) query = query.eq("recipe_meal_type", activeMeal);
+  if (activeMeal) query = query.contains("recipe_meal_types", [activeMeal]);
   if (activeTime) query = query.eq("recipe_time", activeTime);
   if (activeDiet) query = query.contains("recipe_diets", [activeDiet]);
 
@@ -157,6 +158,10 @@ export default async function RecipesPage({ searchParams }: { searchParams?: Sea
             .map((slug) => recipeLabel(RECIPE_CATEGORIES, slug))
             .filter(Boolean)
             .slice(0, 3);
+          const mealTypes = (recipe.recipe_meal_types?.length ? recipe.recipe_meal_types : recipe.recipe_meal_type ? [recipe.recipe_meal_type] : [])
+            .map((slug) => recipeLabel(RECIPE_MEAL_TYPES, slug))
+            .filter(Boolean)
+            .slice(0, 2);
 
           return (
             <Link
@@ -180,11 +185,11 @@ export default async function RecipesPage({ searchParams }: { searchParams?: Sea
               </div>
               <div className="p-4">
                 <div className="flex flex-wrap gap-2">
-                  {recipe.recipe_meal_type ? (
-                    <span className="rounded-full bg-gray-100 px-2.5 py-1 text-xs text-gray-700">
-                      {recipeLabel(RECIPE_MEAL_TYPES, recipe.recipe_meal_type)}
+                  {mealTypes.map((label) => (
+                    <span key={label} className="rounded-full bg-gray-100 px-2.5 py-1 text-xs text-gray-700">
+                      {label}
                     </span>
-                  ) : null}
+                  ))}
                   {recipe.recipe_time ? (
                     <span className="rounded-full bg-gray-100 px-2.5 py-1 text-xs text-gray-700">
                       {recipeLabel(RECIPE_TIMES, recipe.recipe_time)}

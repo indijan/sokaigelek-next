@@ -376,6 +376,10 @@ export default async function AdminArticleEditPage({ params, searchParams }: Pro
     const lastAutomationAt = lastFactCheck?.used_at || lastFactCheck?.created_at || null;
     const lastAutomationStatus = String(lastFactCheck?.status || "").trim();
     const selectedRecipeCategories = asStringArray(article.recipe_categories);
+    const selectedRecipeMealTypes = asStringArray(article.recipe_meal_types);
+    if (!selectedRecipeMealTypes.length && article.recipe_meal_type) {
+        selectedRecipeMealTypes.push(String(article.recipe_meal_type));
+    }
     const selectedRecipeDiets = asStringArray(article.recipe_diets);
 
     async function runFactCheckAction(
@@ -657,7 +661,7 @@ export default async function AdminArticleEditPage({ params, searchParams }: Pro
                     const category_slug = String(formData.get("category_slug") || "").trim() || null;
                     const is_recipe = String(formData.get("is_recipe") || "") === "1";
                     const recipe_categories = formData.getAll("recipe_categories").map(String).filter(Boolean);
-                    const recipe_meal_type = String(formData.get("recipe_meal_type") || "").trim() || null;
+                    const recipe_meal_types = formData.getAll("recipe_meal_types").map(String).filter(Boolean);
                     const recipe_time = String(formData.get("recipe_time") || "").trim() || null;
                     const recipe_diets = formData.getAll("recipe_diets").map(String).filter(Boolean);
                     const wasPublished = String(article.status || "") === "published";
@@ -711,7 +715,8 @@ export default async function AdminArticleEditPage({ params, searchParams }: Pro
                             published_at,
                             is_recipe,
                             recipe_categories: is_recipe ? recipe_categories : [],
-                            recipe_meal_type: is_recipe ? recipe_meal_type : null,
+                            recipe_meal_type: is_recipe ? recipe_meal_types[0] || null : null,
+                            recipe_meal_types: is_recipe ? recipe_meal_types : [],
                             recipe_time: is_recipe ? recipe_time : null,
                             recipe_diets: is_recipe ? recipe_diets : [],
                         })
@@ -809,23 +814,25 @@ export default async function AdminArticleEditPage({ params, searchParams }: Pro
                         </div>
                     </div>
 
-                    <div className="grid gap-4 md:grid-cols-2">
-                        <div>
-                            <label className="text-sm font-semibold">Étel típusa</label>
-                            <select
-                                name="recipe_meal_type"
-                                defaultValue={article.recipe_meal_type ?? ""}
-                                className="w-full border rounded-xl px-3 py-2 bg-white"
-                            >
-                                <option value="">— nincs —</option>
-                                {RECIPE_MEAL_TYPES.map((item) => (
-                                    <option key={item.slug} value={item.slug}>
-                                        {item.label}
-                                    </option>
-                                ))}
-                            </select>
+                    <div>
+                        <div className="text-sm font-semibold">Étel típusa</div>
+                        <div className="mt-2 grid gap-2 sm:grid-cols-2 md:grid-cols-4">
+                            {RECIPE_MEAL_TYPES.map((item) => (
+                                <label key={item.slug} className="flex items-start gap-2 rounded-xl border border-amber-100 bg-white px-3 py-2 text-sm">
+                                    <input
+                                        type="checkbox"
+                                        name="recipe_meal_types"
+                                        value={item.slug}
+                                        defaultChecked={selectedRecipeMealTypes.includes(item.slug)}
+                                        className="mt-1 h-4 w-4 shrink-0 accent-amber-700"
+                                    />
+                                    <span className="min-w-0 leading-5">{item.label}</span>
+                                </label>
+                            ))}
                         </div>
+                    </div>
 
+                    <div className="grid gap-4 md:grid-cols-2">
                         <div>
                             <label className="text-sm font-semibold">Elkészítési idő</label>
                             <select
