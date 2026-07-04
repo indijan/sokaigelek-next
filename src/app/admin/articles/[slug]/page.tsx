@@ -9,6 +9,12 @@ import HtmlEditor from "@/components/admin/HtmlEditor";
 import AdminActionButton from "@/components/admin/AdminActionButton";
 import FactCheckActions from "@/components/admin/FactCheckActions";
 import { postArticleToSocial } from "@/lib/articleSocial";
+import {
+    RECIPE_CATEGORIES,
+    RECIPE_DIETS,
+    RECIPE_MEAL_TYPES,
+    RECIPE_TIMES,
+} from "@/lib/recipeTaxonomy";
 
 type Props = {
     params: Promise<{ slug: string }>;
@@ -219,6 +225,10 @@ function parseIssuesFromLastError(text: string) {
     return issues;
 }
 
+function asStringArray(value: unknown) {
+    return Array.isArray(value) ? value.map((item) => String(item)).filter(Boolean) : [];
+}
+
 async function factCheckArticle(article: { title?: string; excerpt?: string; content_html?: string }) {
     const prompt = `
 Ellenőrizd a cikkben szereplő TÁRGYI állításokat. Csak akkor jelölj, ha nagy valószínűséggel hibás, félrevezető vagy pontatlan.
@@ -365,6 +375,8 @@ export default async function AdminArticleEditPage({ params, searchParams }: Pro
     const factCheckIssues = parseIssuesFromLastError(lastFactCheck?.last_error || "");
     const lastAutomationAt = lastFactCheck?.used_at || lastFactCheck?.created_at || null;
     const lastAutomationStatus = String(lastFactCheck?.status || "").trim();
+    const selectedRecipeCategories = asStringArray(article.recipe_categories);
+    const selectedRecipeDiets = asStringArray(article.recipe_diets);
 
     async function runFactCheckAction(
         _prevState: { ok: boolean; message: string },
@@ -643,6 +655,11 @@ export default async function AdminArticleEditPage({ params, searchParams }: Pro
                     const content_html = String(formData.get("content_html") || "");
                     const status = String(formData.get("status") || "draft");
                     const category_slug = String(formData.get("category_slug") || "").trim() || null;
+                    const is_recipe = String(formData.get("is_recipe") || "") === "1";
+                    const recipe_categories = formData.getAll("recipe_categories").map(String).filter(Boolean);
+                    const recipe_meal_type = String(formData.get("recipe_meal_type") || "").trim() || null;
+                    const recipe_time = String(formData.get("recipe_time") || "").trim() || null;
+                    const recipe_diets = formData.getAll("recipe_diets").map(String).filter(Boolean);
                     const wasPublished = String(article.status || "") === "published";
 
                     // 1) slug alap: kézi slug vagy cím alapján
@@ -692,6 +709,11 @@ export default async function AdminArticleEditPage({ params, searchParams }: Pro
                             status,
                             category_slug,
                             published_at,
+                            is_recipe,
+                            recipe_categories: is_recipe ? recipe_categories : [],
+                            recipe_meal_type: is_recipe ? recipe_meal_type : null,
+                            recipe_time: is_recipe ? recipe_time : null,
+                            recipe_diets: is_recipe ? recipe_diets : [],
                         })
                         .eq("id", id);
                     if (saveErr) {
@@ -750,6 +772,94 @@ export default async function AdminArticleEditPage({ params, searchParams }: Pro
                             </option>
                         ))}
                     </select>
+                </div>
+
+                <div className="rounded-2xl border border-amber-200 bg-amber-50/60 p-4 space-y-4">
+                    <label className="flex items-start gap-3 text-sm font-semibold">
+                        <input
+                            type="checkbox"
+                            name="is_recipe"
+                            value="1"
+                            defaultChecked={Boolean(article.is_recipe)}
+                            className="mt-1"
+                        />
+                        <span>
+                            Receptként jelenjen meg
+                            <span className="block text-xs font-normal text-gray-600">
+                                Ha be van kapcsolva, a cikk megjelenik a /receptek oldalon is.
+                            </span>
+                        </span>
+                    </label>
+
+                    <div>
+                        <div className="text-sm font-semibold">Recept kategóriák</div>
+                        <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                            {RECIPE_CATEGORIES.map((item) => (
+                                <label key={item.slug} className="flex items-start gap-2 rounded-xl border border-amber-100 bg-white px-3 py-2 text-sm">
+                                    <input
+                                        type="checkbox"
+                                        name="recipe_categories"
+                                        value={item.slug}
+                                        defaultChecked={selectedRecipeCategories.includes(item.slug)}
+                                        className="mt-1"
+                                    />
+                                    <span>{item.label}</span>
+                                </label>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div className="grid gap-4 md:grid-cols-2">
+                        <div>
+                            <label className="text-sm font-semibold">Étel típusa</label>
+                            <select
+                                name="recipe_meal_type"
+                                defaultValue={article.recipe_meal_type ?? ""}
+                                className="w-full border rounded-xl px-3 py-2 bg-white"
+                            >
+                                <option value="">— nincs —</option>
+                                {RECIPE_MEAL_TYPES.map((item) => (
+                                    <option key={item.slug} value={item.slug}>
+                                        {item.label}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+
+                        <div>
+                            <label className="text-sm font-semibold">Elkészítési idő</label>
+                            <select
+                                name="recipe_time"
+                                defaultValue={article.recipe_time ?? ""}
+                                className="w-full border rounded-xl px-3 py-2 bg-white"
+                            >
+                                <option value="">— nincs —</option>
+                                {RECIPE_TIMES.map((item) => (
+                                    <option key={item.slug} value={item.slug}>
+                                        {item.label}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                    </div>
+
+                    <div>
+                        <div className="text-sm font-semibold">Speciális étrend</div>
+                        <div className="mt-2 grid gap-2 sm:grid-cols-2 md:grid-cols-3">
+                            {RECIPE_DIETS.map((item) => (
+                                <label key={item.slug} className="flex items-start gap-2 rounded-xl border border-amber-100 bg-white px-3 py-2 text-sm">
+                                    <input
+                                        type="checkbox"
+                                        name="recipe_diets"
+                                        value={item.slug}
+                                        defaultChecked={selectedRecipeDiets.includes(item.slug)}
+                                        className="mt-1"
+                                    />
+                                    <span>{item.label}</span>
+                                </label>
+                            ))}
+                        </div>
+                    </div>
                 </div>
 
                 <div>
