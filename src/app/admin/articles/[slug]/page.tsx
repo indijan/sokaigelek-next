@@ -781,7 +781,7 @@ export default async function AdminArticleEditPage({ params, searchParams }: Pro
                             name="is_recipe"
                             value="1"
                             defaultChecked={Boolean(article.is_recipe)}
-                            className="mt-1"
+                            className="mt-1 h-4 w-4 shrink-0 accent-amber-700"
                         />
                         <span>
                             Receptként jelenjen meg
@@ -801,9 +801,9 @@ export default async function AdminArticleEditPage({ params, searchParams }: Pro
                                         name="recipe_categories"
                                         value={item.slug}
                                         defaultChecked={selectedRecipeCategories.includes(item.slug)}
-                                        className="mt-1"
+                                        className="mt-1 h-4 w-4 shrink-0 accent-amber-700"
                                     />
-                                    <span>{item.label}</span>
+                                    <span className="min-w-0 leading-5">{item.label}</span>
                                 </label>
                             ))}
                         </div>
@@ -853,9 +853,9 @@ export default async function AdminArticleEditPage({ params, searchParams }: Pro
                                         name="recipe_diets"
                                         value={item.slug}
                                         defaultChecked={selectedRecipeDiets.includes(item.slug)}
-                                        className="mt-1"
+                                        className="mt-1 h-4 w-4 shrink-0 accent-amber-700"
                                     />
-                                    <span>{item.label}</span>
+                                    <span className="min-w-0 leading-5">{item.label}</span>
                                 </label>
                             ))}
                         </div>
