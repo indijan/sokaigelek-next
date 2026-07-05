@@ -1,3 +1,11 @@
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+    title: "Adatvédelem | Sokáig élek",
+    description: "A Sokáig élek adatkezelési tájékoztatója és adatvédelmi információi.",
+    alternates: { canonical: "/adatvedelem" },
+};
+
 export default function Page() {
     return (
         <main className="container prose">

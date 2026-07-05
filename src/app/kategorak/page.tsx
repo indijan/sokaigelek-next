@@ -1,7 +1,20 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { supabaseServer } from "@/lib/supabaseServer";
 
 export const revalidate = 60;
+
+export const metadata: Metadata = {
+    title: "Kategóriák | Sokáig élek",
+    description: "A Sokáig élek Jóllét Kalauz cikkeinek témakörei és kategóriaoldalai.",
+    alternates: { canonical: "/kategorak" },
+    openGraph: {
+        title: "Kategóriák | Sokáig élek",
+        description: "A Sokáig élek Jóllét Kalauz cikkeinek témakörei és kategóriaoldalai.",
+        url: "/kategorak",
+        type: "website",
+    },
+};
 
 export default async function CategoriesIndexPage() {
     const { data: categories, error } = await supabaseServer
@@ -22,12 +35,6 @@ export default async function CategoriesIndexPage() {
         <div>
             <div className="flex items-end justify-between gap-4">
                 <h1 className="text-2xl font-bold">Kategóriák</h1>
-                <Link
-                    href="/admin/categories"
-                    className="text-sm underline text-gray-600 hover:text-black"
-                >
-                    Admin →
-                </Link>
             </div>
 
             <div className="mt-6 grid gap-3 md:grid-cols-2">

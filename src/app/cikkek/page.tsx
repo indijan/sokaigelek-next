@@ -46,7 +46,11 @@ export async function generateMetadata({
     const params = new URLSearchParams();
     if (activeCat) params.set("cat", activeCat);
     if (page > 1) params.set("page", String(page));
-    const canonicalPath = params.toString() ? `/cikkek?${params.toString()}` : "/cikkek";
+    const canonicalPath = activeCat
+        ? `/kategoria/${encodeURIComponent(activeCat)}`
+        : params.toString()
+          ? `/cikkek?${params.toString()}`
+          : "/cikkek";
 
     return {
         title,

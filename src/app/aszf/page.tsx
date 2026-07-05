@@ -1,3 +1,11 @@
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+    title: "Általános Szerződési Feltételek | Sokáig élek",
+    description: "A Sokáig élek weboldal használatára vonatkozó általános szerződési feltételek.",
+    alternates: { canonical: "/aszf" },
+};
+
 export default function Page() {
     return (
         <main className="container prose">

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { supabaseServer } from "@/lib/supabaseServer";
 import { cdnImageUrl } from "@/lib/cdn";
 import { formatHuf } from "@/lib/formatHuf";
@@ -6,6 +7,26 @@ import { formatHuf } from "@/lib/formatHuf";
 const PAGE_SIZE = 12;
 
 export const revalidate = 900;
+
+export const metadata: Metadata = {
+  title: "Étrend-kiegészítők | Sokáig élek",
+  description:
+    "Válogatott étrend-kiegészítők, termékleírások, árak és kapcsolódó egészségtudatos ajánlások egy helyen.",
+  alternates: { canonical: "/termek" },
+  openGraph: {
+    title: "Étrend-kiegészítők | Sokáig élek",
+    description:
+      "Válogatott étrend-kiegészítők, termékleírások, árak és kapcsolódó egészségtudatos ajánlások egy helyen.",
+    url: "/termek",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Étrend-kiegészítők | Sokáig élek",
+    description:
+      "Válogatott étrend-kiegészítők, termékleírások, árak és kapcsolódó egészségtudatos ajánlások egy helyen.",
+  },
+};
 
 function stripHtml(input: string) {
   return input

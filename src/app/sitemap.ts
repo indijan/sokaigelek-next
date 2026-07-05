@@ -1,13 +1,14 @@
 import type { MetadataRoute } from "next";
 import { supabaseServer } from "@/lib/supabaseServer";
 import { getSiteUrl } from "@/lib/siteUrl";
+import { RECIPE_CATEGORIES } from "@/lib/recipeTaxonomy";
 
 type SitemapEntry = MetadataRoute.Sitemap[number];
 type ArticleRow = { slug: string; updated_at?: string | null; published_at?: string | null; created_at?: string | null };
 type ProductRow = { slug: string; updated_at?: string | null; created_at?: string | null };
 type CategoryRow = { slug: string; created_at?: string | null };
 
-export const revalidate = 3600;
+export const revalidate = 86400;
 
 function safeDate(input?: string | null): Date | undefined {
   if (!input) return undefined;
@@ -23,6 +24,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${siteUrl}/cikkek`, changeFrequency: "daily", priority: 0.8 },
     { url: `${siteUrl}/receptek`, changeFrequency: "weekly", priority: 0.8 },
     { url: `${siteUrl}/mi-hianyzik-nekem`, changeFrequency: "weekly", priority: 0.8 },
+    { url: `${siteUrl}/laboreredmeny-feltoltes`, changeFrequency: "monthly", priority: 0.7 },
     { url: `${siteUrl}/termek`, changeFrequency: "weekly", priority: 0.8 },
     { url: `${siteUrl}/kategorak`, changeFrequency: "weekly", priority: 0.5 },
     { url: `${siteUrl}/kapcsolat`, changeFrequency: "monthly", priority: 0.5 },
@@ -70,5 +72,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.6,
   }));
 
-  return [...staticRoutes, ...articleRoutes, ...productRoutes, ...categoryRoutes];
+  const recipeCategoryRoutes: SitemapEntry[] = RECIPE_CATEGORIES.map((category) => ({
+    url: `${siteUrl}/receptek?cat=${encodeURIComponent(category.slug)}`,
+    changeFrequency: "weekly",
+    priority: 0.55,
+  }));
+
+  return [...staticRoutes, ...recipeCategoryRoutes, ...articleRoutes, ...productRoutes, ...categoryRoutes];
 }

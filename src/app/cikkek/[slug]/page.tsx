@@ -8,6 +8,7 @@ import ArticleAudioSummary from "@/components/Article/ArticleAudioSummary";
 import SubscribeInline from "@/components/Article/SubscribeInline";
 import { cdnImageUrl } from "@/lib/cdn";
 import { getSiteUrl } from "@/lib/siteUrl";
+import { absoluteUrl, jsonLd } from "@/lib/seo";
 import {
   ArticleMiniAppDesktopStickyCta,
   ArticleMiniAppFloatingCta,
@@ -339,7 +340,7 @@ export default async function ArticlePageRoute({ params }: Props) {
   const contentWithImages = rewriteImageSrcInHtml(contentWithEmbeds);
 
   const coverRaw = (article as any).cover_image_url || (article as any).image_url || null;
-  const coverUrl = coverRaw ? cdnImageUrl(String(coverRaw)) : null;
+  const coverUrl = coverRaw ? absoluteUrl(cdnImageUrl(String(coverRaw))) : null;
   const siteUrl = getSiteUrl();
   const shareUrl = `${siteUrl.replace(/\/$/, "")}/cikkek/${article.slug}`;
   const dateLabel = formatDate((article as any).published_at || (article as any).created_at || null);
@@ -416,11 +417,11 @@ export default async function ArticlePageRoute({ params }: Props) {
       <ArticleChatTrigger title={article.title} excerpt={(article as any).excerpt ?? null} />
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(articleJsonLd) }}
+        dangerouslySetInnerHTML={{ __html: jsonLd(articleJsonLd) }}
       />
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
+        dangerouslySetInnerHTML={{ __html: jsonLd(breadcrumbJsonLd) }}
       />
       <style
         dangerouslySetInnerHTML={{

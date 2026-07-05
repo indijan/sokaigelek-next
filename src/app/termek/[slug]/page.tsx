@@ -3,6 +3,7 @@ import { supabaseServer } from "@/lib/supabaseServer";
 import { formatHuf } from "@/lib/formatHuf";
 import { cdnImageUrl } from "@/lib/cdn";
 import { getSiteUrl } from "@/lib/siteUrl";
+import { absoluteUrl, jsonLd } from "@/lib/seo";
 import "../product.css";
 
 export const revalidate = 3600;
@@ -342,6 +343,7 @@ export default async function ProductPageRoute({ params }: Props) {
   const siteUrl = getSiteUrl();
   const productUrl = `${siteUrl}/termek/${product.slug}`;
   const imageUrl = safeRemoteImageUrl((product as any)?.image_url);
+  const absoluteImageUrl = imageUrl ? absoluteUrl(imageUrl) : null;
   const hasAffiliate1 = Boolean(String(product?.affiliate_label_1 || "").trim() && String(product?.affiliate_url_1 || "").trim());
   const hasAffiliate2 = Boolean(String(product?.affiliate_label_2 || "").trim() && String(product?.affiliate_url_2 || "").trim());
   const structuredData = {
@@ -349,7 +351,7 @@ export default async function ProductPageRoute({ params }: Props) {
     "@type": "Product",
     name: String(product.name || "").trim(),
     description: buildProductDescription(product),
-    image: imageUrl ? [imageUrl] : undefined,
+    image: absoluteImageUrl ? [absoluteImageUrl] : undefined,
     sku: String(product.slug || "").trim(),
     category: tags[0] || undefined,
     brand: {
@@ -374,17 +376,37 @@ export default async function ProductPageRoute({ params }: Props) {
       { "@type": "ListItem", position: 3, name: String(product.name || "").trim(), item: productUrl },
     ],
   };
+  const faqJsonLd = faq.length
+    ? {
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        mainEntity: faq.map((item) => ({
+          "@type": "Question",
+          name: item.q,
+          acceptedAnswer: {
+            "@type": "Answer",
+            text: stripHtml(item.a),
+          },
+        })),
+      }
+    : null;
 
   return (
     <main className="container page product-page space-y-10">
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+        dangerouslySetInnerHTML={{ __html: jsonLd(structuredData) }}
       />
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
+        dangerouslySetInnerHTML={{ __html: jsonLd(breadcrumbJsonLd) }}
       />
+      {faqJsonLd ? (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: jsonLd(faqJsonLd) }}
+        />
+      ) : null}
       <nav className="text-sm text-gray-500">
         <div className="inline-flex items-center gap-2 rounded-full border bg-white/70 px-3 py-1">
           <a className="hover:text-gray-800" href="/">Kezdőlap</a>

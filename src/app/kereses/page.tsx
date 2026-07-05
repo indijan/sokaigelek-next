@@ -1,6 +1,14 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { cdnImageUrl } from "@/lib/cdn";
 import { formatHuf } from "@/lib/formatHuf";
+
+export const metadata: Metadata = {
+    title: "Keresés | Sokáig élek",
+    description: "Keresés a Sokáig élek cikkei és étrend-kiegészítői között.",
+    robots: { index: false, follow: true },
+    alternates: { canonical: "/kereses" },
+};
 
 type SearchParams = {
     q?: string;

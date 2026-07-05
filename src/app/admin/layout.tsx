@@ -8,6 +8,10 @@ import { supabaseServer } from "@/lib/supabaseServer";
 
 export const metadata = {
   title: "Admin – Sokáig élek",
+  robots: {
+    index: false,
+    follow: false,
+  },
 };
 
 export default async function AdminLayout({ children }: { children: ReactNode }) {

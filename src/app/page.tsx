@@ -1,6 +1,7 @@
 import Link from "next/link";
 import ChatOpenButton from "@/components/ChatOpenButton";
 import Image from "next/image";
+import type { Metadata } from "next";
 import type { CSSProperties } from "react";
 import { supabaseServer } from "@/lib/supabaseServer";
 import { cdnImageUrl } from "@/lib/cdn";
@@ -10,6 +11,26 @@ import { unstable_cache } from "next/cache";
 
 export const revalidate = 900;
 export const dynamic = "force-static";
+
+export const metadata: Metadata = {
+  title: "Sokáig élek | Jóllét Kalauz és étrend-kiegészítők",
+  description:
+    "Egészségtudatos cikkek, személyre szabott állapotfelmérés, laboreredmény értelmezés és válogatott étrend-kiegészítők egy helyen.",
+  alternates: { canonical: "/" },
+  openGraph: {
+    title: "Sokáig élek | Jóllét Kalauz és étrend-kiegészítők",
+    description:
+      "Egészségtudatos cikkek, személyre szabott állapotfelmérés, laboreredmény értelmezés és válogatott étrend-kiegészítők egy helyen.",
+    url: "/",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Sokáig élek | Jóllét Kalauz és étrend-kiegészítők",
+    description:
+      "Egészségtudatos cikkek, személyre szabott állapotfelmérés, laboreredmény értelmezés és válogatott étrend-kiegészítők egy helyen.",
+  },
+};
 
 const getFeaturedProducts = unstable_cache(
   async () => {
