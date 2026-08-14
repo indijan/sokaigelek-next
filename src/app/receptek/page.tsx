@@ -13,8 +13,8 @@ import { supabaseServer } from "@/lib/supabaseServer";
 export const revalidate = 900;
 
 type SearchParamsInput =
-  | Promise<{ cat?: string | string[]; meal?: string | string[]; time?: string | string[]; diet?: string | string[]; page?: string | string[] }>
-  | { cat?: string | string[]; meal?: string | string[]; time?: string | string[]; diet?: string | string[]; page?: string | string[] };
+  | Promise<{ cat?: string | string[]; meal?: string | string[]; time?: string | string[]; diet?: string | string[]; tag?: string | string[]; page?: string | string[] }>
+  | { cat?: string | string[]; meal?: string | string[]; time?: string | string[]; diet?: string | string[]; tag?: string | string[]; page?: string | string[] };
 
 type RecipeArticle = {
   id: string;
@@ -28,6 +28,7 @@ type RecipeArticle = {
   recipe_meal_types?: string[] | null;
   recipe_time?: string | null;
   recipe_diets?: string[] | null;
+  recipe_tags?: string[] | null;
 };
 
 function normalizeSingleParam(value?: string | string[]) {
@@ -67,6 +68,7 @@ export default async function RecipesPage({ searchParams }: { searchParams?: Sea
   const activeMeal = normalizeSingleParam(sp?.meal);
   const activeTime = normalizeSingleParam(sp?.time);
   const activeDiet = normalizeSingleParam(sp?.diet);
+  const activeTag = normalizeSingleParam(sp?.tag);
   const page = Math.max(1, Number.parseInt(String(normalizeSingleParam(sp?.page) ?? "1"), 10) || 1);
 
   const perPage = 12;
@@ -76,7 +78,7 @@ export default async function RecipesPage({ searchParams }: { searchParams?: Sea
   let query = supabaseServer
     .from("articles")
     .select(
-      "id, slug, title, excerpt, cover_image_url, created_at, recipe_categories, recipe_meal_type, recipe_meal_types, recipe_time, recipe_diets",
+      "id, slug, title, excerpt, cover_image_url, created_at, recipe_categories, recipe_meal_type, recipe_meal_types, recipe_time, recipe_diets, recipe_tags",
       { count: "exact" }
     )
     .eq("status", "published")
@@ -87,14 +89,24 @@ export default async function RecipesPage({ searchParams }: { searchParams?: Sea
   if (activeMeal) query = query.contains("recipe_meal_types", [activeMeal]);
   if (activeTime) query = query.eq("recipe_time", activeTime);
   if (activeDiet) query = query.contains("recipe_diets", [activeDiet]);
+  if (activeTag) query = query.contains("recipe_tags", [activeTag]);
 
   const { data, error, count } = await query.range(from, to);
   const recipes = (data || []) as RecipeArticle[];
   const totalCount = Number(count || 0);
   const totalPages = Math.max(1, Math.ceil(totalCount / perPage));
 
-  const commonParams = { cat: activeCat, meal: activeMeal, time: activeTime, diet: activeDiet };
-  const activeFilterCount = [activeCat, activeMeal, activeTime, activeDiet].filter(Boolean).length;
+  const commonParams = { cat: activeCat, meal: activeMeal, time: activeTime, diet: activeDiet, tag: activeTag };
+  const activeFilterCount = [activeCat, activeMeal, activeTime, activeDiet, activeTag].filter(Boolean).length;
+
+  const { data: tagRows } = await supabaseServer
+    .from("articles")
+    .select("recipe_tags")
+    .eq("status", "published")
+    .eq("is_recipe", true);
+  const recipeTags = Array.from(
+    new Set((tagRows || []).flatMap((row) => (Array.isArray(row.recipe_tags) ? row.recipe_tags : [])))
+  ).sort((a, b) => a.localeCompare(b, "hu"));
 
   if (error) {
     return (
@@ -129,7 +141,7 @@ export default async function RecipesPage({ searchParams }: { searchParams?: Sea
               Szűrők megnyitása
             </span>
             <span className="mt-1 block text-sm text-gray-600">
-              Kategória, ételtípus, elkészítési idő és étrend szerint szűrhetsz.
+              Kategória, ételtípus, elkészítési idő, alapanyag és étrend szerint szűrhetsz.
             </span>
           </span>
           <span className="flex shrink-0 items-center gap-2 rounded-full bg-white px-3 py-2 text-sm font-bold text-amber-900 shadow-sm ring-1 ring-amber-200">
@@ -144,6 +156,9 @@ export default async function RecipesPage({ searchParams }: { searchParams?: Sea
           <FilterGroup title="Étel típusa" items={RECIPE_MEAL_TYPES} active={activeMeal} params={commonParams} field="meal" />
           <FilterGroup title="Elkészítési idő" items={RECIPE_TIMES} active={activeTime} params={commonParams} field="time" />
           <FilterGroup title="Speciális étrend" items={RECIPE_DIETS} active={activeDiet} params={commonParams} field="diet" />
+          {recipeTags.length > 0 ? (
+            <FilterGroup title="Alapanyag / címke" items={recipeTags.map((tag) => ({ slug: tag, label: tag }))} active={activeTag} params={commonParams} field="tag" />
+          ) : null}
         </section>
       </details>
 
@@ -253,7 +268,7 @@ function FilterGroup({
   items: ReadonlyArray<{ slug: string; label: string }>;
   active?: string;
   params: Record<string, string | undefined>;
-  field: "cat" | "meal" | "time" | "diet";
+  field: "cat" | "meal" | "time" | "diet" | "tag";
 }) {
   return (
     <div>

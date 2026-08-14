@@ -381,6 +381,7 @@ export default async function AdminArticleEditPage({ params, searchParams }: Pro
         selectedRecipeMealTypes.push(String(article.recipe_meal_type));
     }
     const selectedRecipeDiets = asStringArray(article.recipe_diets);
+    const selectedRecipeTags = asStringArray(article.recipe_tags);
 
     async function runFactCheckAction(
         _prevState: { ok: boolean; message: string },
@@ -664,6 +665,14 @@ export default async function AdminArticleEditPage({ params, searchParams }: Pro
                     const recipe_meal_types = formData.getAll("recipe_meal_types").map(String).filter(Boolean);
                     const recipe_time = String(formData.get("recipe_time") || "").trim() || null;
                     const recipe_diets = formData.getAll("recipe_diets").map(String).filter(Boolean);
+                    const recipe_tags = Array.from(
+                        new Set(
+                            String(formData.get("recipe_tags") || "")
+                                .split(/[\n,;]+/)
+                                .map((tag) => tag.trim())
+                                .filter(Boolean)
+                        )
+                    );
                     const wasPublished = String(article.status || "") === "published";
 
                     // 1) slug alap: kézi slug vagy cím alapján
@@ -719,6 +728,7 @@ export default async function AdminArticleEditPage({ params, searchParams }: Pro
                             recipe_meal_types: is_recipe ? recipe_meal_types : [],
                             recipe_time: is_recipe ? recipe_time : null,
                             recipe_diets: is_recipe ? recipe_diets : [],
+                            recipe_tags: is_recipe ? recipe_tags : [],
                         })
                         .eq("id", id);
                     if (saveErr) {
@@ -866,6 +876,21 @@ export default async function AdminArticleEditPage({ params, searchParams }: Pro
                                 </label>
                             ))}
                         </div>
+                    </div>
+
+                    <div>
+                        <label htmlFor="recipe_tags" className="text-sm font-semibold">Alapanyag-címkék</label>
+                        <p className="mt-1 text-xs text-gray-600">
+                            Vesszővel, pontosvesszővel vagy új sorral válaszd el őket. Például: csirkemell, brokkoli, rizs.
+                        </p>
+                        <textarea
+                            id="recipe_tags"
+                            name="recipe_tags"
+                            defaultValue={selectedRecipeTags.join(", ")}
+                            rows={3}
+                            className="mt-2 w-full rounded-xl border border-amber-100 bg-white px-3 py-2"
+                            placeholder="csirkemell, brokkoli, rizs"
+                        />
                     </div>
                 </div>
 
