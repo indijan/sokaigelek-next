@@ -30,7 +30,9 @@ export const RECIPE_MEAL_TYPES = [
 export const RECIPE_TIMES = [
   { slug: "15-perc-alatt", label: "15 perc alatt" },
   { slug: "30-perc-alatt", label: "30 perc alatt" },
+  { slug: "45-perc-alatt", label: "45 perc alatt" },
   { slug: "1-ora-alatt", label: "1 óra alatt" },
+  { slug: "1-5-ora-alatt", label: "1,5 óra alatt" },
 ] as const;
 
 export const RECIPE_DIETS = [
@@ -48,4 +50,3 @@ export function recipeLabel(
 ) {
   return items.find((item) => item.slug === slug)?.label || "";
 }
-
