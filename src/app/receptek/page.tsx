@@ -104,9 +104,17 @@ export default async function RecipesPage({ searchParams }: { searchParams?: Sea
     .select("recipe_tags")
     .eq("status", "published")
     .eq("is_recipe", true);
-  const recipeTags = Array.from(
-    new Set((tagRows || []).flatMap((row) => (Array.isArray(row.recipe_tags) ? row.recipe_tags : [])))
-  ).sort((a, b) => a.localeCompare(b, "hu"));
+  const recipeTagCounts = new Map<string, number>();
+  for (const row of tagRows || []) {
+    const uniqueTags = new Set(Array.isArray(row.recipe_tags) ? row.recipe_tags : []);
+    for (const tag of uniqueTags) {
+      recipeTagCounts.set(tag, (recipeTagCounts.get(tag) || 0) + 1);
+    }
+  }
+  const recipeTags = Array.from(recipeTagCounts.entries())
+    .filter(([, count]) => count >= 2)
+    .map(([tag]) => tag)
+    .sort((a, b) => a.localeCompare(b, "hu"));
 
   if (error) {
     return (
