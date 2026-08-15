@@ -9,7 +9,13 @@ import SubscribeInline from "@/components/Article/SubscribeInline";
 import { cdnImageUrl } from "@/lib/cdn";
 import { getSiteUrl } from "@/lib/siteUrl";
 import { absoluteUrl, jsonLd } from "@/lib/seo";
-import { RECIPE_MEAL_TYPES, RECIPE_TIMES, recipeLabel } from "@/lib/recipeTaxonomy";
+import {
+  RECIPE_CATEGORIES,
+  RECIPE_DIETS,
+  RECIPE_MEAL_TYPES,
+  RECIPE_TIMES,
+  recipeLabel,
+} from "@/lib/recipeTaxonomy";
 import {
   ArticleMiniAppDesktopStickyCta,
   ArticleMiniAppFloatingCta,
@@ -354,6 +360,8 @@ export default async function ArticlePageRoute({ params }: Props) {
       : [];
   const recipeMealLabels = recipeMealTypes.map((slug: string) => recipeLabel(RECIPE_MEAL_TYPES, slug)).filter(Boolean);
   const recipeTimeLabel = recipeLabel(RECIPE_TIMES, (article as any).recipe_time);
+  const recipeFeaturedCategory = recipeLabel(RECIPE_CATEGORIES, (article as any).recipe_featured_category);
+  const recipeFeaturedDiet = recipeLabel(RECIPE_DIETS, (article as any).recipe_featured_diet);
   const recipeTags: string[] = Array.isArray((article as any).recipe_tags)
     ? Array.from(new Set((article as any).recipe_tags.map(String).map((tag: string) => tag.trim()).filter(Boolean)))
     : [];
@@ -555,16 +563,26 @@ export default async function ArticlePageRoute({ params }: Props) {
           <div style={{ fontSize: 14, opacity: 0.75 }}>Közzétéve: {dateLabel}</div>
         ) : null}
 
-        {isRecipe && (recipeMealLabels.length > 0 || recipeTimeLabel) ? (
+        {isRecipe && (recipeMealLabels.length > 0 || recipeTimeLabel || recipeFeaturedCategory || recipeFeaturedDiet) ? (
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 12 }} aria-label="Recept adatai">
-            {recipeMealLabels.map((label: string) => (
-              <span key={label} style={{ borderRadius: 999, padding: "7px 11px", background: "rgba(16,185,129,0.10)", border: "1px solid rgba(16,185,129,0.22)", fontSize: 13, fontWeight: 800 }}>
-                Ajánlott étkezés: {label}
+            {recipeMealLabels.length > 0 ? (
+              <span style={{ borderRadius: 999, padding: "7px 11px", background: "rgba(16,185,129,0.10)", border: "1px solid rgba(16,185,129,0.22)", fontSize: 13, fontWeight: 800 }}>
+                Ajánlott étkezés: {recipeMealLabels.join(", ")}
               </span>
-            ))}
+            ) : null}
             {recipeTimeLabel ? (
               <span style={{ borderRadius: 999, padding: "7px 11px", background: "rgba(194,65,11,0.08)", border: "1px solid rgba(194,65,11,0.20)", fontSize: 13, fontWeight: 800 }}>
                 Elkészítés: {recipeTimeLabel}
+              </span>
+            ) : null}
+            {recipeFeaturedCategory ? (
+              <span style={{ borderRadius: 999, padding: "7px 11px", background: "rgba(245,158,11,0.10)", border: "1px solid rgba(245,158,11,0.24)", fontSize: 13, fontWeight: 800 }}>
+                Recept kategória: {recipeFeaturedCategory}
+              </span>
+            ) : null}
+            {recipeFeaturedDiet ? (
+              <span style={{ borderRadius: 999, padding: "7px 11px", background: "rgba(59,130,246,0.09)", border: "1px solid rgba(59,130,246,0.20)", fontSize: 13, fontWeight: 800 }}>
+                Speciális étrend: {recipeFeaturedDiet}
               </span>
             ) : null}
           </div>
@@ -659,7 +677,7 @@ export default async function ArticlePageRoute({ params }: Props) {
           {isRecipe && recipeTags.length > 0 ? (
             <div style={{ marginTop: 28, paddingTop: 18, borderTop: "1px solid rgba(0,0,0,0.08)" }}>
               <div style={{ fontSize: 12, fontWeight: 900, letterSpacing: "0.05em", textTransform: "uppercase", opacity: 0.68, marginBottom: 10 }}>
-                Alapanyag-címkék
+                Címke
               </div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
                 {recipeTags.map((tag: string) => (

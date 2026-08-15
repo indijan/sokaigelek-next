@@ -376,11 +376,13 @@ export default async function AdminArticleEditPage({ params, searchParams }: Pro
     const lastAutomationAt = lastFactCheck?.used_at || lastFactCheck?.created_at || null;
     const lastAutomationStatus = String(lastFactCheck?.status || "").trim();
     const selectedRecipeCategories = asStringArray(article.recipe_categories);
+    const selectedRecipeFeaturedCategory = String(article.recipe_featured_category || "");
     const selectedRecipeMealTypes = asStringArray(article.recipe_meal_types);
     if (!selectedRecipeMealTypes.length && article.recipe_meal_type) {
         selectedRecipeMealTypes.push(String(article.recipe_meal_type));
     }
     const selectedRecipeDiets = asStringArray(article.recipe_diets);
+    const selectedRecipeFeaturedDiet = String(article.recipe_featured_diet || "");
     const selectedRecipeTags = asStringArray(article.recipe_tags);
 
     async function runFactCheckAction(
@@ -662,9 +664,11 @@ export default async function AdminArticleEditPage({ params, searchParams }: Pro
                     const category_slug = String(formData.get("category_slug") || "").trim() || null;
                     const is_recipe = String(formData.get("is_recipe") || "") === "1";
                     const recipe_categories = formData.getAll("recipe_categories").map(String).filter(Boolean);
+                    const recipe_featured_category = String(formData.get("recipe_featured_category") || "").trim() || null;
                     const recipe_meal_types = formData.getAll("recipe_meal_types").map(String).filter(Boolean);
                     const recipe_time = String(formData.get("recipe_time") || "").trim() || null;
                     const recipe_diets = formData.getAll("recipe_diets").map(String).filter(Boolean);
+                    const recipe_featured_diet = String(formData.get("recipe_featured_diet") || "").trim() || null;
                     const recipe_tags = Array.from(
                         new Set(
                             String(formData.get("recipe_tags") || "")
@@ -724,10 +728,12 @@ export default async function AdminArticleEditPage({ params, searchParams }: Pro
                             published_at,
                             is_recipe,
                             recipe_categories: is_recipe ? recipe_categories : [],
+                            recipe_featured_category: is_recipe && recipe_categories.includes(recipe_featured_category || "") ? recipe_featured_category : null,
                             recipe_meal_type: is_recipe ? recipe_meal_types[0] || null : null,
                             recipe_meal_types: is_recipe ? recipe_meal_types : [],
                             recipe_time: is_recipe ? recipe_time : null,
                             recipe_diets: is_recipe ? recipe_diets : [],
+                            recipe_featured_diet: is_recipe && recipe_diets.includes(recipe_featured_diet || "") ? recipe_featured_diet : null,
                             recipe_tags: is_recipe ? recipe_tags : [],
                         })
                         .eq("id", id);
@@ -822,6 +828,19 @@ export default async function AdminArticleEditPage({ params, searchParams }: Pro
                                 </label>
                             ))}
                         </div>
+                        <label className="mt-3 block text-sm font-semibold">
+                            Kiemelt recept kategória a cikk tetejére
+                            <select
+                                name="recipe_featured_category"
+                                defaultValue={selectedRecipeFeaturedCategory}
+                                className="mt-1 w-full rounded-xl border border-amber-100 bg-white px-3 py-2 font-normal"
+                            >
+                                <option value="">— nincs kiemelve —</option>
+                                {RECIPE_CATEGORIES.filter((item) => selectedRecipeCategories.includes(item.slug)).map((item) => (
+                                    <option key={item.slug} value={item.slug}>{item.label}</option>
+                                ))}
+                            </select>
+                        </label>
                     </div>
 
                     <div>
@@ -876,6 +895,19 @@ export default async function AdminArticleEditPage({ params, searchParams }: Pro
                                 </label>
                             ))}
                         </div>
+                        <label className="mt-3 block text-sm font-semibold">
+                            Kiemelt speciális étrend a cikk tetejére
+                            <select
+                                name="recipe_featured_diet"
+                                defaultValue={selectedRecipeFeaturedDiet}
+                                className="mt-1 w-full rounded-xl border border-amber-100 bg-white px-3 py-2 font-normal"
+                            >
+                                <option value="">— nincs kiemelve —</option>
+                                {RECIPE_DIETS.filter((item) => selectedRecipeDiets.includes(item.slug)).map((item) => (
+                                    <option key={item.slug} value={item.slug}>{item.label}</option>
+                                ))}
+                            </select>
+                        </label>
                     </div>
 
                     <div>
