@@ -2,6 +2,12 @@ import { NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabaseServer";
 import { createCampaign, getOrCreateGroupId, scheduleCampaignNow } from "@/lib/brevo";
 
+export const maxDuration = 300;
+
+// Do not backfill the backlog when this fix is deployed. Override this value
+// with BREVO_DIGEST_NOT_BEFORE if the activation point ever needs changing.
+const DEFAULT_DIGEST_NOT_BEFORE = "2026-08-20T01:30:00.000Z";
+
 const CATEGORY_LABELS: Record<string, string> = {
   "immunrendszer-erositese-es-altalanos-egeszsegmegorzes": "Immunrendszer erősítése és általános egészségmegőrzés",
   "csontok-izuletek-es-izomrendszer": "Csontok, ízületek és izomrendszer",
@@ -192,7 +198,9 @@ function resolveDigestHours(rawHours: string | null) {
   if (rawHours) {
     return Math.max(1, Math.min(24 * 14, Number(rawHours || "24")));
   }
-  return 24;
+  // A missed send must be recoverable on the next Tue/Wed/Thu run.
+  // email_logs prevents articles from being sent twice within this window.
+  return 24 * 14;
 }
 
 function resolveArticleWindowDate(article: { published_at?: string | null; updated_at?: string | null; created_at?: string | null }) {
@@ -216,7 +224,9 @@ export async function GET(req: Request) {
   const force = searchParams.get("force") === "1" || searchParams.get("force") === "true";
   const onlyCategory = String(searchParams.get("category") || "").trim();
   const allowedWeekdays = new Set(["Tue", "Wed", "Thu"]);
-  const withinSendWindow = allowedWeekdays.has(budapestNow.weekday) && budapestNow.hour === 14 && budapestNow.minute === 0;
+  // The hourly Vercel cron can arrive a little after the scheduled minute.
+  // email_logs makes repeated invocations in the same hour idempotent.
+  const withinSendWindow = allowedWeekdays.has(budapestNow.weekday) && budapestNow.hour === 14;
 
   if (!force && !withinSendWindow) {
     return NextResponse.json({
@@ -228,7 +238,9 @@ export async function GET(req: Request) {
   }
 
   const end = new Date();
-  const start = new Date(Date.now() - hours * 60 * 60 * 1000);
+  const rollingStart = new Date(Date.now() - hours * 60 * 60 * 1000);
+  const notBefore = new Date(process.env.BREVO_DIGEST_NOT_BEFORE || DEFAULT_DIGEST_NOT_BEFORE);
+  const start = Number.isNaN(notBefore.getTime()) || notBefore <= rollingStart ? rollingStart : notBefore;
 
   const fromEmail = process.env.BREVO_FROM_EMAIL || process.env.MAILERLITE_FROM_EMAIL || "";
   const fromName = process.env.BREVO_FROM_NAME || process.env.MAILERLITE_FROM_NAME || "";
