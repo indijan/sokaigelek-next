@@ -7,6 +7,7 @@ import { absoluteUrl, jsonLd } from "@/lib/seo";
 import "../product.css";
 
 export const revalidate = 3600;
+export const fetchCache = "default-cache";
 
 type Props = {
     params: Promise<{ slug: string }>;

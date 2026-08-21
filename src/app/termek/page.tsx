@@ -7,6 +7,7 @@ import { formatHuf } from "@/lib/formatHuf";
 const PAGE_SIZE = 12;
 
 export const revalidate = 900;
+export const fetchCache = "default-cache";
 
 export const metadata: Metadata = {
   title: "Étrend-kiegészítők | Sokáig élek",

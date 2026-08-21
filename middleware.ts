@@ -66,9 +66,24 @@ function normalizePath(pathname: string) {
   return pathname;
 }
 
+const RECIPE_FILTER_CRAWLER = /(?:meta-externalagent|applebot|aionbot|googlebot|bingbot|yandexbot|semrushbot|ahrefsbot)/i;
+
 export function middleware(req: NextRequest) {
   const rawPath = req.nextUrl.pathname;
   const pathname = normalizePath(rawPath);
+
+  // Filter combinations are useful for people but create an unbounded crawl surface.
+  // Do not spend a server function on crawler requests for these non-indexable URLs.
+  const userAgent = req.headers.get("user-agent") || "";
+  if (pathname === "/receptek" && req.nextUrl.searchParams.size > 0 && RECIPE_FILTER_CRAWLER.test(userAgent)) {
+    return new NextResponse(null, {
+      status: 410,
+      headers: {
+        "X-Robots-Tag": "noindex, nofollow",
+        "Cache-Control": "public, max-age=86400",
+      },
+    });
+  }
 
   const redirectTarget = REDIRECTS.get(pathname);
   if (redirectTarget) {

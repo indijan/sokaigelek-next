@@ -1,7 +1,6 @@
 import type { MetadataRoute } from "next";
 import { supabaseServer } from "@/lib/supabaseServer";
 import { getSiteUrl } from "@/lib/siteUrl";
-import { RECIPE_CATEGORIES } from "@/lib/recipeTaxonomy";
 
 type SitemapEntry = MetadataRoute.Sitemap[number];
 type ArticleRow = { slug: string; updated_at?: string | null; published_at?: string | null; created_at?: string | null };
@@ -72,11 +71,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.6,
   }));
 
-  const recipeCategoryRoutes: SitemapEntry[] = RECIPE_CATEGORIES.map((category) => ({
-    url: `${siteUrl}/receptek?cat=${encodeURIComponent(category.slug)}`,
-    changeFrequency: "weekly",
-    priority: 0.55,
-  }));
-
-  return [...staticRoutes, ...recipeCategoryRoutes, ...articleRoutes, ...productRoutes, ...categoryRoutes];
+  // Filter URLs are intentionally excluded: they are navigation variants, not
+  // canonical landing pages, and would create an unnecessarily large crawl surface.
+  return [...staticRoutes, ...articleRoutes, ...productRoutes, ...categoryRoutes];
 }

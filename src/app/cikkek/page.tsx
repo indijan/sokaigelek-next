@@ -4,6 +4,7 @@ import { supabaseServer } from "@/lib/supabaseServer";
 import { cdnImageUrl } from "@/lib/cdn";
 
 export const revalidate = 900;
+export const fetchCache = "default-cache";
 
 type SearchParamsInput =
     | Promise<{ cat?: string | string[]; page?: string | string[] }>

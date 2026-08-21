@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 export const runtime = "nodejs";
+export const revalidate = 60;
 
 function normalizeHu(s: string) {
     return (s || "")
@@ -311,7 +312,7 @@ export async function GET(req: Request) {
         return `${siteUrl}${path.startsWith("/") ? "" : "/"}${path}`;
     }
 
-    const qRaw = fixMojibake((url.searchParams.get("q") || "").trim());
+    const qRaw = fixMojibake((url.searchParams.get("q") || "").trim()).slice(0, 240);
     const limitRaw = url.searchParams.get("limit");
     const limit = Math.min(10, Math.max(1, Number(limitRaw || "5") || 5));
 
@@ -341,18 +342,18 @@ export async function GET(req: Request) {
             supabase
                 .from("products")
                 .select(
-                    "id, slug, name, short, description"
+                    "id, slug, name, short"
                 )
                 .order("id", { ascending: false })
-                .limit(2000),
+                .limit(250),
             supabase
                 .from("articles")
                 .select(
-                    "id, slug, title, excerpt, content_html"
+                    "id, slug, title, excerpt, cover_image_url"
                 )
                 .eq("status", "published")
                 .order("id", { ascending: false })
-                .limit(2000),
+                .limit(250),
         ]);
 
         if (pRes.error) throw pRes.error;
@@ -452,7 +453,12 @@ export async function GET(req: Request) {
                     snippet: item.snippet,
                 })),
             },
-            { status: 200 }
+            {
+                status: 200,
+                headers: {
+                    "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300",
+                },
+            }
         );
     } catch (e: any) {
         return NextResponse.json(

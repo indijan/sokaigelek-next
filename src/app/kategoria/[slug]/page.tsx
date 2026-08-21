@@ -5,6 +5,7 @@ import { supabaseServer } from "@/lib/supabaseServer";
 import { cdnImageUrl } from "@/lib/cdn";
 
 export const revalidate = 900;
+export const fetchCache = "default-cache";
 
 type Props = {
   params: Promise<{ slug: string }>;

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
+import { unstable_cache } from "next/cache";
 import { cdnImageUrl } from "@/lib/cdn";
 import {
   RECIPE_CATEGORIES,
@@ -11,6 +12,7 @@ import {
 import { supabaseServer } from "@/lib/supabaseServer";
 
 export const revalidate = 900;
+export const fetchCache = "default-cache";
 
 type SearchParamsInput =
   | Promise<{ cat?: string | string[]; meal?: string | string[]; time?: string | string[]; diet?: string | string[]; tag?: string | string[]; page?: string | string[] }>
@@ -44,6 +46,75 @@ function buildHref(params: Record<string, string | undefined>) {
   return qs ? `/receptek?${qs}` : "/receptek";
 }
 
+type RecipeFilters = {
+  cat?: string;
+  meal?: string;
+  time?: string;
+  diet?: string;
+  tag?: string;
+  page: number;
+};
+
+const getRecipeTags = unstable_cache(
+  async () => {
+    const { data, error } = await supabaseServer
+      .from("articles")
+      .select("recipe_tags")
+      .eq("status", "published")
+      .eq("is_recipe", true);
+
+    if (error) throw new Error(error.message);
+
+    const counts = new Map<string, number>();
+    for (const row of data || []) {
+      const uniqueTags = new Set(Array.isArray(row.recipe_tags) ? row.recipe_tags : []);
+      for (const tag of uniqueTags) {
+        counts.set(tag, (counts.get(tag) || 0) + 1);
+      }
+    }
+
+    return Array.from(counts.entries())
+      .filter(([, count]) => count >= 2)
+      .map(([tag]) => tag)
+      .sort((a, b) => a.localeCompare(b, "hu"));
+  },
+  ["recipe-filter-tags-v2"],
+  { revalidate: 3600 }
+);
+
+const getRecipes = unstable_cache(
+  async (filters: RecipeFilters) => {
+    const perPage = 12;
+    const from = (filters.page - 1) * perPage;
+    const to = from + perPage - 1;
+
+    let query = supabaseServer
+      .from("articles")
+      .select(
+        "id, slug, title, excerpt, cover_image_url, created_at, recipe_categories, recipe_meal_type, recipe_meal_types, recipe_time, recipe_diets, recipe_tags",
+        { count: "exact" }
+      )
+      .eq("status", "published")
+      .eq("is_recipe", true)
+      .order("created_at", { ascending: false });
+
+    if (filters.cat) query = query.contains("recipe_categories", [filters.cat]);
+    if (filters.meal) query = query.contains("recipe_meal_types", [filters.meal]);
+    if (filters.time) query = query.eq("recipe_time", filters.time);
+    if (filters.diet) query = query.contains("recipe_diets", [filters.diet]);
+    if (filters.tag) query = query.contains("recipe_tags", [filters.tag]);
+
+    const { data, error, count } = await query.range(from, to);
+    return {
+      recipes: (data || []) as RecipeArticle[],
+      totalCount: Number(count || 0),
+      errorMessage: error?.message || null,
+    };
+  },
+  ["recipe-list-v2"],
+  { revalidate: 300 }
+);
+
 export async function generateMetadata({ searchParams }: { searchParams?: SearchParamsInput }): Promise<Metadata> {
   const sp = searchParams ? await Promise.resolve(searchParams) : undefined;
   const activeCat = normalizeSingleParam(sp?.cat);
@@ -69,58 +140,29 @@ export default async function RecipesPage({ searchParams }: { searchParams?: Sea
   const activeTime = normalizeSingleParam(sp?.time);
   const activeDiet = normalizeSingleParam(sp?.diet);
   const activeTag = normalizeSingleParam(sp?.tag);
-  const page = Math.max(1, Number.parseInt(String(normalizeSingleParam(sp?.page) ?? "1"), 10) || 1);
+  const requestedPage = Number.parseInt(String(normalizeSingleParam(sp?.page) ?? "1"), 10) || 1;
+  const page = Math.min(100, Math.max(1, requestedPage));
 
-  const perPage = 12;
-  const from = (page - 1) * perPage;
-  const to = from + perPage - 1;
-
-  let query = supabaseServer
-    .from("articles")
-    .select(
-      "id, slug, title, excerpt, cover_image_url, created_at, recipe_categories, recipe_meal_type, recipe_meal_types, recipe_time, recipe_diets, recipe_tags",
-      { count: "exact" }
-    )
-    .eq("status", "published")
-    .eq("is_recipe", true)
-    .order("created_at", { ascending: false });
-
-  if (activeCat) query = query.contains("recipe_categories", [activeCat]);
-  if (activeMeal) query = query.contains("recipe_meal_types", [activeMeal]);
-  if (activeTime) query = query.eq("recipe_time", activeTime);
-  if (activeDiet) query = query.contains("recipe_diets", [activeDiet]);
-  if (activeTag) query = query.contains("recipe_tags", [activeTag]);
-
-  const { data, error, count } = await query.range(from, to);
-  const recipes = (data || []) as RecipeArticle[];
-  const totalCount = Number(count || 0);
-  const totalPages = Math.max(1, Math.ceil(totalCount / perPage));
+  const { recipes, totalCount, errorMessage } = await getRecipes({
+    cat: activeCat,
+    meal: activeMeal,
+    time: activeTime,
+    diet: activeDiet,
+    tag: activeTag,
+    page,
+  });
+  const totalPages = Math.max(1, Math.ceil(totalCount / 12));
 
   const commonParams = { cat: activeCat, meal: activeMeal, time: activeTime, diet: activeDiet, tag: activeTag };
   const activeFilterCount = [activeCat, activeMeal, activeTime, activeDiet, activeTag].filter(Boolean).length;
 
-  const { data: tagRows } = await supabaseServer
-    .from("articles")
-    .select("recipe_tags")
-    .eq("status", "published")
-    .eq("is_recipe", true);
-  const recipeTagCounts = new Map<string, number>();
-  for (const row of tagRows || []) {
-    const uniqueTags = new Set(Array.isArray(row.recipe_tags) ? row.recipe_tags : []);
-    for (const tag of uniqueTags) {
-      recipeTagCounts.set(tag, (recipeTagCounts.get(tag) || 0) + 1);
-    }
-  }
-  const recipeTags = Array.from(recipeTagCounts.entries())
-    .filter(([, count]) => count >= 2)
-    .map(([tag]) => tag)
-    .sort((a, b) => a.localeCompare(b, "hu"));
+  const recipeTags = await getRecipeTags();
 
-  if (error) {
+  if (errorMessage) {
     return (
       <main className="mx-auto max-w-3xl px-4 py-10">
         <h1 className="text-2xl font-bold">Receptek</h1>
-        <p className="mt-2 text-red-600">Hiba: {error.message}</p>
+        <p className="mt-2 text-red-600">Hiba: {errorMessage}</p>
       </main>
     );
   }
