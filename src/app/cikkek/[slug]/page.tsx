@@ -24,8 +24,6 @@ import {
 import "../article.css";
 
 export const revalidate = 3600;
-export const fetchCache = "default-cache";
-export const dynamic = "force-static";
 
 type Props = {
   params: Promise<{ slug: string }>;
