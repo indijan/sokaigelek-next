@@ -69,6 +69,13 @@ function normalizePath(pathname: string) {
 const RECIPE_FILTER_CRAWLER = /(?:meta-externalagent|applebot|aionbot|googlebot|bingbot|yandexbot|semrushbot|ahrefsbot)/i;
 
 export function middleware(req: NextRequest) {
+  // Keep one canonical hostname for search engines and shared links.
+  if (req.nextUrl.hostname.toLowerCase() === "sokaigelek.hu") {
+    const canonicalUrl = req.nextUrl.clone();
+    canonicalUrl.hostname = "www.sokaigelek.hu";
+    return NextResponse.redirect(canonicalUrl, 301);
+  }
+
   const rawPath = req.nextUrl.pathname;
   const pathname = normalizePath(rawPath);
 

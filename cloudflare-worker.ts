@@ -17,7 +17,7 @@ type ScheduledEvent = {
 };
 
 async function runCronRoute(path: string, env: WorkerEnv, ctx: WorkerExecutionContext) {
-  const origin = (env.CLOUDFLARE_INTERNAL_ORIGIN || "https://sokaigelek.hu").replace(/\/$/, "");
+  const origin = (env.CLOUDFLARE_INTERNAL_ORIGIN || "https://www.sokaigelek.hu").replace(/\/$/, "");
   const url = new URL(`${origin}${path}`);
   url.searchParams.set("secret", env.CRON_SECRET || "");
 
