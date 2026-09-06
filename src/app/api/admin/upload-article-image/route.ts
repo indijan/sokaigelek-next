@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { supabaseServer } from "@/lib/supabaseServer";
-import { uploadVercelBlob } from "@/lib/blobStorage";
+import { uploadR2, r2PublicUrl } from "@/lib/r2Storage";
+
+export const runtime = "nodejs";
 
 export async function POST(req: Request) {
     const cookieStore = await cookies();
@@ -28,41 +30,22 @@ export async function POST(req: Request) {
     const body = Buffer.from(arrayBuffer);
 
     const contentType = file.type || "image/jpeg";
-    const blobUrl = await uploadVercelBlob(path, body, contentType);
-
-    let url = "";
-    let coverImagePath: string | null = null;
-
-    if (blobUrl) {
-        url = blobUrl;
-    } else {
-        const { error: uploadErr } = await supabaseServer.storage
-            .from("article-images")
-            .upload(path, body, {
-                contentType,
-                upsert: true,
-            });
-
-        if (uploadErr) {
-            return NextResponse.json({ error: uploadErr.message }, { status: 500 });
-        }
-
-        const { data: pub } = supabaseServer.storage
-            .from("article-images")
-            .getPublicUrl(path);
-
-        url = pub.publicUrl;
-        coverImagePath = path;
+    const url = r2PublicUrl(path);
+    try {
+        await uploadR2(path, body, contentType);
+    } catch (error) {
+        const message = error instanceof Error ? error.message : "R2 upload failed";
+        return NextResponse.json({ error: message }, { status: 500 });
     }
 
     const { error: dbErr } = await supabaseServer
         .from("articles")
-        .update({ cover_image_url: url, cover_image_path: coverImagePath })
+        .update({ cover_image_url: url, cover_image_path: path })
         .eq("id", articleId);
 
     if (dbErr) {
         return NextResponse.json({ error: dbErr.message }, { status: 500 });
     }
 
-    return NextResponse.json({ url, path: coverImagePath });
+    return NextResponse.json({ url, path });
 }

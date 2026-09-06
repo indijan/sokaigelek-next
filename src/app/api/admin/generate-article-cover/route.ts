@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { supabaseServer } from "@/lib/supabaseServer";
-import { uploadVercelBlob } from "@/lib/blobStorage";
+import { uploadR2 } from "@/lib/r2Storage";
 
 export const runtime = "nodejs";
 
@@ -244,8 +244,7 @@ export async function POST(req: Request) {
 
     const buffer = Buffer.from(b64, "base64");
 
-    // 4) feltöltés Supabase Storage vagy Vercel Blob
-    const bucket = process.env.ARTICLE_IMAGES_BUCKET || "article-images";
+    // 4) feltöltés Cloudflare R2-be
     const safeSlug = String(body.slug || article.slug || "article")
         .toLowerCase()
         .replace(/[^a-z0-9._-]+/g, "-")
@@ -253,30 +252,18 @@ export async function POST(req: Request) {
         .slice(0, 80) || "article";
     const path = `covers/${safeSlug}-${Date.now()}.png`;
 
-    const blobUrl = await uploadVercelBlob(path, buffer, "image/png");
     let publicUrl = "";
-    let coverImagePath: string | null = null;
-
-    if (blobUrl) {
-        publicUrl = blobUrl;
-    } else {
-        const { error: upErr } = await supabase.storage
-            .from(bucket)
-            .upload(path, buffer, { contentType: "image/png", upsert: true });
-
-        if (upErr) {
-            return NextResponse.json({ error: `Upload error: ${upErr.message}` }, { status: 500 });
-        }
-
-        const { data: pub } = supabase.storage.from(bucket).getPublicUrl(path);
-        publicUrl = pub.publicUrl;
-        coverImagePath = path;
+    try {
+        publicUrl = await uploadR2(path, buffer, "image/png");
+    } catch (error) {
+        const message = error instanceof Error ? error.message : "R2 upload failed";
+        return NextResponse.json({ error: `Upload error: ${message}` }, { status: 500 });
     }
 
     // 5) DB update
     const { error: uErr } = await supabase
         .from("articles")
-        .update({ cover_image_url: publicUrl, cover_image_path: coverImagePath })
+        .update({ cover_image_url: publicUrl, cover_image_path: path })
         .eq("id", article.id);
 
     if (uErr) {
