@@ -15,12 +15,19 @@ export function isVercelBlobUrl(raw: string) {
 
 export async function uploadVercelBlob(path: string, body: Buffer, contentType: string) {
   if (!TOKEN) return null;
-  const { url } = await put(path, body, {
-    access: "public",
-    contentType,
-    token: TOKEN,
-  });
-  return url;
+  try {
+    // Blob keeps the payload compatible with both Node and Cloudflare's fetch runtime.
+    const payload = new Blob([new Uint8Array(body)], { type: contentType });
+    const { url } = await put(path, payload, {
+      access: "public",
+      contentType,
+      token: TOKEN,
+    });
+    return url;
+  } catch {
+    // Let callers fall back to Supabase Storage instead of failing the request.
+    return null;
+  }
 }
 
 export async function deleteVercelBlob(url: string) {
