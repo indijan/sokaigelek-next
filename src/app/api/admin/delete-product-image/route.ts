@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { supabaseServer } from "@/lib/supabaseServer";
-import { deleteVercelBlob, isVercelBlobUrl } from "@/lib/blobStorage";
+import { deleteR2 } from "@/lib/r2Storage";
 
 export async function POST(req: Request) {
     const cookieStore = await cookies();
@@ -32,8 +32,9 @@ export async function POST(req: Request) {
     const imageUrl = (product as any)?.image_url as string | null;
     let path: string | null = null;
     if (imageUrl) {
-        if (isVercelBlobUrl(imageUrl)) {
-            await deleteVercelBlob(imageUrl);
+        if (imageUrl.startsWith("/media/")) {
+            path = imageUrl.slice("/media/".length);
+            await deleteR2(path);
         } else {
             const marker = "/images/";
             const idx = imageUrl.indexOf(marker);
@@ -43,7 +44,7 @@ export async function POST(req: Request) {
         }
     }
 
-    if (path) {
+    if (path && !imageUrl?.startsWith("/media/")) {
         const { error: delErr } = await supabaseServer.storage
             .from("images")
             .remove([path]);

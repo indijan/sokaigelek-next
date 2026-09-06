@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { supabaseServer } from "@/lib/supabaseServer";
-import { deleteVercelBlob, isVercelBlobUrl } from "@/lib/blobStorage";
 import { deleteR2 } from "@/lib/r2Storage";
 
 export async function POST(req: Request) {
@@ -31,8 +30,6 @@ export async function POST(req: Request) {
 
     if (path && url?.startsWith("/media/")) {
         await deleteR2(path);
-    } else if (url && isVercelBlobUrl(url)) {
-        await deleteVercelBlob(url);
     } else if (path) {
         const { error: delErr } = await supabaseServer.storage
             .from("article-images")

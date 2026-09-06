@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import crypto from "crypto";
 import { supabaseServer } from "@/lib/supabaseServer";
-import { uploadVercelBlob } from "@/lib/blobStorage";
+import { uploadR2 } from "@/lib/r2Storage";
 import { slugifyHu } from "@/lib/slugifyHu";
 import { createCampaign, getOrCreateGroupId, scheduleCampaignNow, upsertSubscriber } from "@/lib/brevo";
 import { bestSimilarityHit, normalizeContentText } from "@/lib/contentSimilarity";
@@ -589,7 +589,6 @@ async function generateCoverImage(article: any) {
   if (!b64) throw new Error("No image returned");
 
   const buffer = Buffer.from(b64, "base64");
-  const bucket = process.env.ARTICLE_IMAGES_BUCKET || "article-images";
   const safeSlug =
     String(article.slug || "article")
       .toLowerCase()
@@ -598,27 +597,12 @@ async function generateCoverImage(article: any) {
       .slice(0, 80) || "article";
   const path = `covers/${safeSlug}-${Date.now()}.png`;
 
-  const blobUrl = await uploadVercelBlob(path, buffer, "image/png");
-  let publicUrl = "";
-  let coverImagePath: string | null = null;
-
-  if (blobUrl) {
-    publicUrl = blobUrl;
-  } else {
-    const { error: upErr } = await supabaseServer.storage
-      .from(bucket)
-      .upload(path, buffer, { contentType: "image/png", upsert: true });
-
-    if (upErr) throw new Error(`Upload error: ${upErr.message}`);
-
-    const { data: pub } = supabaseServer.storage.from(bucket).getPublicUrl(path);
-    publicUrl = pub.publicUrl;
-    coverImagePath = path;
-  }
+  const publicUrl = `/media/${path}`;
+  await uploadR2(path, buffer, "image/png");
 
   const { error: uErr } = await supabaseServer
     .from("articles")
-    .update({ cover_image_url: publicUrl, cover_image_path: coverImagePath })
+    .update({ cover_image_url: publicUrl, cover_image_path: path })
     .eq("id", article.id);
 
   if (uErr) throw new Error(`DB update error: ${uErr.message}`);

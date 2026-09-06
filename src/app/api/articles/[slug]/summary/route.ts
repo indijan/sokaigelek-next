@@ -1,5 +1,5 @@
 import { supabaseServer } from "@/lib/supabaseServer";
-import { uploadVercelBlob } from "@/lib/blobStorage";
+import { uploadR2, r2PublicUrl } from "@/lib/r2Storage";
 import { createHash } from "crypto";
 
 export const runtime = "nodejs";
@@ -112,13 +112,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ slug: string }
       .slice(0, 12);
     const blobPath = `article-summaries/${slug}/${contentHash}.mp3`;
 
-    const hostRaw = process.env.VERCEL_BLOB_HOST || "";
-    const host = hostRaw.replace(/\/$/, "");
-    const cachedUrl = host
-      ? (host.startsWith("http://") || host.startsWith("https://")
-          ? `${host}/${blobPath}`
-          : `https://${host}/${blobPath}`)
-      : "";
+    const cachedUrl = new URL(r2PublicUrl(blobPath), _req.url).toString();
 
     if (cachedUrl) {
       const head = await fetch(cachedUrl, { method: "HEAD" });
@@ -141,12 +135,10 @@ Cikk (tisztított szöveg, részlet): ${source}
 
     const summary = await openaiSummary(prompt);
     const audioBuffer = await ttsMp3(summary);
-    const uploaded = await uploadVercelBlob(blobPath, audioBuffer, "audio/mpeg");
-    if (!uploaded) {
-      return new Response("Missing VERCEL_BLOB_READ_WRITE_TOKEN", { status: 500 });
-    }
+    const uploaded = await uploadR2(blobPath, audioBuffer, "audio/mpeg");
+    const audioUrl = new URL(uploaded, _req.url).toString();
 
-    return Response.json({ audioUrl: uploaded, summary });
+    return Response.json({ audioUrl, summary });
   } catch (err: any) {
     console.error("Article summary error:", err);
     return new Response(err?.message || "Summary error", { status: 500 });

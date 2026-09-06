@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { supabaseServer } from "@/lib/supabaseServer";
-import { uploadVercelBlob } from "@/lib/blobStorage";
+import { uploadR2, r2PublicUrl } from "@/lib/r2Storage";
 
 export async function POST(req: Request) {
     const cookieStore = await cookies();
@@ -22,26 +22,11 @@ export async function POST(req: Request) {
     const path = `products/${slug}.${ext}`;
 
     const contentType = file.type || "image/jpeg";
-    const blobUrl = await uploadVercelBlob(path, body, contentType);
-
-    let publicUrl = "";
-
-    if (blobUrl) {
-        publicUrl = blobUrl;
-    } else {
-        const { error: upErr } = await supabaseServer.storage
-            .from("images")
-            .upload(path, body, {
-                contentType,
-                upsert: true,
-            });
-
-        if (upErr) {
-            return NextResponse.json({ error: upErr.message }, { status: 500 });
-        }
-
-        const { data } = supabaseServer.storage.from("images").getPublicUrl(path);
-        publicUrl = data.publicUrl;
+    let publicUrl = r2PublicUrl(path);
+    try {
+        await uploadR2(path, body, contentType);
+    } catch (error) {
+        return NextResponse.json({ error: error instanceof Error ? error.message : "R2 upload failed" }, { status: 500 });
     }
 
     const { error: dbErr } = await supabaseServer
