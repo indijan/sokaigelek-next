@@ -3,31 +3,31 @@ import type { Metadata } from "next";
 import { supabaseServer } from "@/lib/supabaseServer";
 import { cdnImageUrl } from "@/lib/cdn";
 import { formatHuf } from "@/lib/formatHuf";
+import { buildBreadcrumbJsonLd, buildItemListJsonLd, jsonLd } from "@/lib/seo";
 
 const PAGE_SIZE = 12;
 
 export const revalidate = 900;
 export const fetchCache = "default-cache";
 
-export const metadata: Metadata = {
-  title: "Étrend-kiegészítők | Sokáig élek",
-  description:
-    "Válogatott étrend-kiegészítők, termékleírások, árak és kapcsolódó egészségtudatos ajánlások egy helyen.",
-  alternates: { canonical: "/termek" },
-  openGraph: {
+const productsDescription = "Válogatott étrend-kiegészítők, termékleírások, árak és kapcsolódó egészségtudatos ajánlások egy helyen.";
+
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams?: Promise<{ page?: string; tag?: string; slugs?: string }>;
+}): Promise<Metadata> {
+  const params = (await searchParams) ?? {};
+  const hasQueryVariant = Boolean(params.page || params.tag || params.slugs);
+  return {
     title: "Étrend-kiegészítők | Sokáig élek",
-    description:
-      "Válogatott étrend-kiegészítők, termékleírások, árak és kapcsolódó egészségtudatos ajánlások egy helyen.",
-    url: "/termek",
-    type: "website",
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "Étrend-kiegészítők | Sokáig élek",
-    description:
-      "Válogatott étrend-kiegészítők, termékleírások, árak és kapcsolódó egészségtudatos ajánlások egy helyen.",
-  },
-};
+    description: productsDescription,
+    alternates: { canonical: "/termek" },
+    robots: { index: !hasQueryVariant, follow: true },
+    openGraph: { title: "Étrend-kiegészítők | Sokáig élek", description: productsDescription, url: "/termek", type: "website" },
+    twitter: { card: "summary_large_image", title: "Étrend-kiegészítők | Sokáig élek", description: productsDescription },
+  };
+}
 
 function stripHtml(input: string) {
   return input
@@ -155,8 +155,24 @@ export default async function ProductsIndexPage({
     );
   }
 
+  const productListSchema = buildItemListJsonLd(
+    slugFilter.length ? "Kapcsolódó termékek" : "Étrend-kiegészítők",
+    "/termek",
+    visibleProducts.map((product: any) => ({
+      name: String(product.name || ""),
+      url: `/termek/${product.slug}`,
+      image: product.image_url ? safeImageUrl(product.image_url) : null,
+    })),
+  );
+  const productBreadcrumbSchema = buildBreadcrumbJsonLd([
+    { name: "Főoldal", url: "/" },
+    { name: "Étrend-kiegészítők", url: "/termek" },
+  ]);
+
   return (
     <div className="mx-auto w-full max-w-6xl px-4 py-10">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(productListSchema) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(productBreadcrumbSchema) }} />
       <div className="mb-8 flex items-end justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-slate-900">

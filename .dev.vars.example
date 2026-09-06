@@ -1,0 +1,11 @@
+# Copy to .dev.vars for local Cloudflare Worker development.
+# Never commit the real .dev.vars file.
+CRON_SECRET="replace-with-a-long-random-secret"
+CLOUDFLARE_INTERNAL_ORIGIN="https://sokaigelek.hu"
+
+# Add the existing application variables here for Wrangler/Workers Builds.
+NEXT_PUBLIC_SITE_URL="https://sokaigelek.hu"
+NEXT_PUBLIC_SUPABASE_URL=""
+SUPABASE_SERVICE_ROLE_KEY=""
+OPENAI_API_KEY=""
+BREVO_API_KEY=""

@@ -1,11 +1,14 @@
 import type { MetadataRoute } from "next";
 import { supabaseServer } from "@/lib/supabaseServer";
 import { getSiteUrl } from "@/lib/siteUrl";
+import { RECIPE_CATEGORIES } from "@/lib/recipeTaxonomy";
+import { cdnImageUrl } from "@/lib/cdn";
 
 type SitemapEntry = MetadataRoute.Sitemap[number];
-type ArticleRow = { slug: string; updated_at?: string | null; published_at?: string | null; created_at?: string | null };
-type ProductRow = { slug: string; updated_at?: string | null; created_at?: string | null };
+type ArticleRow = { slug: string; cover_image_url?: string | null; updated_at?: string | null; published_at?: string | null; created_at?: string | null };
+type ProductRow = { slug: string; image_url?: string | null; updated_at?: string | null; created_at?: string | null };
 type CategoryRow = { slug: string; created_at?: string | null };
+type RecipeRow = { recipe_categories?: string[] | null; updated_at?: string | null; created_at?: string | null };
 
 export const revalidate = 86400;
 
@@ -31,15 +34,20 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${siteUrl}/aszf`, changeFrequency: "yearly", priority: 0.3 },
   ];
 
-  const [{ data: articles }, { data: products }] = await Promise.all([
+  const [{ data: articles }, { data: products }, { data: recipes }] = await Promise.all([
     supabaseServer
       .from("articles")
-      .select("slug, updated_at, published_at, created_at")
+      .select("slug, cover_image_url, updated_at, published_at, created_at")
       .eq("status", "published"),
     supabaseServer
       .from("products")
-      .select("slug, updated_at, created_at")
+      .select("slug, image_url, updated_at, created_at")
       .eq("status", "published"),
+    supabaseServer
+      .from("articles")
+      .select("recipe_categories, updated_at, created_at")
+      .eq("status", "published")
+      .eq("is_recipe", true),
   ]);
 
   const { data: categories } = await supabaseServer
@@ -55,6 +63,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       safeDate(article.created_at),
     changeFrequency: "monthly",
     priority: 0.7,
+    ...(article.cover_image_url ? { images: [cdnImageUrl(article.cover_image_url)] } : {}),
   }));
 
   const productRoutes: SitemapEntry[] = ((products || []) as ProductRow[]).map((product) => ({
@@ -62,6 +71,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     lastModified: safeDate(product.updated_at) || safeDate(product.created_at),
     changeFrequency: "monthly",
     priority: 0.7,
+    ...(product.image_url ? { images: [cdnImageUrl(product.image_url)] } : {}),
   }));
 
   const categoryRoutes: SitemapEntry[] = ((categories || []) as CategoryRow[]).map((category) => ({
@@ -71,7 +81,18 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.6,
   }));
 
+  const usedRecipeCategories = new Set(
+    ((recipes || []) as RecipeRow[]).flatMap((recipe) => Array.isArray(recipe.recipe_categories) ? recipe.recipe_categories : []),
+  );
+  const recipeCategoryRoutes: SitemapEntry[] = RECIPE_CATEGORIES
+    .filter((category) => usedRecipeCategories.has(category.slug))
+    .map((category) => ({
+      url: `${siteUrl}/receptek?cat=${encodeURIComponent(category.slug)}`,
+      changeFrequency: "weekly",
+      priority: 0.6,
+    }));
+
   // Filter URLs are intentionally excluded: they are navigation variants, not
   // canonical landing pages, and would create an unnecessarily large crawl surface.
-  return [...staticRoutes, ...articleRoutes, ...productRoutes, ...categoryRoutes];
+  return [...staticRoutes, ...articleRoutes, ...productRoutes, ...categoryRoutes, ...recipeCategoryRoutes];
 }

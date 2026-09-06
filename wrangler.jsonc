@@ -1,0 +1,23 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "sokaigelek-next",
+  "main": "cloudflare-worker.ts",
+  "workers_dev": true,
+  "preview_urls": false,
+  "routes": [
+    { "pattern": "sokaigelek.hu", "custom_domain": true },
+    { "pattern": "www.sokaigelek.hu", "custom_domain": true }
+  ],
+  "compatibility_date": "2026-09-05",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "observability": {
+    "enabled": true
+  },
+  "triggers": {
+    "crons": ["*/10 * * * *"]
+  }
+}

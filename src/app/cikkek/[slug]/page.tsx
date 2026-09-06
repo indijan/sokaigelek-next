@@ -8,7 +8,7 @@ import ArticleAudioSummary from "@/components/Article/ArticleAudioSummary";
 import SubscribeInline from "@/components/Article/SubscribeInline";
 import { cdnImageUrl } from "@/lib/cdn";
 import { getSiteUrl } from "@/lib/siteUrl";
-import { absoluteUrl, jsonLd } from "@/lib/seo";
+import { absoluteUrl, buildBreadcrumbJsonLd, jsonLd, SITE_NAME } from "@/lib/seo";
 import {
   RECIPE_CATEGORIES,
   RECIPE_DIETS,
@@ -212,6 +212,45 @@ function toIsoDate(input?: string | null) {
   return d.toISOString();
 }
 
+function extractRecipeParts(html: string) {
+  const listItems = (fragment: string) =>
+    Array.from(fragment.matchAll(/<li\b[^>]*>([\s\S]*?)<\/li>/gi))
+      .map((match) => stripHtml(match[1] || ""))
+      .filter(Boolean);
+
+  // Editors often wrap headings in spans or bold tags, so match the visible
+  // heading text instead of relying on a specific HTML shape.
+  const sections = Array.from(html.matchAll(/<h2\b[^>]*>([\s\S]*?)<\/h2>/gi)).map((match, index, all) => ({
+    text: stripHtml(match[1] || "").trim().toLocaleLowerCase("hu-HU"),
+    start: (match.index || 0) + match[0].length,
+    end: index + 1 < all.length ? all[index + 1].index || html.length : html.length,
+  }));
+  const sectionItems = (heading: string) => {
+    const section = sections.find(({ text }) => text.includes(heading));
+    if (!section) return [];
+    const fragment = html.slice(section.start, section.end);
+    const items = listItems(fragment);
+    if (items.length > 0) return items;
+    return Array.from(fragment.matchAll(/<p\b[^>]*>([\s\S]*?)<\/p>/gi))
+      .map((match) => stripHtml(match[1] || ""))
+      .filter(Boolean);
+  };
+  return {
+    ingredients: sectionItems("hozzávalók"),
+    instructions: sectionItems("elkészítés"),
+  };
+}
+
+function recipeTotalTime(slug?: string | null) {
+  return ({
+    "15-perc-alatt": "PT15M",
+    "30-perc-alatt": "PT30M",
+    "45-perc-alatt": "PT45M",
+    "1-ora-alatt": "PT1H",
+    "1-5-ora-alatt": "PT1H30M",
+  } as Record<string, string>)[String(slug || "")];
+}
+
 function IconArrowLeft() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -247,11 +286,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     };
   }
 
-  const siteName = "Sokaigelek";
+  const siteName = SITE_NAME;
   const title = article.title ? `${article.title} | ${siteName}` : siteName;
   const description = buildDescription(article);
 
-  const siteUrl = getSiteUrl("http://localhost:3000");
+  const siteUrl = getSiteUrl();
   const metadataBase = new URL(siteUrl);
   const canonicalPath = `/cikkek/${slug}`;
   const canonical = new URL(canonicalPath, metadataBase).toString();
@@ -384,20 +423,25 @@ export default async function ArticlePageRoute({ params }: Props) {
   const articleJsonLd = {
     "@context": "https://schema.org",
     "@type": "Article",
+    "@id": `${shareUrl}#article`,
+    url: shareUrl,
     headline: String(article.title || "").trim(),
     description: buildDescription(article),
     inLanguage: "hu-HU",
     datePublished: publishedIso,
     dateModified: modifiedIso,
-    mainEntityOfPage: shareUrl,
+    mainEntityOfPage: { "@type": "WebPage", "@id": shareUrl },
+    articleSection: categoryLabel || "Jóllét Kalauz",
+    ...(recipeTags.length ? { keywords: recipeTags.join(", ") } : {}),
     image: coverUrl ? [coverUrl] : undefined,
     author: {
       "@type": "Organization",
-      name: "Sokáig élek",
+      name: SITE_NAME,
+      url: siteUrl,
     },
     publisher: {
       "@type": "Organization",
-      name: "Sokáig élek",
+      name: SITE_NAME,
       logo: {
         "@type": "ImageObject",
         url: `${siteUrl.replace(/\/$/, "")}/logo.png`,
@@ -405,30 +449,31 @@ export default async function ArticlePageRoute({ params }: Props) {
     },
   };
 
-  const breadcrumbJsonLd = {
-    "@context": "https://schema.org",
-    "@type": "BreadcrumbList",
-    itemListElement: [
-      {
-        "@type": "ListItem",
-        position: 1,
-        name: "Főoldal",
-        item: `${siteUrl.replace(/\/$/, "")}/`,
-      },
-      {
-        "@type": "ListItem",
-        position: 2,
-        name: "Jóllét Kalauz",
-        item: `${siteUrl.replace(/\/$/, "")}/cikkek`,
-      },
-      {
-        "@type": "ListItem",
-        position: 3,
+  const breadcrumbJsonLd = buildBreadcrumbJsonLd([
+    { name: "Főoldal", url: "/" },
+    { name: "Jóllét Kalauz", url: "/cikkek" },
+    { name: String(article.title || "").trim(), url: shareUrl },
+  ]);
+  const recipeParts = isRecipe ? extractRecipeParts(contentHtml) : { ingredients: [], instructions: [] };
+  const recipeJsonLd = isRecipe && coverUrl && recipeParts.ingredients.length > 0 && recipeParts.instructions.length > 0
+    ? {
+        "@context": "https://schema.org",
+        "@type": "Recipe",
         name: String(article.title || "").trim(),
-        item: shareUrl,
-      },
-    ],
-  };
+        description: buildDescription(article),
+        image: [coverUrl],
+        author: { "@type": "Organization", name: SITE_NAME, url: siteUrl },
+        datePublished: publishedIso,
+        dateModified: modifiedIso,
+        inLanguage: "hu-HU",
+        recipeCategory: recipeMealLabels.length ? recipeMealLabels.join(", ") : undefined,
+        keywords: recipeTags.length ? recipeTags.join(", ") : undefined,
+        totalTime: recipeTotalTime((article as any).recipe_time),
+        recipeIngredient: recipeParts.ingredients,
+        recipeInstructions: recipeParts.instructions.map((text) => ({ "@type": "HowToStep", text })),
+        mainEntityOfPage: { "@type": "WebPage", "@id": shareUrl },
+      }
+    : null;
 
   return (
     <main className="container page">
@@ -443,6 +488,9 @@ export default async function ArticlePageRoute({ params }: Props) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: jsonLd(breadcrumbJsonLd) }}
       />
+      {recipeJsonLd ? (
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(recipeJsonLd) }} />
+      ) : null}
       <style
         dangerouslySetInnerHTML={{
           __html: `

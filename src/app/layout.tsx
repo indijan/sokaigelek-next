@@ -4,13 +4,14 @@ import type React from "react";
 
 import RootShell from "@/components/RootShell";
 import { getSiteUrl } from "@/lib/siteUrl";
-import { absoluteUrl, jsonLd } from "@/lib/seo";
+import { absoluteUrl, jsonLd, SITE_NAME, SITE_SOCIALS } from "@/lib/seo";
 
 export const metadata: Metadata = {
   title: "Sokáig élek",
   description: "Egészség, tudatosság, természetes megoldások – Sokáig élek.",
   metadataBase: new URL(getSiteUrl()),
   alternates: { canonical: "/" },
+  robots: { index: true, follow: true },
   openGraph: {
     type: "website",
     title: "Sokáig élek",
@@ -35,19 +36,22 @@ export default function RootLayout({
   const organizationJsonLd = {
     "@context": "https://schema.org",
     "@type": "Organization",
-    name: "Sokáig élek",
+    "@id": `${siteUrl}/#organization`,
+    name: SITE_NAME,
     url: siteUrl,
     logo: absoluteUrl("/logo.png"),
+    sameAs: SITE_SOCIALS,
   };
   const websiteJsonLd = {
     "@context": "https://schema.org",
     "@type": "WebSite",
-    name: "Sokáig élek",
+    "@id": `${siteUrl}/#website`,
+    name: SITE_NAME,
     url: siteUrl,
     inLanguage: "hu-HU",
     publisher: {
       "@type": "Organization",
-      name: "Sokáig élek",
+      name: SITE_NAME,
       logo: {
         "@type": "ImageObject",
         url: absoluteUrl("/logo.png"),

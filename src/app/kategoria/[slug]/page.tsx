@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { supabaseServer } from "@/lib/supabaseServer";
 import { cdnImageUrl } from "@/lib/cdn";
+import { buildBreadcrumbJsonLd, buildItemListJsonLd, jsonLd } from "@/lib/seo";
 
 export const revalidate = 900;
 export const fetchCache = "default-cache";
@@ -86,9 +87,25 @@ export default async function CategoryLandingPage({ params }: Props) {
   const category = categoryRes.data;
   const articles = articlesRes.data || [];
   const name = String(category.name || slug).trim();
+  const collectionSchema = buildItemListJsonLd(
+    `${name} cikkek`,
+    `/kategoria/${slug}`,
+    articles.map((article: CategoryArticleCard) => ({
+      name: article.title,
+      url: `/cikkek/${article.slug}`,
+      image: article.cover_image_url ? cdnImageUrl(String(article.cover_image_url)) : null,
+    })),
+  );
+  const breadcrumbSchema = buildBreadcrumbJsonLd([
+    { name: "Főoldal", url: "/" },
+    { name: "Kategóriák", url: "/kategorak" },
+    { name, url: `/kategoria/${slug}` },
+  ]);
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-10">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(collectionSchema) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(breadcrumbSchema) }} />
       <nav className="mb-4 text-sm text-gray-500">
         <Link href="/" className="hover:text-gray-800">Főoldal</Link>
         {" / "}

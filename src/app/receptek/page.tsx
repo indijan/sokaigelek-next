@@ -10,6 +10,7 @@ import {
   recipeLabel,
 } from "@/lib/recipeTaxonomy";
 import { supabaseServer } from "@/lib/supabaseServer";
+import { buildBreadcrumbJsonLd, buildItemListJsonLd, jsonLd } from "@/lib/seo";
 
 export const revalidate = 900;
 export const fetchCache = "default-cache";
@@ -118,12 +119,19 @@ const getRecipes = unstable_cache(
 export async function generateMetadata({ searchParams }: { searchParams?: SearchParamsInput }): Promise<Metadata> {
   const sp = searchParams ? await Promise.resolve(searchParams) : undefined;
   const activeCat = normalizeSingleParam(sp?.cat);
+  const activeMeal = normalizeSingleParam(sp?.meal);
+  const activeTime = normalizeSingleParam(sp?.time);
+  const activeDiet = normalizeSingleParam(sp?.diet);
+  const activeTag = normalizeSingleParam(sp?.tag);
+  const requestedPage = Number.parseInt(String(normalizeSingleParam(sp?.page) ?? "1"), 10) || 1;
+  const isCanonicalListing = requestedPage === 1 && !activeMeal && !activeTime && !activeDiet && !activeTag;
   const label = recipeLabel(RECIPE_CATEGORIES, activeCat);
 
   return {
     title: label ? `${label} | Receptek | Sokáig élek` : "Receptek | Sokáig élek",
     description: "Egészségtudatos receptek vérnyomásra, koleszterinre, inzulinrezisztenciára, rostbevitelre és napi energiaszintre szűrhetően.",
     alternates: { canonical: buildHref({ cat: activeCat }) },
+    robots: { index: isCanonicalListing, follow: true },
     openGraph: {
       title: label ? `${label} | Receptek` : "Receptek",
       description: "Szűrhető receptgyűjtemény egészségtudatos célokhoz.",
@@ -155,6 +163,7 @@ export default async function RecipesPage({ searchParams }: { searchParams?: Sea
 
   const commonParams = { cat: activeCat, meal: activeMeal, time: activeTime, diet: activeDiet, tag: activeTag };
   const activeFilterCount = [activeCat, activeMeal, activeTime, activeDiet, activeTag].filter(Boolean).length;
+  const activeCatLabel = recipeLabel(RECIPE_CATEGORIES, activeCat);
 
   const recipeTags = await getRecipeTags();
 
@@ -167,8 +176,26 @@ export default async function RecipesPage({ searchParams }: { searchParams?: Sea
     );
   }
 
+  const listingUrl = activeFilterCount === 1 && activeCat ? buildHref({ cat: activeCat }) : "/receptek";
+  const listingSchema = buildItemListJsonLd(
+    activeCatLabel || "Receptek",
+    listingUrl,
+    recipes.map((recipe) => ({
+      name: recipe.title,
+      url: `/cikkek/${recipe.slug}`,
+      image: recipe.cover_image_url ? cdnImageUrl(recipe.cover_image_url) : null,
+    })),
+  );
+  const breadcrumbSchema = buildBreadcrumbJsonLd([
+    { name: "Főoldal", url: "/" },
+    { name: "Receptek", url: "/receptek" },
+    ...(activeCat ? [{ name: activeCatLabel || activeCat, url: listingUrl }] : []),
+  ]);
+
   return (
     <main className="mx-auto max-w-6xl px-4 py-10">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(listingSchema) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(breadcrumbSchema) }} />
       <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <div>
           <h1 className="text-3xl font-extrabold tracking-tight">Receptek</h1>
