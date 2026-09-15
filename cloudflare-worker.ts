@@ -66,6 +66,9 @@ export default {
     if (time.hour === "03" && time.minute === "00") {
       paths.push("/api/cron/cleanup-chat-sessions");
     }
+    if (time.hour === "04" && time.minute === "10") {
+      paths.push("/api/cron/search-console-audit");
+    }
     if (time.minute === "00") {
       paths.push("/api/cron/brevo-sync-subscribers");
       if (["Tue", "Wed", "Thu"].includes(time.weekday) && time.hour === "14") {

@@ -16,6 +16,22 @@ bun dev
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
+## Google Search Console audit
+
+The Cloudflare Worker runs the Search Console audit once per day at 04:10 Europe/Budapest time. Run `supabase/search_console_audit.sql`, then configure these runtime variables/secrets:
+
+```text
+GSC_AUDIT_ENABLED=1
+GSC_AI_ENABLED=1
+GSC_SITE_URL=https://www.sokaigelek.hu/
+GSC_CLIENT_ID=...
+GSC_CLIENT_SECRET=...
+GSC_REFRESH_TOKEN=...
+GSC_AI_MODEL=...
+```
+
+The Google Cloud project must have Search Console API enabled. The OAuth user must have access to the exact Search Console property in `GSC_SITE_URL`; the read-only scope is sufficient for this audit. The default behavior creates audit findings and AI recommendations only. It does not change published content, redirects, canonical URLs, schema, or deploys automatically.
+
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.

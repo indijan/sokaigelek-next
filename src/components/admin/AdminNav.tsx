@@ -4,6 +4,7 @@ const items = [
     { href: "/admin/articles", label: "Cikkek" },
     { href: "/admin/products", label: "Termékek" },
     { href: "/admin/categories", label: "Kategóriák" },
+    { href: "/admin/search-console", label: "Search Console audit" },
     { href: "/admin/labor-uploads", label: "Labor feltöltések" },
 ];
 

@@ -144,17 +144,26 @@ export default async function AdminArticlesPage({
                         const slug = `uj-cikk-${Date.now()}`;
 
                         // csak minimál mezők -> akkor is működik, ha még nem minden oszlop létezik / van NOT NULL
-                        const { error } = await supabaseServer.from("articles").insert({
-                            slug,
-                            title: "Új cikk",
-                        });
+                        const { data: insertedArticle, error } = await supabaseServer
+                            .from("articles")
+                            .insert({
+                                slug,
+                                title: "Új cikk",
+                                status: "draft",
+                            })
+                            .select("id, slug")
+                            .single();
 
                         if (error) {
                             // ideiglenesen dobd vissza a hibaüzenetet az URL-be
                             redirect(`/admin/articles?err=${encodeURIComponent(error.message)}`);
                         }
 
-                        redirect(`/admin/articles/${slug}`);
+                        if (!insertedArticle?.slug) {
+                            redirect(`/admin/articles?err=${encodeURIComponent("A cikk létrejött, de nem kaptam vissza a rekordot. Frissítsd az oldalt, majd próbáld újra.")}`);
+                        }
+
+                        redirect(`/admin/articles/${encodeURIComponent(insertedArticle.slug)}`);
                     }}
                 >
                     <button className="bg-black text-white rounded-xl px-4 py-2 text-sm">
