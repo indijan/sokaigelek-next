@@ -716,7 +716,7 @@ export default async function AdminArticleEditPage({ params, searchParams }: Pro
                     // published_at logika
                     const published_at = resolvePublishedAt(status, article.published_at);
 
-                    const { error: saveErr } = await supabaseServer
+                    const { data: savedArticle, error: saveErr } = await supabaseServer
                         .from("articles")
                         .update({
                             slug: nextSlug,
@@ -736,20 +736,28 @@ export default async function AdminArticleEditPage({ params, searchParams }: Pro
                             recipe_featured_diet: is_recipe && recipe_diets.includes(recipe_featured_diet || "") ? recipe_featured_diet : null,
                             recipe_tags: is_recipe ? recipe_tags : [],
                         })
-                        .eq("id", id);
-                    if (saveErr) {
-                        redirect(`/admin/articles/${slug}?err=${encodeURIComponent(saveErr.message)}`);
+                        .eq("id", id)
+                        .select("id, slug")
+                        .maybeSingle();
+                    if (saveErr || !savedArticle) {
+                        const message = saveErr?.message || "A cikk mentése nem módosított egyetlen rekordot sem.";
+                        redirect(`/admin/articles/${slug}?err=${encodeURIComponent(message)}`);
                     }
 
                     if (!wasPublished && status === "published") {
-                        await postArticleToSocial({
-                            slug: nextSlug,
-                            title,
-                            excerpt,
-                        });
+                        try {
+                            await postArticleToSocial({
+                                slug: savedArticle.slug,
+                                title,
+                                excerpt,
+                            });
+                        } catch (socialErr) {
+                            // A mentés sikerét ne akadályozza egy külső social API hibája.
+                            console.error("article_social_post_after_save_failed", socialErr);
+                        }
                     }
 
-                    redirect(`/admin/articles/${nextSlug}`);
+                    redirect(`/admin/articles/${savedArticle.slug}`);
                 }}
             >
                 <input type="hidden" name="id" defaultValue={article.id} />
