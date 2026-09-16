@@ -46,24 +46,31 @@ function extractIndexedUrls(rows: SearchAnalyticsRow[]): string[] {
 async function createAiSummary(input: unknown): Promise<string | null> {
   const apiKey = process.env.OPENAI_API_KEY || "";
   if (!apiKey || process.env.GSC_AI_ENABLED === "0") return null;
-  const response = await fetch("https://api.openai.com/v1/chat/completions", {
+  const response = await fetch("https://api.openai.com/v1/responses", {
     method: "POST",
     headers: { authorization: `Bearer ${apiKey}`, "content-type": "application/json" },
     body: JSON.stringify({
       model: process.env.GSC_AI_MODEL || process.env.OPENAI_MODEL || "gpt-5-mini",
-      temperature: 0.1,
-      messages: [
+      input: [
         {
           role: "system",
-          content: "Magyar SEO auditor vagy. A kapott Search Console adatokat röviden értékeld. Ne találj ki adatot, és ne javasolj orvosi állítást. Különítsd el a biztos hibát a lehetőségtől. Adj legfeljebb 5, konkrét, alacsony kockázatú következő lépést. Publikált tartalom, canonical, redirect vagy schema automatikus módosítását ne kérd közvetlenül; csak javasold jóváhagyásra.",
+          content: [{
+            type: "input_text",
+            text: "Magyar SEO auditor vagy. A kapott Search Console adatokat röviden értékeld. Ne találj ki adatot, és ne javasolj orvosi állítást. Különítsd el a biztos hibát a lehetőségtől. Adj legfeljebb 5, konkrét, alacsony kockázatú következő lépést. Publikált tartalom, canonical, redirect vagy schema automatikus módosítását ne kérd közvetlenül; csak javasold jóváhagyásra.",
+          }],
         },
-        { role: "user", content: JSON.stringify(input).slice(0, 18000) },
+        {
+          role: "user",
+          content: [{ type: "input_text", text: JSON.stringify(input).slice(0, 18000) }],
+        },
       ],
     }),
   });
   const payload = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(`OpenAI audit failed (${response.status})`);
-  return String(payload.choices?.[0]?.message?.content || "").trim() || null;
+  if (!response.ok) {
+    throw new Error(`OpenAI audit failed (${response.status}): ${String(payload?.error?.message || "unknown error").slice(0, 240)}`);
+  }
+  return String(payload.output_text || "").trim() || null;
 }
 
 export async function GET(req: Request) {
@@ -118,9 +125,16 @@ export async function GET(req: Request) {
         };
         const result = inspection?.inspectionResult || {};
         const index = result.indexStatusResult || {};
-        const failed = [index.verdict, index.robotsTxtState, index.pageFetchState].some((value) =>
-          value && !["PASS", "ALLOWED", "SUCCESS"].includes(String(value))
-        );
+        const checks = [
+          ["verdict", index.verdict, ["PASS"]],
+          ["robotsTxtState", index.robotsTxtState, ["ALLOWED"]],
+          ["pageFetchState", index.pageFetchState, ["SUCCESSFUL"]],
+          ["indexingState", index.indexingState, ["INDEXING_ALLOWED"]],
+        ] as const;
+        const failedChecks = checks
+          .filter(([, value, allowed]) => value && !allowed.some((candidate) => candidate === String(value)))
+          .map(([name, value]) => ({ name, value: String(value) }));
+        const failed = failedChecks.length > 0;
         if (failed) {
           findings.push({
             run_id: runId,
@@ -128,7 +142,12 @@ export async function GET(req: Request) {
             severity: "warning",
             url,
             title: "URL Inspection eltérést jelzett",
-            details: { indexStatusResult: index, inspectionResultLink: result.inspectionResultLink },
+            details: {
+              failedChecks,
+              coverageState: index.coverageState,
+              googleCanonical: index.googleCanonical,
+              inspectionResultLink: result.inspectionResultLink,
+            },
           });
         }
       } catch (error) {
@@ -158,11 +177,18 @@ export async function GET(req: Request) {
       inspectedUrls: candidateUrls.length,
       sitemap,
     };
-    const aiSummary = await createAiSummary({ summary, findings: findings.slice(0, 50) });
+    let aiSummary: string | null = null;
+    let aiError: string | null = null;
+    try {
+      aiSummary = await createAiSummary({ summary, findings: findings.slice(0, 50) });
+    } catch (error) {
+      aiError = error instanceof Error ? error.message : "ai_summary_failed";
+      console.error("search_console_ai_summary_failed", aiError);
+    }
     await supabaseServer.from("search_console_audit_runs").update({
       status: "completed",
       finished_at: new Date().toISOString(),
-      summary,
+      summary: aiError ? { ...summary, aiError } : summary,
       ai_summary: aiSummary,
     }).eq("id", runId);
 

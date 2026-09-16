@@ -53,6 +53,36 @@ const nextConfig: NextConfig = {
         destination: "/cikkek/miert-gorcsol-a-labad-este",
         permanent: true,
       },
+      {
+        source: "/termekcimke/:slug*",
+        destination: "/termek",
+        permanent: true,
+      },
+      {
+        source: "/osszetevo/:slug*",
+        destination: "/termek",
+        permanent: true,
+      },
+      {
+        source: "/panaszok/:slug*",
+        destination: "/cikkek",
+        permanent: true,
+      },
+      {
+        source: "/optimalis-megoldas/:path*",
+        destination: "/cikkek",
+        permanent: true,
+      },
+      {
+        source: "/category/:path*",
+        destination: "/cikkek",
+        permanent: true,
+      },
+      {
+        source: "/jolet-felelos",
+        destination: "/cikkek",
+        permanent: true,
+      },
     ];
   },
 };

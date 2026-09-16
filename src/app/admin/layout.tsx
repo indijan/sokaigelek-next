@@ -28,7 +28,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
 
   return (
     <div
-      className="admin-shell min-h-screen bg-slate-50 text-slate-900"
+      className="admin-shell min-h-screen overflow-x-hidden bg-slate-50 text-slate-900"
     >
       <div
         className="max-w-[1200px] mx-auto px-4 pb-10 pt-4"
@@ -84,7 +84,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
 
         {/* Shell */}
         <div
-          className="grid grid-cols-1 md:grid-cols-[260px_1fr] gap-4 mt-4"
+          className="grid min-w-0 grid-cols-1 gap-4 mt-4 md:grid-cols-[260px_minmax(0,1fr)]"
         >
           {/* Sidebar */}
           <aside
@@ -114,7 +114,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
 
           {/* Content */}
           <main
-            className="rounded-2xl border border-slate-900/10 bg-white p-4 min-h-[520px]"
+            className="min-w-0 overflow-hidden rounded-2xl border border-slate-900/10 bg-white p-4 min-h-[520px]"
           >
             {children}
           </main>

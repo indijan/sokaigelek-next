@@ -27,6 +27,7 @@ export default async function SearchConsoleAdminPage() {
   ]);
 
   const latest = runs?.[0];
+  const visibleFindings = (findings || []).filter(isRealFinding);
   const latestSummary = latest?.summary && typeof latest.summary === "object"
     ? latest.summary as Record<string, unknown>
     : {};
@@ -35,7 +36,7 @@ export default async function SearchConsoleAdminPage() {
     : {};
 
   return (
-    <div className="grid gap-6">
+    <div className="grid min-w-0 gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold">Google Search Console audit</h1>
@@ -50,8 +51,8 @@ export default async function SearchConsoleAdminPage() {
         </div>
       ) : (
         <>
-          <div className="grid gap-3 sm:grid-cols-4">
-            <Metric label="Legutóbbi állapot" value={String(latest.status)} />
+          <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+            <Metric label="Legutóbbi állapot" value={statusLabel(latest.status)} />
             <Metric label="Vizsgált URL-ek" value={String(latestSummary.inspectedUrls || 0)} />
             <Metric label="Megállapítások" value={String(latestSummary.findings || 0)} />
             <Metric label="Kattintások" value={String(pageTotals.clicks || 0)} />
@@ -64,19 +65,33 @@ export default async function SearchConsoleAdminPage() {
             </section>
           ) : null}
 
+          {getString(latestSummary, "aiError") ? (
+            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
+              Az URL-ellenőrzés lefutott, de az AI-szöveges összefoglaló most nem készült el. Ez nem befolyásolja a Search Console eredményeit.
+            </div>
+          ) : null}
+
           <section>
             <h2 className="mb-3 text-lg font-bold">Nyitott megállapítások</h2>
             <div className="grid gap-3">
-              {findings?.length ? findings.map((finding) => (
-                <article key={finding.id} className="rounded-2xl border p-4">
+              {visibleFindings.length ? visibleFindings.map((finding) => (
+                <article key={finding.id} className="min-w-0 overflow-hidden rounded-2xl border p-4">
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <strong>{finding.title}</strong>
-                    <span className="text-xs font-bold uppercase text-slate-500">{finding.severity}</span>
+                    <strong>{findingTitle(finding)}</strong>
+                    <span className="rounded-full bg-amber-100 px-2 py-1 text-xs font-bold text-amber-900">{severityLabel(finding.severity)}</span>
                   </div>
                   {finding.url ? <a className="mt-2 block break-all text-sm underline" href={finding.url}>{finding.url}</a> : null}
-                  <pre className="mt-3 overflow-auto rounded-xl bg-slate-50 p-3 text-xs">{JSON.stringify(finding.details, null, 2)}</pre>
+                  <div className="mt-3 rounded-xl bg-slate-50 p-3 text-sm leading-6 text-slate-700">
+                    <p>{findingDescription(finding)}</p>
+                    {inspectionLink(finding.details) ? (
+                      <a className="mt-2 inline-block font-semibold underline" href={inspectionLink(finding.details) || undefined} target="_blank" rel="noreferrer">
+                        Részletek megnyitása a Search Console-ban
+                      </a>
+                    ) : null}
+                    {finding.ai_recommendation ? <p className="mt-3 border-t border-slate-200 pt-3"><strong>Javaslat:</strong> {finding.ai_recommendation}</p> : null}
+                  </div>
                 </article>
-              )) : <p className="rounded-2xl border p-4 text-sm text-slate-600">Nincs nyitott megállapítás.</p>}
+              )) : <p className="rounded-2xl border p-4 text-sm text-slate-600">Nincs valódi, javítandó megállapítás. A sikeres URL-ellenőrzéseket nem jelöljük hibának.</p>}
             </div>
           </section>
         </>
@@ -88,8 +103,8 @@ export default async function SearchConsoleAdminPage() {
           {(runs || []).map((run) => (
             <div key={run.id} className="flex flex-wrap justify-between gap-2 rounded-xl border p-3 text-sm">
               <span>{new Date(run.started_at).toLocaleString("hu-HU")}</span>
-              <span className="font-bold">{run.status}</span>
-              <span>{run.error || `${getNumber(run.summary, "findings")} megállapítás`}</span>
+              <span className={run.status === "completed" ? "font-bold text-emerald-700" : "font-bold text-red-700"}>{statusLabel(run.status)}</span>
+              <span className="max-w-full break-words text-slate-600">{run.error ? humanizeError(run.error) : `${getNumber(run.summary, "findings")} megállapítás`}</span>
             </div>
           ))}
         </div>
@@ -102,6 +117,76 @@ function getNumber(value: unknown, key: string): number {
   if (!value || typeof value !== "object") return 0;
   const result = (value as Record<string, unknown>)[key];
   return typeof result === "number" ? result : Number(result || 0);
+}
+
+function getRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
+}
+
+function getString(value: unknown, key: string): string | null {
+  const result = getRecord(value)[key];
+  return typeof result === "string" ? result : null;
+}
+
+function statusLabel(status: string): string {
+  return status === "completed" ? "Rendben" : status === "failed" ? "Sikertelen" : "Folyamatban";
+}
+
+function severityLabel(severity: string): string {
+  return severity === "error" ? "Hiba" : severity === "warning" ? "Ellenőrizendő" : "Tájékoztató";
+}
+
+function findingTitle(finding: { finding_type: string; title: string }): string {
+  if (finding.finding_type === "url_inspection_error") return "URL-ellenőrzés sikertelen";
+  return finding.title === "URL Inspection eltérést jelzett" ? "Indexelési probléma" : finding.title;
+}
+
+function isRealFinding(finding: { finding_type: string; details: unknown }): boolean {
+  if (finding.finding_type !== "url_inspection") return true;
+  const details = getRecord(finding.details);
+  if (Array.isArray(details.failedChecks)) return details.failedChecks.length > 0;
+
+  // Hide legacy records created by the old, overly broad PASS detection.
+  const legacy = getRecord(details.indexStatusResult);
+  return [
+    ["verdict", legacy.verdict, "PASS"],
+    ["robotsTxtState", legacy.robotsTxtState, "ALLOWED"],
+    ["pageFetchState", legacy.pageFetchState, "SUCCESSFUL"],
+    ["indexingState", legacy.indexingState, "INDEXING_ALLOWED"],
+  ].some(([, value, allowed]) => value && value !== allowed);
+}
+
+function findingDescription(finding: { finding_type: string; details: unknown }): string {
+  const details = getRecord(finding.details);
+  if (finding.finding_type === "url_inspection_error") {
+    return "A Google URL-ellenőrzés technikai hiba miatt nem futott le. Ez nem bizonyítja, hogy az oldal hibás; a következő napi futás újrapróbálja.";
+  }
+  const failedChecks = Array.isArray(details.failedChecks) ? details.failedChecks : [];
+  const labels = failedChecks.map((check) => {
+    const name = getRecord(check).name;
+    return checkLabel(typeof name === "string" ? name : "ismeretlen ellenőrzés");
+  });
+  return labels.length
+    ? `A Google ezt jelezte: ${labels.join(", ")}.`
+    : "Az URL ellenőrzése rendben lefutott.";
+}
+
+function checkLabel(name: string): string {
+  return {
+    verdict: "indexelési állapot",
+    robotsTxtState: "robots.txt szabály",
+    pageFetchState: "oldal lekérése",
+    indexingState: "indexelhetőség",
+  }[name] || name;
+}
+
+function inspectionLink(details: unknown): string | null {
+  return getString(details, "inspectionResultLink");
+}
+
+function humanizeError(error: string): string {
+  if (error.includes("OpenAI audit failed") || error.includes("openai")) return "Az AI-összefoglaló nem készült el, de az ellenőrzés folytatható.";
+  return error;
 }
 
 function Metric({ label, value }: { label: string; value: string }) {
