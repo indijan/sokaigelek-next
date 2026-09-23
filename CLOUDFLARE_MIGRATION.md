@@ -4,7 +4,7 @@
 
 - Az OpenNext adapter a `next build` kimenetét Cloudflare Worker formátumra alakítja.
 - A `cloudflare-worker.ts` megtartja a Next fetch kezelőt, és a jelenlegi Vercel cronokat Cloudflare scheduled eventként futtatja.
-- A `vercel.json` szándékosan megmaradt, amíg a DNS nincs átállítva.
+- A Vercel cron-konfiguráció eltávolítva; az ütemezett futásokat a Cloudflare Worker kezeli.
 - A Cloudflare Workerben ne állítsd be a Vercel Blob tokeneket. Token nélkül a feltöltési útvonalak a meglévő Supabase Storage fallbacket használják.
 
 ## Cloudflare oldali beállítás
