@@ -61,6 +61,22 @@ function rewriteImageSrcInHtml(html: string): string {
   });
 }
 
+function addMissingImageAltInHtml(html: string, fallbackAlt: string): string {
+  if (!html) return html;
+  const safeAlt = escapeHtml(String(fallbackAlt || "Kép").trim() || "Kép");
+
+  return html.replace(/<img\b[^>]*>/gi, (tag) => {
+    const altMatch = tag.match(/\balt\s*=\s*(?:(["'])(.*?)\1|([^\s>]+))/i);
+    if (altMatch) {
+      const currentAlt = String(altMatch[2] ?? altMatch[3] ?? "").trim();
+      if (currentAlt) return tag;
+      return tag.replace(altMatch[0], `alt="${safeAlt}"`);
+    }
+
+    return tag.replace(/\s*\/?>(\s*)$/, ` alt="${safeAlt}" />$1`);
+  });
+}
+
 function extractProductSlugsFromHtml(html: string): string[] {
   const slugs = new Set<string>();
   const re = /<!--\s*PRODUCT:([\w-]+)\s*-->/g;
@@ -383,7 +399,10 @@ export default async function ArticlePageRoute({ params }: Props) {
   }
 
   const contentWithEmbeds = injectProductEmbedsIntoHtml(contentHtml, inlineProductsMap);
-  const contentWithImages = rewriteImageSrcInHtml(contentWithEmbeds);
+  const contentWithImages = addMissingImageAltInHtml(
+    rewriteImageSrcInHtml(contentWithEmbeds),
+    String((article as any).title || "Kép"),
+  );
 
   const coverRaw = (article as any).cover_image_url || (article as any).image_url || null;
   const coverUrl = coverRaw ? absoluteUrl(cdnImageUrl(String(coverRaw))) : null;
